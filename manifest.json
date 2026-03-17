@@ -1,0 +1,16 @@
+{
+  "name": "Mercier Design - Gestão Elite",
+  "short_name": "MercierGestão",
+  "description": "Sistema de Gestão de Pedidos Mercier Design",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1162/1162456.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
