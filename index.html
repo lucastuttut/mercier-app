@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mercier Design - Gestão Cloud Elite v45.0</title>
+    <title>Mercier Design - Gestão Cloud Elite v46.0</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
@@ -57,7 +57,6 @@
         <button onclick="switchTab('melhorias')" id="tab-melhorias" class="py-4 text-xs font-black uppercase whitespace-nowrap">💡 Sugestões</button>
     </nav>
 
-    <!-- ABA PEDIDOS -->
     <main id="view-pedidos" class="max-w-[1950px] mx-auto p-4 md:p-6">
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
             <div class="card-premium p-4 flex flex-col justify-center bg-slate-50 border-2 border-dashed border-slate-300">
@@ -77,6 +76,7 @@
                     <input list="listaSugestaoProdutos" id="m_produto" placeholder="PRODUTO" class="border-2 p-1.5 rounded-lg text-xs font-bold flex-1">
                     <input type="text" id="m_medida" placeholder="MEDIDA" class="border-2 p-1.5 rounded-lg text-xs font-bold w-24">
                     <input type="text" id="m_cor" placeholder="COR/TECIDO" class="border-2 p-1.5 rounded-lg text-xs font-bold w-32">
+                    <input type="number" id="m_custo" placeholder="R$ CUSTO" class="border-2 p-1.5 rounded-lg text-xs font-bold w-24">
                     <button onclick="adicionarItemAoCesto()" class="bg-slate-800 text-white px-6 rounded-lg text-[10px] font-black hover:bg-black transition">＋ ITEM</button>
                 </div>
                 <div id="cesto-itens" class="text-[11px] font-bold text-blue-600 mb-3 italic px-2"></div>
@@ -86,10 +86,14 @@
 
         <div class="card-premium overflow-hidden">
             <div class="p-4 bg-white border-b flex flex-col md:flex-row justify-between items-center gap-4">
-                <div class="flex items-center gap-3">
-                    <input type="text" id="busca" onkeyup="renderPedidos()" placeholder="🔍 BUSCAR CLIENTE, MÓVEL OU FÁBRICA..." class="border-2 border-slate-100 px-5 py-2.5 rounded-2xl text-xs w-full md:w-96 font-bold outline-blue-500">
+                <div class="flex items-center gap-3 w-full md:w-auto">
+                    <div class="relative flex-1 md:flex-none">
+                        <input type="text" id="busca" onkeyup="renderPedidos()" placeholder="🔍 BUSCAR CLIENTE, MÓVEL OU FÁBRICA..." class="border-2 border-slate-100 px-5 py-2.5 rounded-2xl text-xs w-full md:w-96 font-bold outline-blue-500">
+                        <button onclick="limparBusca()" class="absolute right-4 top-2.5 text-slate-400 font-bold">✕</button>
+                    </div>
                     <button id="btnFiltroNaoEnviado" onclick="toggleFiltroNaoEnviado()" class="border-2 border-red-500 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase text-red-600">Não enviados</button>
                     <button onclick="gerarEmailLote()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase shadow hover:bg-emerald-700">📧 Enviar Selecionados</button>
+                    <span id="total-selecionado" class="text-[10px] font-black text-emerald-700 bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-200 hidden">TOTAL: R$ 0,00</span>
                 </div>
                 <span id="contador" class="text-[10px] font-black bg-slate-900 text-white px-4 py-2 rounded-lg uppercase">0 Pedidos</span>
             </div>
@@ -97,8 +101,8 @@
                 <table class="w-full text-left">
                     <thead>
                         <tr>
-                            <th width="40"><input type="checkbox" onclick="marcarTodos(this.checked)"></th>
-                            <th>Prazo</th><th>ID</th><th>Cliente</th><th>Data</th><th>Qtd</th><th>Móvel</th><th>Medida</th><th>Cor</th><th>Fábrica</th><th>Status</th><th>Whats?</th><th>Conf. Fábrica</th><th class="text-center">Ações</th>
+                            <th width="40"><input type="checkbox" id="checkTodos" onclick="marcarTodos(this.checked)"></th>
+                            <th>Prazo</th><th>ID</th><th>Cliente</th><th>Data</th><th>Qtd</th><th>Móvel</th><th>Medida</th><th>Cor</th><th>Custo</th><th>Fábrica</th><th>Status</th><th>Whats?</th><th>Conf. Fábrica</th><th class="text-center">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="tabelaPedidos"></tbody>
@@ -210,16 +214,47 @@
             if(tab === 'pedidos') renderPedidos();
         }
 
-        // --- PEDIDOS ---
-        function marcarTodos(val) { selecionados = val ? pedidos.map(p => p.uid) : []; renderPedidos(); }
-        function toggleSelecionado(uid) { if(selecionados.includes(uid)) selecionados = selecionados.filter(id => id !== uid); else selecionados.push(uid); }
+        function marcarTodos(val) { 
+            selecionados = val ? pedidos.map(p => p.uid) : []; 
+            calcularTotalSelecionado();
+            renderPedidos(); 
+        }
+        
+        function toggleSelecionado(uid) { 
+            if(selecionados.includes(uid)) selecionados = selecionados.filter(id => id !== uid); 
+            else selecionados.push(uid);
+            calcularTotalSelecionado();
+        }
+
+        function calcularTotalSelecionado() {
+            const totalElement = document.getElementById('total-selecionado');
+            if(selecionados.length === 0) {
+                totalElement.classList.add('hidden');
+                return;
+            }
+            const total = pedidos
+                .filter(p => selecionados.includes(p.uid))
+                .reduce((acc, p) => acc + (parseFloat(p.custo) || 0), 0);
+            
+            totalElement.innerText = `TOTAL: R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            totalElement.classList.remove('hidden');
+        }
+
+        function limparBusca() {
+            document.getElementById('busca').value = "";
+            renderPedidos();
+        }
 
         function editField(uid, field) {
             const p = pedidos.find(x => x.uid == uid);
-            const promptMap = { 'cliente': 'CLIENTE', 'qtd': 'QUANTIDADE', 'produto': 'MÓVEL', 'medida': 'MEDIDA', 'cor': 'COR/TECIDO' };
-            let newVal = prompt(`Editar ${promptMap[field]}:`, p[field]);
-            if (newVal !== null && newVal.trim() !== "") {
-                p[field] = (field === 'qtd') ? parseInt(newVal) : newVal.toUpperCase();
+            const promptMap = { 'cliente': 'CLIENTE', 'qtd': 'QUANTIDADE', 'produto': 'MÓVEL', 'medida': 'MEDIDA', 'cor': 'COR/TECIDO', 'dataPedido': 'DATA (DD/MM/AAAA)', 'custo': 'VALOR DE CUSTO' };
+            let newVal = prompt(`Editar ${promptMap[field]}:`, p[field] || "");
+            if (newVal !== null) {
+                if (field === 'qtd' || field === 'custo') {
+                    p[field] = newVal.trim() === "" ? 0 : parseFloat(newVal.replace(',', '.'));
+                } else {
+                    p[field] = newVal.toUpperCase();
+                }
                 salvarCloud();
             }
         }
@@ -249,9 +284,15 @@
         function adicionarItemAoCesto() {
             const p = document.getElementById('m_produto').value.trim().toUpperCase();
             if(!p) return;
-            cestoItensTemporario.push({ qtd: document.getElementById('m_qtd').value, produto: p, medida: document.getElementById('m_medida').value, cor: document.getElementById('m_cor').value.toUpperCase() });
+            cestoItensTemporario.push({ 
+                qtd: document.getElementById('m_qtd').value, 
+                produto: p, 
+                medida: document.getElementById('m_medida').value, 
+                cor: document.getElementById('m_cor').value.toUpperCase(),
+                custo: document.getElementById('m_custo').value || 0
+            });
             document.getElementById('cesto-itens').innerText = "Cesto: " + cestoItensTemporario.length + " itens";
-            document.getElementById('m_produto').value = ""; document.getElementById('m_medida').value = ""; document.getElementById('m_cor').value = "";
+            document.getElementById('m_produto').value = ""; document.getElementById('m_medida').value = ""; document.getElementById('m_cor').value = ""; document.getElementById('m_custo').value = "";
         }
 
         function cadastrarManual() {
@@ -260,8 +301,12 @@
             if(!cli || cestoItensTemporario.length === 0) return alert("Dados incompletos!");
             const idDoc = "ID#" + proximoID.toString().padStart(4, '0'); proximoID++;
             const data = new Date().toLocaleDateString('pt-BR');
-            cestoItensTemporario.forEach(i => pedidos.unshift({ uid: Date.now() + Math.random(), idDoc, cliente: cli, dataPedido: data, qtd: i.qtd, produto: i.produto, medida: i.medida, cor: i.cor, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false }));
-            cestoItensTemporario = []; document.getElementById('m_cliente').value = ""; document.getElementById('cesto-itens').innerText = ""; salvarCloud();
+            cestoItensTemporario.forEach(i => pedidos.unshift({ uid: Date.now() + Math.random(), idDoc, cliente: cli, dataPedido: data, qtd: i.qtd, produto: i.produto, medida: i.medida, cor: i.cor, custo: i.custo, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false }));
+            cestoItensTemporario = []; 
+            document.getElementById('m_cliente').value = ""; 
+            document.getElementById('cesto-itens').innerText = ""; 
+            // Mantém o fornecedor selecionado no campo conforme pedido
+            salvarCloud();
         }
 
         function renderPedidos() {
@@ -274,17 +319,20 @@
             lista.forEach(p => {
                 const prazo = calcularPrazo(p.dataPedido, p.prazo);
                 let sCls = p.status === "Não enviado" ? "bg-red-600" : (p.status === "Pedido enviado ao fornecedor" ? "bg-blue-600" : "bg-green-700");
+                const custoDisplay = p.custo ? `R$ ${parseFloat(p.custo).toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : "R$ 0,00";
+
                 tbody.innerHTML += `<tr class="${prazo.classe}">
                     <td><input type="checkbox" ${selecionados.includes(p.uid)?'checked':''} onclick="toggleSelecionado(${p.uid})"></td>
                     <td><div class="flex flex-col gap-1"><span class="bg-black text-white text-[9px] px-1 text-center rounded font-black">${prazo.dias}D</span>
                     <select onchange="updPed(${p.uid}, 'prazo', this.value)" class="bg-black text-white text-[9px] rounded"><option value="15" ${p.prazo=='15'?'selected':''}>15C</option><option value="20" ${p.prazo=='20'?'selected':''}>20C</option><option value="30" ${p.prazo=='30'?'selected':''}>30C</option><option value="30-util" ${p.prazo=='30-util'?'selected':''}>30U</option><option value="40-util" ${p.prazo=='40-util'?'selected':''}>40U</option></select></div></td>
                     <td class="text-xs text-slate-500 font-bold">${p.idDoc}</td>
                     <td onclick="editField(${p.uid}, 'cliente')" class="editable-cell uppercase">${p.cliente}</td>
-                    <td class="text-[10px] font-bold">${p.dataPedido}</td>
+                    <td onclick="editField(${p.uid}, 'dataPedido')" class="editable-cell text-[10px] font-bold">${p.dataPedido}</td>
                     <td onclick="editField(${p.uid}, 'qtd')" class="editable-cell text-center font-black">${p.qtd}</td>
                     <td onclick="editField(${p.uid}, 'produto')" class="editable-cell uppercase">${p.produto}</td>
                     <td onclick="editField(${p.uid}, 'medida')" class="editable-cell">${p.medida}</td>
                     <td onclick="editField(${p.uid}, 'cor')" class="editable-cell uppercase">${p.cor}</td>
+                    <td onclick="editField(${p.uid}, 'custo')" class="editable-cell text-[10px]">${custoDisplay}</td>
                     <td class="text-[10px] uppercase font-black text-blue-800">${p.fornecedor}</td>
                     <td><button onclick="cycleStatus(${p.uid})" class="status-badge ${sCls} text-white">${p.status}</button></td>
                     <td><button onclick="togPed(${p.uid}, 'whatsEnviado')" class="status-badge ${p.whatsEnviado?'btn-sim':'btn-nao'} font-black">${p.whatsEnviado?'SIM':'NÃO'}</button></td>
@@ -294,15 +342,30 @@
             });
         }
 
-        // --- AUXILIARES ---
-        function salvarMelhorias() { notasMelhoria = document.getElementById('texto-melhorias').value; salvarCloud(); alert("Sugestões salvas!"); }
+        function salvarMelhorias() {
+            notasMelhoria = document.getElementById('texto-melhorias').value;
+            salvarCloud();
+            // Removido o alert conforme solicitado
+        }
+
         function updPed(uid, c, v) { pedidos.find(p => p.uid == uid)[c] = v; salvarCloud(); }
         function togPed(uid, c) { const p = pedidos.find(x => x.uid == uid); if(p) p[c] = !p[c]; salvarCloud(); }
         function dupPed(uid) { const p = pedidos.find(x => x.uid == uid); const idDoc = "ID#" + proximoID.toString().padStart(4, '0'); proximoID++; pedidos.unshift({...p, uid: Date.now(), idDoc}); salvarCloud(); }
         function excluirPedido(uid) { if(confirm("Excluir?")) { pedidos = pedidos.filter(p => p.uid != uid); salvarCloud(); } }
         function toggleFiltroNaoEnviado() { filtrandoNaoEnviados = !filtrandoNaoEnviados; document.getElementById('btnFiltroNaoEnviado').classList.toggle('bg-red-600'); document.getElementById('btnFiltroNaoEnviado').classList.toggle('text-white'); renderPedidos(); }
         function copiarTexto(uid) { const p = pedidos.find(x => x.uid == uid); const itens = pedidos.filter(i => i.idDoc === p.idDoc); let t = itens.map(i => `${i.qtd}x ${i.produto} (${i.medida}) ${i.cor}`).join("\n"); navigator.clipboard.writeText(t + "\n" + p.idDoc); alert("Copiado!"); }
-        function calcularPrazo(dStr, pRaw) { const pArr = dStr.split("/"); const date = new Date(pArr[2], pArr[1]-1, pArr[0]); let dF; if (pRaw === "30-util") dF = getBusinessDate(date, 30); else if (pRaw === "40-util") dF = getBusinessDate(date, 40); else { dF = new Date(date); dF.setDate(dF.getDate() + parseInt(pRaw || 30)); } const diff = Math.ceil((dF - new Date()) / 86400000); let cls = diff < 0 ? "prazo-vencido" : (diff <= 5 ? "prazo-urgente" : (diff <= 10 ? "prazo-alerta" : (diff <= 20 ? "prazo-atencao" : ""))); return { dias: diff, classe: cls }; }
+        function calcularPrazo(dStr, pRaw) { 
+            if(!dStr) return { dias: 0, classe: "" };
+            const pArr = dStr.split("/"); 
+            const date = new Date(pArr[2], pArr[1]-1, pArr[0]); 
+            let dF; 
+            if (pRaw === "30-util") dF = getBusinessDate(date, 30); 
+            else if (pRaw === "40-util") dF = getBusinessDate(date, 40); 
+            else { dF = new Date(date); dF.setDate(dF.getDate() + parseInt(pRaw || 30)); } 
+            const diff = Math.ceil((dF - new Date()) / 86400000); 
+            let cls = diff < 0 ? "prazo-vencido" : (diff <= 5 ? "prazo-urgente" : (diff <= 10 ? "prazo-alerta" : (diff <= 20 ? "prazo-atencao" : ""))); 
+            return { dias: diff, classe: cls }; 
+        }
         function getBusinessDate(s, d) { let c=0, dF=new Date(s); while(c<d){ dF.setDate(dF.getDate()+1); if(dF.getDay()!==0 && dF.getDay()!==6) c++; } return dF; }
         function cadastrarEstoque() { estoque.unshift({ uid: Date.now(), produto: document.getElementById('e_produto').value.toUpperCase(), cor: document.getElementById('e_cor').value.toUpperCase(), medida: document.getElementById('e_medida').value, fornecedor: document.getElementById('e_fornecedor_select').value, qtd: document.getElementById('e_qtd').value, situacao: document.getElementById('e_situacao').value }); salvarCloud(); document.getElementById('e_produto').value = ""; }
         function renderEstoque() { const tb = document.getElementById('tabelaEstoque'); if(!tb) return; tb.innerHTML = estoque.map(i => { let s = i.situacao==='ESTOQUE'?'sit-estoque':(i.situacao==='VENDIDO'?'sit-vendido':(i.situacao==='DEVOLUÇÃO'?'sit-devolucao':'sit-assistencia')); return `<tr><td class="font-black text-xs uppercase">${i.produto}</td><td>${i.cor}</td><td>${i.medida}</td><td class="font-black text-[10px] uppercase">${i.fornecedor}</td><td class="font-black text-blue-600">${i.qtd}</td><td><span class="px-2 py-1 rounded-full text-[9px] font-black ${s}">${i.situacao || 'ESTOQUE'}</span></td><td class="text-center"><button onclick="estoque=estoque.filter(e=>e.uid!=${i.uid}); salvarCloud();" class="text-red-500 font-bold">✖</button></td></tr>`; }).join(''); }
@@ -318,7 +381,6 @@
             if(document.getElementById('listaSugestaoClientes')) document.getElementById('listaSugestaoClientes').innerHTML = nomesCli.map(n => `<option value="${n}">`).join('');
         }
 
-        // PDF
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
         document.getElementById('pdfInput').addEventListener('change', async function(e) {
             const file = e.target.files[0]; if (!file) return;
@@ -338,7 +400,7 @@
                     if(prod.includes(" - ")){ const s = prod.split(" - "); cor=s[1].trim(); prod=s[0].trim(); }
                     const m = prod.match(/(\d+[\d\.,\s]*[xX]\s*\d+[\d\.,\s]*|\d+[\.,]\d{2})/i);
                     if(m){ med=m[0].trim(); prod=prod.replace(m[0],"").trim(); }
-                    pedidos.unshift({ uid: Date.now() + Math.random(), idDoc, cliente: cliente.toUpperCase(), dataPedido: dataP, qtd: 1, produto: prod.toUpperCase(), medida: med, cor: cor.toUpperCase(), fornecedor: "", prazo: "30", status: "Não enviado", whatsEnviado: false, confirmado: false });
+                    pedidos.unshift({ uid: Date.now() + Math.random(), idDoc, cliente: cliente.toUpperCase(), dataPedido: dataP, qtd: 1, produto: prod.toUpperCase(), medida: med, cor: cor.toUpperCase(), custo: 0, fornecedor: "", prazo: "30", status: "Não enviado", whatsEnviado: false, confirmado: false });
                 });
                 salvarCloud();
             };
