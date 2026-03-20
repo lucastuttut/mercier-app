@@ -3,18 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mercier Design - Gestão Cloud v73.0</title>
+    <title>Mercier Design - Gestão Cloud v74.0</title>
     <link rel="manifest" href="manifest.json">
-    
-    <!-- Tailwind primeiro -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-    
-    <!-- Seu CSS personalizado -->
     <link rel="stylesheet" href="style.css">
     <meta name="theme-color" content="#0f172a">
 </head>
@@ -36,20 +30,35 @@
 
     <!-- ABA PEDIDOS -->
     <main id="view-pedidos" class="max-w-[1950px] mx-auto p-4 md:p-6">
+        
+        <!-- DASHBOARD FINANCEIRO RÁPIDO -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="card-premium p-4 border-b-4 border-red-500 bg-white">
+                <p class="text-[10px] font-black text-slate-400 uppercase">A Enviar (Custo)</p>
+                <h3 id="dash-custo-pendente" class="text-xl font-black text-red-600">R$ 0,00</h3>
+            </div>
+            <div class="card-premium p-4 border-b-4 border-blue-500 bg-white">
+                <p class="text-[10px] font-black text-slate-400 uppercase">Em Produção (Custo)</p>
+                <h3 id="dash-custo-producao" class="text-xl font-black text-blue-600">R$ 0,00</h3>
+            </div>
+            <div class="card-premium p-4 border-b-4 border-green-500 bg-white">
+                <p class="text-[10px] font-black text-slate-400 uppercase">Pedidos na Loja</p>
+                <h3 id="dash-qtd-loja" class="text-xl font-black text-green-600">0 Itens</h3>
+            </div>
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
             <div class="card-premium p-4 flex flex-col justify-center bg-slate-50 border-2 border-dashed border-slate-300">
-                <label class="text-[10px] font-black mb-2 text-slate-500 uppercase">Importar PDF do Fornecedor</label>
-                <input type="file" id="pdfInput" accept="application/pdf" class="text-[10px]">
+                <label class="text-[10px] font-black mb-2 text-slate-500 uppercase text-center">Importar PDF (Leitura Automática)</label>
+                <input type="file" id="pdfInput" accept="application/pdf" class="text-[10px]" onchange="lerPDF(this)">
+                <div id="pdf-status" class="text-[9px] mt-2 font-bold text-center text-blue-500"></div>
             </div>
             <div class="lg:col-span-3 card-premium p-5 border-l-8 border-blue-600">
                 <div class="flex flex-wrap gap-3 mb-4">
                     <input list="listaSugestaoClientes" id="m_cliente" placeholder="NOME DO CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold flex-1">
                     <select id="m_prazo_select" class="border-2 p-2 rounded-lg text-xs font-bold w-32 bg-white">
-                        <option value="15">15 Dias</option>
-                        <option value="20">20 Dias</option>
-                        <option value="30" selected>30 Dias</option>
-                        <option value="30-util">30 Úteis</option>
-                        <option value="40-util">40 Úteis</option>
+                        <option value="15">15 Dias</option><option value="20">20 Dias</option><option value="30" selected>30 Dias</option>
+                        <option value="30-util">30 Úteis</option><option value="40-util">40 Úteis</option>
                     </select>
                     <select id="m_fornecedor_select" class="border-2 p-2 rounded-lg text-xs font-bold w-48 bg-white"></select>
                 </div>
@@ -62,14 +71,14 @@
                     <button onclick="adicionarItemAoCesto()" class="bg-slate-800 text-white px-6 rounded-lg text-[10px] font-black hover:bg-black transition uppercase">＋ ADD ITEM</button>
                 </div>
                 <div id="cesto-itens" class="flex flex-wrap gap-2 mb-3"></div>
-                <button onclick="cadastrarManual()" class="bg-blue-600 text-white font-black rounded-xl text-xs px-8 py-3.5 w-full uppercase shadow-lg hover:bg-blue-700 transition">Finalizar e Sincronizar Pedido</button>
+                <button onclick="cadastrarManual()" class="bg-blue-600 text-white font-black rounded-xl text-xs px-8 py-3.5 w-full uppercase shadow-lg hover:bg-blue-700 transition">Sincronizar Pedido com a Nuvem</button>
             </div>
         </div>
 
         <div class="card-premium overflow-hidden">
             <div class="p-4 bg-white border-b flex flex-col md:flex-row justify-between items-center gap-4">
                 <div class="flex items-center gap-3 w-full md:w-auto">
-                    <input type="text" id="busca" onkeyup="renderPedidos()" placeholder="🔍 BUSCAR CLIENTE, PRODUTO OU ID..." class="border-2 border-slate-100 px-5 py-2.5 rounded-2xl text-xs w-full md:w-96 font-bold">
+                    <input type="text" id="busca" onkeyup="renderPedidos()" placeholder="🔍 BUSCAR..." class="border-2 border-slate-100 px-5 py-2.5 rounded-2xl text-xs w-full md:w-96 font-bold">
                     <button id="btnFiltroNaoEnviado" onclick="toggleFiltroNaoEnviado()" class="border-2 border-red-500 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase text-red-600">Não enviados</button>
                     <button onclick="gerarEmailLote()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase shadow">📧 Enviar Selecionados</button>
                 </div>
@@ -80,20 +89,10 @@
                     <thead>
                         <tr>
                             <th width="40"><input type="checkbox" id="checkMaster" onclick="marcarTodos(this.checked)"></th>
-                            <th width="65">Prazo</th>
-                            <th width="70">ID</th>
-                            <th>Cliente</th>
-                            <th width="85">Data</th>
-                            <th width="45">Qtd</th>
-                            <th>Móvel</th>
-                            <th width="70">Medida</th>
-                            <th width="90">Cor</th>
-                            <th width="95">Custo</th>
-                            <th width="100">Fábrica</th>
-                            <th width="120">Status</th>
-                            <th width="60">Whats</th>
-                            <th width="60">Conf</th>
-                            <th class="text-center" width="100">Ações</th>
+                            <th width="65">Prazo</th><th width="70">ID</th><th>Cliente</th><th width="85">Data</th>
+                            <th width="45">Qtd</th><th>Móvel</th><th width="70">Medida</th><th width="90">Cor</th>
+                            <th width="95">Custo</th><th width="100">Fábrica</th><th width="120">Status</th>
+                            <th width="60">Whats</th><th width="60">Conf</th><th class="text-center" width="100">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="tabelaPedidos"></tbody>
@@ -208,9 +207,7 @@
 
     <script src="script.js"></script>
     <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js');
-        }
+        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
     </script>
 </body>
 </html>
