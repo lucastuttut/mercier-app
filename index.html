@@ -3,18 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mercier Design - Gestão Cloud Elite v73.0</title>
+    <title>Mercier Design - Gestão Cloud v73.0</title>
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="style.css">
-    <meta name="theme-color" content="#0f172a">
     
-    <!-- SDKs e Tailwind -->
+    <!-- Tailwind primeiro -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    
+    <!-- Seu CSS personalizado -->
+    <link rel="stylesheet" href="style.css">
+    <meta name="theme-color" content="#0f172a">
 </head>
-<body>
+<body class="bg-slate-100">
 
     <header class="glass-header text-white p-5 shadow-xl flex justify-between items-center sticky top-0 z-50">
         <h1 class="text-2xl font-black tracking-tighter uppercase italic">MERCIER <span class="text-blue-500">DESIGN</span></h1>
@@ -34,15 +38,18 @@
     <main id="view-pedidos" class="max-w-[1950px] mx-auto p-4 md:p-6">
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
             <div class="card-premium p-4 flex flex-col justify-center bg-slate-50 border-2 border-dashed border-slate-300">
-                <label class="text-[10px] font-black mb-2 text-slate-500 uppercase">Importar PDF</label>
+                <label class="text-[10px] font-black mb-2 text-slate-500 uppercase">Importar PDF do Fornecedor</label>
                 <input type="file" id="pdfInput" accept="application/pdf" class="text-[10px]">
             </div>
             <div class="lg:col-span-3 card-premium p-5 border-l-8 border-blue-600">
                 <div class="flex flex-wrap gap-3 mb-4">
                     <input list="listaSugestaoClientes" id="m_cliente" placeholder="NOME DO CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold flex-1">
                     <select id="m_prazo_select" class="border-2 p-2 rounded-lg text-xs font-bold w-32 bg-white">
-                        <option value="15">15 Dias</option><option value="20">20 Dias</option><option value="30" selected>30 Dias</option>
-                        <option value="30-util">30 Úteis</option><option value="40-util">40 Úteis</option>
+                        <option value="15">15 Dias</option>
+                        <option value="20">20 Dias</option>
+                        <option value="30" selected>30 Dias</option>
+                        <option value="30-util">30 Úteis</option>
+                        <option value="40-util">40 Úteis</option>
                     </select>
                     <select id="m_fornecedor_select" class="border-2 p-2 rounded-lg text-xs font-bold w-48 bg-white"></select>
                 </div>
@@ -52,7 +59,7 @@
                     <input type="text" id="m_medida" placeholder="MEDIDA" class="border-2 p-1.5 rounded-lg text-xs font-bold w-24">
                     <input type="text" id="m_cor" placeholder="COR" class="border-2 p-1.5 rounded-lg text-xs font-bold w-32">
                     <input type="text" id="m_custo" placeholder="R$ CUSTO" class="border-2 p-1.5 rounded-lg text-xs font-bold w-24" oninput="maskMoney(this)">
-                    <button onclick="adicionarItemAoCesto()" class="bg-slate-800 text-white px-6 rounded-lg text-[10px] font-black hover:bg-black transition uppercase">＋ Add</button>
+                    <button onclick="adicionarItemAoCesto()" class="bg-slate-800 text-white px-6 rounded-lg text-[10px] font-black hover:bg-black transition uppercase">＋ ADD ITEM</button>
                 </div>
                 <div id="cesto-itens" class="flex flex-wrap gap-2 mb-3"></div>
                 <button onclick="cadastrarManual()" class="bg-blue-600 text-white font-black rounded-xl text-xs px-8 py-3.5 w-full uppercase shadow-lg hover:bg-blue-700 transition">Finalizar e Sincronizar Pedido</button>
@@ -62,7 +69,7 @@
         <div class="card-premium overflow-hidden">
             <div class="p-4 bg-white border-b flex flex-col md:flex-row justify-between items-center gap-4">
                 <div class="flex items-center gap-3 w-full md:w-auto">
-                    <input type="text" id="busca" onkeyup="renderPedidos()" placeholder="🔍 BUSCAR..." class="border-2 border-slate-100 px-5 py-2.5 rounded-2xl text-xs w-full md:w-96 font-bold">
+                    <input type="text" id="busca" onkeyup="renderPedidos()" placeholder="🔍 BUSCAR CLIENTE, PRODUTO OU ID..." class="border-2 border-slate-100 px-5 py-2.5 rounded-2xl text-xs w-full md:w-96 font-bold">
                     <button id="btnFiltroNaoEnviado" onclick="toggleFiltroNaoEnviado()" class="border-2 border-red-500 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase text-red-600">Não enviados</button>
                     <button onclick="gerarEmailLote()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase shadow">📧 Enviar Selecionados</button>
                 </div>
@@ -72,11 +79,21 @@
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr>
-                            <th width="40"><input type="checkbox" onclick="marcarTodos(this.checked)"></th>
-                            <th width="65">Prazo</th><th width="70">ID</th><th>Cliente</th><th width="85">Data</th>
-                            <th width="45">Qtd</th><th>Móvel</th><th width="70">Medida</th><th width="90">Cor</th>
-                            <th width="95">Custo</th><th width="100">Fábrica</th><th width="120">Status</th>
-                            <th width="60">Whats</th><th width="60">Conf</th><th class="text-center" width="100">Ações</th>
+                            <th width="40"><input type="checkbox" id="checkMaster" onclick="marcarTodos(this.checked)"></th>
+                            <th width="65">Prazo</th>
+                            <th width="70">ID</th>
+                            <th>Cliente</th>
+                            <th width="85">Data</th>
+                            <th width="45">Qtd</th>
+                            <th>Móvel</th>
+                            <th width="70">Medida</th>
+                            <th width="90">Cor</th>
+                            <th width="95">Custo</th>
+                            <th width="100">Fábrica</th>
+                            <th width="120">Status</th>
+                            <th width="60">Whats</th>
+                            <th width="60">Conf</th>
+                            <th class="text-center" width="100">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="tabelaPedidos"></tbody>
@@ -88,16 +105,16 @@
     <!-- ABA TAREFAS -->
     <main id="view-tarefas" class="hidden max-w-[1200px] mx-auto p-4 md:p-6">
         <div class="flex justify-between items-center mb-6">
-            <h2 class="text-xl font-black uppercase">Tarefas</h2>
-            <select id="filtro-tarefa-status" onchange="renderTarefas()" class="border-2 p-2 rounded-lg text-xs font-bold bg-white outline-none">
-                <option value="TODAS">TODAS</option>
+            <h2 class="text-xl font-black uppercase">Gestão de Tarefas</h2>
+            <select id="filtro-tarefa-status" onchange="renderTarefas()" class="border-2 p-2 rounded-lg text-xs font-bold bg-white">
+                <option value="TODAS">TODAS AS TAREFAS</option>
                 <option value="Não Iniciado">NÃO INICIADO</option>
                 <option value="Em Andamento">EM ANDAMENTO</option>
                 <option value="Feito">CONCLUÍDO</option>
             </select>
         </div>
         <div class="card-premium p-6 border-l-8 border-indigo-600 mb-6">
-            <select id="t_tipo" onchange="mostrarCamposTarefa(this.value)" class="border-2 p-3 rounded-xl text-xs font-bold bg-white mb-4 w-full md:w-80 outline-indigo-500">
+            <select id="t_tipo" onchange="mostrarCamposTarefa(this.value)" class="border-2 p-3 rounded-xl text-xs font-bold bg-white mb-4 w-full md:w-80">
                 <option value="SIMPLES">Anotação Simples</option>
                 <option value="TIRAR PEDIDO">Tirar Pedido (Venda)</option>
                 <option value="MARCAR ENTREGA">Marcar Entrega</option>
@@ -108,19 +125,19 @@
         </div>
         <div class="card-premium overflow-hidden">
             <table class="w-full text-left">
-                <thead><tr class="bg-slate-50"><th>Data</th><th>Tarefa</th><th>Tipo</th><th>Status</th><th class="text-center">Remover</th></tr></thead>
+                <thead><tr class="bg-slate-50"><th>Data</th><th>Tarefa</th><th>Tipo</th><th>Status</th><th class="text-center">Ação</th></tr></thead>
                 <tbody id="tabelaTarefas"></tbody>
             </table>
         </div>
     </main>
 
-    <!-- OUTRAS ABAS -->
+    <!-- ABA ASSISTÊNCIA -->
     <main id="view-assistencia" class="hidden p-6 max-w-[1950px] mx-auto">
         <div class="card-premium p-6 border-l-8 border-orange-500 flex gap-4 mb-6">
-            <input list="listaSugestaoClientes" id="as_cliente" placeholder="CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold flex-1">
+            <input list="listaSugestaoClientes" id="as_cliente" placeholder="NOME DO CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold flex-1">
             <input id="as_produto" placeholder="PRODUTO / DEFEITO" class="border-2 p-2 rounded-lg text-xs font-bold flex-1">
             <select id="as_fabrica" class="border-2 p-2 rounded-lg text-xs font-bold bg-white w-48"></select>
-            <button onclick="cadastrarAssistencia()" class="bg-orange-600 text-white px-8 py-2 rounded-lg font-black text-xs uppercase">Registrar</button>
+            <button onclick="cadastrarAssistencia()" class="bg-orange-600 text-white px-8 py-2 rounded-lg font-black text-xs uppercase shadow">Registrar Assistência</button>
         </div>
         <div class="card-premium overflow-hidden">
             <table class="w-full text-left">
@@ -130,6 +147,7 @@
         </div>
     </main>
 
+    <!-- ABA ESTOQUE -->
     <main id="view-estoque" class="hidden p-6 max-w-[1950px] mx-auto">
         <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-3 items-end">
             <input id="e_produto" placeholder="PRODUTO" class="border-2 p-2 rounded-lg text-xs font-bold flex-1">
@@ -144,32 +162,34 @@
         </div>
     </main>
 
+    <!-- ABA CATÁLOGO -->
     <main id="view-catalogo" class="hidden p-6 max-w-[1200px] mx-auto">
         <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-2">
             <input id="cat_nome" placeholder="NOME DO MÓVEL" class="border-2 p-2 rounded-lg flex-1 font-bold uppercase">
-            <button onclick="cadastrarCatalogo()" class="bg-blue-600 text-white px-8 py-2 rounded-lg font-black text-xs uppercase">Salvar</button>
+            <button onclick="cadastrarCatalogo()" class="bg-blue-600 text-white px-8 py-2 rounded-lg font-black text-xs uppercase shadow">Salvar no Catálogo</button>
         </div>
         <div class="card-premium overflow-hidden">
-            <table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Nome</th><th class="text-center">Remover</th></tr></thead><tbody id="tabelaCatalogo"></tbody></table>
+            <table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Nome do Item</th><th class="text-center">Remover</th></tr></thead><tbody id="tabelaCatalogo"></tbody></table>
         </div>
     </main>
 
+    <!-- ABA FÁBRICAS -->
     <main id="view-fornecedores" class="hidden max-w-4xl mx-auto p-6">
         <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-2">
-            <input id="f_nome" placeholder="FÁBRICA" class="border-2 p-2 rounded-lg flex-1 font-bold">
-            <input id="f_email" placeholder="EMAIL" class="border-2 p-2 rounded-lg flex-1 font-bold lowercase">
-            <button onclick="cadastrarFornecedor()" class="bg-blue-600 text-white px-8 py-2 rounded font-black text-xs uppercase">Salvar</button>
+            <input id="f_nome" placeholder="NOME DA FÁBRICA" class="border-2 p-2 rounded-lg flex-1 font-bold">
+            <input id="f_email" placeholder="EMAIL DE PEDIDOS" class="border-2 p-2 rounded-lg flex-1 font-bold lowercase">
+            <button onclick="cadastrarFornecedor()" class="bg-blue-600 text-white px-8 py-2 rounded font-black text-xs uppercase tracking-tighter">Salvar Fábrica</button>
         </div>
         <div class="card-premium overflow-hidden">
             <table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Fábrica</th><th>E-mail</th><th class="text-center">Remover</th></tr></thead><tbody id="tabelaFornecedores"></tbody></table>
         </div>
     </main>
 
-    <!-- MODAL E BOTÃO FLUTUANTE -->
+    <!-- MODAIS -->
     <div id="modal-detalhes" onclick="if(event.target==this) this.style.display='none'">
         <div class="card-premium w-full max-w-2xl bg-white overflow-hidden flex flex-col max-h-[90vh]">
-            <div class="bg-indigo-600 p-4 text-white font-black flex justify-between items-center uppercase text-sm tracking-widest">
-                <span>Detalhes</span><button onclick="document.getElementById('modal-detalhes').style.display='none'">✕</button>
+            <div class="bg-indigo-600 p-4 text-white font-black flex justify-between items-center uppercase text-sm">
+                <span>Resumo Detalhado</span><button onclick="document.getElementById('modal-detalhes').style.display='none'">✕</button>
             </div>
             <div id="detalhe-corpo" class="p-8 overflow-y-auto space-y-4"></div>
         </div>
@@ -178,9 +198,9 @@
     <div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()">💡</div>
     <div id="painel-sugestoes">
         <div class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase">
-            <span>Notas Rápidas</span><button onclick="togglePainelSugestoes()">✕</button>
+            <span>💡 Notas e Ideias</span><button onclick="togglePainelSugestoes()">✕</button>
         </div>
-        <textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase outline-none resize-none" oninput="autoSalvarNotas()" placeholder="Notas..."></textarea>
+        <textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" oninput="autoSalvarNotas()" placeholder="Anote aqui melhorias para o sistema..."></textarea>
     </div>
 
     <datalist id="listaSugestaoProdutos"></datalist>
