@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mercier Design - Gestão Cloud Elite v47.0</title>
+    <title>Mercier Design - Gestão Cloud Elite v48.0</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
@@ -60,7 +60,7 @@
         <button onclick="switchTab('melhorias')" id="tab-melhorias" class="py-4 text-xs font-black uppercase whitespace-nowrap">💡 Sugestões</button>
     </nav>
 
-    <!-- ABA PEDIDOS (MANTIDA) -->
+    <!-- ABA PEDIDOS -->
     <main id="view-pedidos" class="max-w-[1950px] mx-auto p-4 md:p-6">
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
             <div class="card-premium p-4 flex flex-col justify-center bg-slate-50 border-2 border-dashed border-slate-300">
@@ -145,7 +145,7 @@
         </div>
     </main>
 
-    <!-- OUTRAS ABAS (MANTIDAS) -->
+    <!-- ABA ESTOQUE -->
     <main id="view-estoque" class="hidden max-w-[1950px] mx-auto p-6">
         <div class="card-premium p-6 mb-8 border-l-8 border-blue-600 flex flex-wrap gap-3 items-end">
             <div class="flex flex-col flex-1"><label class="text-[9px] font-black ml-1">PRODUTO</label><input list="listaSugestaoProdutos" id="e_produto" class="border-2 p-2 rounded-lg text-xs font-bold"></div>
@@ -154,11 +154,12 @@
             <div class="flex flex-col w-40"><label class="text-[9px] font-black ml-1">FÁBRICA</label><select id="e_fornecedor_select" class="border-2 p-2 rounded-lg text-xs font-bold bg-white"></select></div>
             <div class="flex flex-col w-40"><label class="text-[9px] font-black ml-1">SITUAÇÃO</label><select id="e_situacao" class="border-2 p-2 rounded-lg text-xs font-bold bg-white"><option value="ESTOQUE">ESTOQUE</option><option value="VENDIDO">VENDIDO</option><option value="DEVOLUÇÃO">DEVOLUÇÃO</option><option value="ASSISTENCIA">ASSISTENCIA</option></select></div>
             <div class="flex flex-col w-20"><label class="text-[9px] font-black ml-1">QTD</label><input type="number" id="e_qtd" value="1" class="border-2 p-2 rounded-lg text-xs font-bold"></div>
-            <button onclick="cadastrarEstoque()" class="bg-blue-600 text-white font-black px-6 py-2.5 rounded-lg text-xs uppercase">Adicionar</button>
+            <button onclick="cadastrarEstoque()" class="bg-blue-600 text-white font-black px-6 py-2.5 rounded-lg text-xs uppercase h-[42px]">Adicionar</button>
         </div>
         <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Móvel</th><th>Cor</th><th>Medida</th><th>Fábrica</th><th>Qtd</th><th>Situação</th><th class="text-center">Ações</th></tr></thead><tbody id="tabelaEstoque"></tbody></table></div>
     </main>
 
+    <!-- ABA CATALOGO -->
     <main id="view-catalogo" class="hidden max-w-5xl mx-auto p-6">
         <div class="card-premium p-6 mb-6 border-l-8 border-blue-600 flex flex-wrap gap-2 items-end">
             <div class="flex flex-col flex-1"><label class="text-[9px] font-black ml-1">NOME DO MÓVEL</label><input type="text" id="cat_nome" class="border-2 p-2 rounded-lg font-bold"></div>
@@ -170,6 +171,7 @@
         <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Móvel</th><th>Medida</th><th>Cor/Tecido</th><th>Situação</th><th class="text-center">Ações</th></tr></thead><tbody id="tabelaCatalogo"></tbody></table></div>
     </main>
 
+    <!-- ABA FORNECEDORES -->
     <main id="view-fornecedores" class="hidden max-w-4xl mx-auto p-6">
         <div class="card-premium p-6 mb-6 border-l-8 border-blue-600 flex flex-wrap gap-2">
             <input type="text" id="f_nome" placeholder="NOME DA FÁBRICA" class="border-2 p-2 rounded-lg flex-1 font-bold">
@@ -179,11 +181,15 @@
         <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Fábrica</th><th>E-mail</th><th class="text-center">Remover</th></tr></thead><tbody id="tabelaFornecedores"></tbody></table></div>
     </main>
 
+    <!-- ABA MELHORIAS -->
     <main id="view-melhorias" class="hidden max-w-4xl mx-auto p-6">
         <div class="card-premium p-8 border-l-8 border-blue-600">
             <h2 class="text-xl font-black mb-4 uppercase">🗒️ Sugestões e Notas</h2>
             <textarea id="texto-melhorias" class="w-full h-96 border-2 border-slate-200 rounded-xl p-4 font-bold text-sm focus:border-blue-500"></textarea>
-            <button onclick="salvarMelhorias()" class="bg-blue-600 text-white font-black px-10 py-3 rounded-xl mt-4 uppercase text-xs shadow-lg">Salvar Notas</button>
+            <div class="flex items-center gap-4 mt-4">
+                <button onclick="salvarMelhorias()" class="bg-blue-600 text-white font-black px-10 py-3 rounded-xl uppercase text-xs shadow-lg">Salvar Notas</button>
+                <span id="icon-salvo" class="hidden text-green-600 font-bold text-xs uppercase">✅ Salvo com sucesso!</span>
+            </div>
         </div>
     </main>
 
@@ -242,6 +248,18 @@
             el.innerText = `TOTAL: R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`; el.classList.remove('hidden');
         }
         function limparBusca() { document.getElementById('busca').value = ""; renderPedidos(); }
+        
+        function gerarAssistenciaRapida(uid) {
+            const p = pedidos.find(x => x.uid == uid);
+            if(!p) return;
+            document.getElementById('as_cliente').value = p.cliente;
+            document.getElementById('as_pedido_id').value = p.idDoc;
+            document.getElementById('as_produto').value = p.produto;
+            document.getElementById('as_fabrica').value = p.fornecedor;
+            switchTab('assistencia');
+            document.getElementById('as_descricao').focus();
+        }
+
         function editField(uid, field) {
             const p = pedidos.find(x => x.uid == uid);
             const promptMap = { 'cliente': 'CLIENTE', 'qtd': 'QUANTIDADE', 'produto': 'MÓVEL', 'medida': 'MEDIDA', 'cor': 'COR/TECIDO', 'dataPedido': 'DATA (DD/MM/AAAA)', 'custo': 'VALOR DE CUSTO' };
@@ -313,7 +331,7 @@
                     <td><button onclick="cycleStatus(${p.uid})" class="status-badge ${sCls} text-white">${p.status}</button></td>
                     <td><button onclick="togPed(${p.uid}, 'whatsEnviado')" class="status-badge ${p.whatsEnviado?'btn-sim':'btn-nao'} font-black">${p.whatsEnviado?'SIM':'NÃO'}</button></td>
                     <td><button onclick="togPed(${p.uid}, 'confirmado')" class="status-badge ${p.confirmado?'btn-sim':'btn-nao'} font-black">${p.confirmado?'SIM':'NÃO'}</button></td>
-                    <td><div class="flex gap-2"><button onclick="copiarTexto(${p.uid})">📋</button><button onclick="dupPed(${p.uid})">➕</button><button onclick="excluirPedido(${p.uid})" class="text-red-500">✖</button></div></td>
+                    <td><div class="flex gap-2"><button onclick="copiarTexto(${p.uid})" title="Copiar">📋</button><button onclick="dupPed(${p.uid})" title="Duplicar">➕</button><button onclick="gerarAssistenciaRapida(${p.uid})" title="Gerar Assistência">🛠️</button><button onclick="excluirPedido(${p.uid})" class="text-red-500" title="Excluir">✖</button></div></td>
                 </tr>`;
             });
         }
@@ -369,13 +387,19 @@
             if(!f || !f.email) return alert("Fábrica sem e-mail cadastrado!");
             const h = new Date().getHours();
             const saud = h < 12 ? "Bom dia" : (h < 18 ? "Boa tarde" : "Boa noite");
-            const corpo = `${saud}!\n\nSegue solicitação de assistência técnica para o cliente ${a.cliente}, referente ao pedido ${a.pedidoId} - ${a.produto}.\n\nProblema relatado: ${a.descricao}.\n\nSeguem anexos as fotos e vídeos para análise.\n\nAguardo retorno com o prazo para a solução.\n\nAtenciosamente,\nLucas Mercier.`;
+            const corpo = `${saud}!\n\nSegue solicitação de assistência técnica para o cliente ${a.cliente}, referente ao pedido ${a.pedidoId} - ${a.produto}.\n\nProblema relatado: ${a.descricao}.\n\nSeguem anexos as fotos e vídeos para análise.\n\nFico no aguardo do documento de confirmação com a relação dos itens acima para conferência.\n\nAtenciosamente,\nLucas Mercier.`;
             window.open(`mailto:${f.email}?subject=Assistência Técnica - ${a.cliente}&body=${encodeURIComponent(corpo)}`);
         }
         function excluirAssistencia(uid) { if(confirm("Excluir assistência?")) { assistencias = assistencias.filter(a => a.uid != uid); salvarCloud(); } }
 
         // --- AUXILIARES GERAIS ---
-        function salvarMelhorias() { notasMelhoria = document.getElementById('texto-melhorias').value; salvarCloud(); }
+        function salvarMelhorias() { 
+            notasMelhoria = document.getElementById('texto-melhorias').value; 
+            salvarCloud(); 
+            const icon = document.getElementById('icon-salvo');
+            icon.classList.remove('hidden');
+            setTimeout(() => icon.classList.add('hidden'), 3000);
+        }
         function togPed(uid, c) { const p = pedidos.find(x => x.uid == uid); if(p) p[c] = !p[c]; salvarCloud(); }
         function dupPed(uid) { const p = pedidos.find(x => x.uid == uid); const idDoc = "ID#" + proximoID.toString().padStart(4, '0'); proximoID++; pedidos.unshift({...p, uid: Date.now(), idDoc}); salvarCloud(); }
         function excluirPedido(uid) { if(confirm("Excluir?")) { pedidos = pedidos.filter(p => p.uid != uid); salvarCloud(); } }
@@ -390,6 +414,7 @@
         function cadastrarFornecedor() { fornecedores.push({ nome: document.getElementById('f_nome').value.toUpperCase(), email: document.getElementById('f_email').value.toLowerCase() }); salvarCloud(); document.getElementById('f_nome').value = ""; document.getElementById('f_email').value = ""; }
         function renderFornecedores() { const tb = document.getElementById('tabelaFornecedores'); if(!tb) return; tb.innerHTML = fornecedores.map((f, i) => `<tr><td class="text-xs font-bold">${f.nome}</td><td class="lowercase text-xs">${f.email}</td><td class="text-center"><button onclick="fornecedores.splice(${i},1); salvarCloud();" class="text-red-500 font-bold">✖</button></td></tr>`).join(''); }
         function atualizarSelectsFornecedores() { const h = fornecedores.map(f => `<option value="${f.nome}">${f.nome}</option>`).join(''); document.getElementById('m_fornecedor_select').innerHTML = h || "<option>...</option>"; document.getElementById('e_fornecedor_select').innerHTML = h || "<option>...</option>"; document.getElementById('as_fabrica').innerHTML = h || "<option>...</option>"; }
+        
         function atualizarSugestoes() { 
             document.getElementById('listaSugestaoProdutos').innerHTML = catalogo.map(c => `<option value="${c.nome}">`).join(''); 
             const n = [...new Set(pedidos.map(p => p.cliente))].sort();
