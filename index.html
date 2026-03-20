@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mercier Design - Gestão Cloud Elite v62.0</title>
+    <title>Mercier Design - Gestão Cloud Elite v63.0</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
@@ -37,8 +37,10 @@
         input, select, textarea { text-transform: uppercase; outline: none; }
         .editable-cell:hover { background-color: #f8fafc; cursor: pointer; text-decoration: underline; color: #3b82f6; }
         
-        /* Fix para nomes grandes de móveis */
-        .col-movel { max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* Ajustes de Largura das Colunas */
+        .col-movel { max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .col-medida { max-width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .col-cor { max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
         #btn-sugestao-flutuante { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 15px rgba(59,130,246,0.5); cursor: pointer; z-index: 100; }
         #painel-sugestoes { position: fixed; bottom: 90px; right: 24px; width: 320px; height: 450px; background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 101; display: none; flex-direction: column; border: 1px solid #e2e8f0; }
@@ -70,7 +72,9 @@
             <div class="lg:col-span-3 card-premium p-5 border-l-8 border-blue-600">
                 <div class="flex flex-wrap gap-3 mb-4">
                     <input list="listaSugestaoClientes" id="m_cliente" placeholder="NOME DO CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold flex-1 outline-blue-500">
-                    <select id="m_prazo_select" class="border-2 p-2 rounded-lg text-xs font-bold w-32 bg-white"><option value="15">15 Dias</option><option value="30" selected>30 Dias</option></select>
+                    <select id="m_prazo_select" class="border-2 p-2 rounded-lg text-xs font-bold w-32 bg-white">
+                        <option value="15">15 Dias</option><option value="20">20 Dias</option><option value="30" selected>30 Dias</option><option value="30-util">30 Úteis</option><option value="40-util">40 Úteis</option>
+                    </select>
                     <select id="m_fornecedor_select" class="border-2 p-2 rounded-lg text-xs font-bold w-48 bg-white"></select>
                 </div>
                 <div class="flex flex-wrap gap-2 mb-3 bg-slate-50 p-3 rounded-xl border">
@@ -79,6 +83,7 @@
                     <input type="text" id="m_medida" placeholder="MEDIDA" class="border-2 p-1.5 rounded-lg text-xs font-bold w-24">
                     <input type="text" id="m_cor" placeholder="COR/TECIDO" class="border-2 p-1.5 rounded-lg text-xs font-bold w-32">
                     <input type="text" id="m_custo" placeholder="R$ CUSTO" class="border-2 p-1.5 rounded-lg text-xs font-bold w-24" oninput="maskMoney(this)">
+                    <input type="text" id="m_pendencia" placeholder="PENDÊNCIA / OBS" class="border-2 p-1.5 rounded-lg text-xs font-bold flex-1">
                     <button onclick="adicionarItemAoCesto()" class="bg-slate-800 text-white px-6 rounded-lg text-[10px] font-black hover:bg-black transition">＋ ITEM</button>
                 </div>
                 <div id="cesto-itens" class="text-[11px] font-bold text-blue-600 mb-3 italic px-2"></div>
@@ -92,13 +97,12 @@
                     <input type="text" id="busca" onkeyup="renderPedidos()" placeholder="🔍 BUSCAR..." class="border-2 border-slate-100 px-5 py-2.5 rounded-2xl text-xs w-96 font-bold outline-blue-500">
                     <button onclick="limparBusca()" class="text-slate-400 font-bold px-2">✕</button>
                     <button id="btnFiltroNaoEnviado" onclick="toggleFiltroNaoEnviado()" class="border-2 border-red-500 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase text-red-600 tracking-tighter">Não enviados</button>
-                    <button onclick="gerarEmailLote()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase shadow">📧 Enviar Selecionados</button>
                 </div>
                 <span id="contador" class="text-[10px] font-black bg-slate-900 text-white px-4 py-2 rounded-lg uppercase">0 Pedidos</span>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
-                    <thead><tr><th width="40"><input type="checkbox"></th><th width="60">Prazo</th><th width="70">ID</th><th>Cliente</th><th width="85">Data</th><th width="45">Qtd</th><th>Móvel</th><th>Medida</th><th>Cor</th><th width="95">Custo</th><th width="120">Status</th><th width="60">Whats?</th><th width="60">Conf?</th><th class="text-center" width="100">Ações</th></tr></thead>
+                    <thead><tr><th width="40"><input type="checkbox"></th><th width="65">Prazo</th><th width="70">ID</th><th>Cliente</th><th width="85">Data</th><th width="45">Qtd</th><th>Móvel</th><th width="80">Medida</th><th width="100">Cor</th><th width="95">Custo</th><th width="120">Status</th><th width="60">Whats?</th><th width="60">Conf?</th><th class="text-center" width="100">Ações</th></tr></thead>
                     <tbody id="tabelaPedidos"></tbody>
                 </table>
             </div>
@@ -112,8 +116,10 @@
     <main id="view-catalogo" class="hidden p-6"></main>
     <main id="view-fornecedores" class="hidden p-6"></main>
 
-    <!-- MODAL E BALÃO -->
+    <!-- MODAL DETALHES -->
     <div id="modal-detalhes" onclick="if(event.target==this) this.style.display='none'"><div class="card-premium w-full max-w-2xl bg-white overflow-hidden flex flex-col max-h-[90vh]"><div class="bg-indigo-600 p-4 text-white font-black flex justify-between items-center uppercase text-sm"><span>Detalhes</span><button onclick="document.getElementById('modal-detalhes').style.display='none'">✕</button></div><div id="detalhe-corpo" class="p-8 overflow-y-auto"></div></div></div>
+    
+    <!-- BALÃO FLUTUANTE -->
     <div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()">💡</div>
     <div id="painel-sugestoes"><div class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase tracking-widest"><span>💡 Sugestões</span><button onclick="togglePainelSugestoes()">✕</button></div><textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" oninput="autoSalvarNotas()"></textarea></div>
 
@@ -133,20 +139,19 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[], proximoID=255, notasMelhoria="", cestoItensTemporario=[], filtrandoNaoEnviados=false;
+        let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], proximoID=255, notasMelhoria="", cestoItensTemporario=[], filtrandoNaoEnviados=false;
 
         db.ref('dados').on('value', (s) => {
             const d = s.val() || {};
-            pedidos=d.pedidos||[]; fornecedores=d.fornecedores||[]; estoque=d.estoque||[]; catalogo=d.catalogo||[]; tarefas=d.tarefas||[]; assistencias=d.assistencias||[]; proximoID=d.proximoID||255; notasMelhoria=d.notasMelhoria||"";
+            pedidos=d.pedidos||[]; fornecedores=d.fornecedores||[]; estoque=d.estoque||[]; catalogo=d.catalogo||[]; tarefas=d.tarefas||[]; proximoID=d.proximoID||255; notasMelhoria=d.notasMelhoria||"";
             document.getElementById('status-db').innerText="SINCRONIZADO";
             document.getElementById('status-db').className="text-[10px] px-4 py-1.5 rounded-full bg-green-600 font-black text-white uppercase";
             document.getElementById('texto-melhorias').value=notasMelhoria;
             atualizarSugestoes(); atualizarSelectsFornecedores(); renderPedidos(); 
         });
 
-        function salvarCloud(){ db.ref('dados').set({pedidos, fornecedores, estoque, catalogo, tarefas, assistencias, proximoID, notasMelhoria}); }
+        function salvarCloud(){ db.ref('dados').set({pedidos, fornecedores, estoque, catalogo, tarefas, proximoID, notasMelhoria}); }
 
-        // --- ÚTEIS ---
         function maskMoney(i){ let v=i.value.replace(/\D/g,""); v=(v/100).toFixed(2).replace(".",","); v=v.replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1."); i.value="R$ "+v; }
 
         function renderPedidos() {
@@ -167,7 +172,10 @@
                         <span class="text-[9px] font-black">${p.dias}D</span>
                         <select onchange="updPed(${x.uid},'prazo',this.value)" class="select-prazo-tabela">
                             <option value="15" ${x.prazo=='15'?'selected':''}>15C</option>
+                            <option value="20" ${x.prazo=='20'?'selected':''}>20C</option>
                             <option value="30" ${x.prazo=='30'?'selected':''}>30C</option>
+                            <option value="30-util" ${x.prazo=='30-util'?'selected':''}>30U</option>
+                            <option value="40-util" ${x.prazo=='40-util'?'selected':''}>40U</option>
                         </select>
                     </div></td>
                     <td class="text-xs font-bold text-slate-400">${x.idDoc}</td>
@@ -175,8 +183,8 @@
                     <td class="text-[10px] font-bold">${x.dataPedido}</td>
                     <td class="text-center font-black text-xs">${x.qtd}</td>
                     <td class="uppercase text-[11px] font-black col-movel" title="${x.produto}">${x.produto}</td>
-                    <td class="text-[11px] font-bold">${x.medida||'-'}</td>
-                    <td class="uppercase text-[11px] font-bold">${x.cor||'-'}</td>
+                    <td class="text-[10px] font-bold col-medida">${x.medida||'-'}</td>
+                    <td class="uppercase text-[10px] font-bold col-cor">${x.cor||'-'}</td>
                     <td onclick="editField(${x.uid},'custo')" class="editable-cell whitespace-nowrap text-[11px]">
                         <span class="text-[8px] opacity-50">R$</span> ${vLimpo}
                     </td>
@@ -184,7 +192,6 @@
                     <td><button onclick="togPed(${x.uid},'whatsEnviado')" class="status-badge ${x.whatsEnviado?'btn-sim':'btn-nao'} font-black">${x.whatsEnviado?'SIM':'NÃO'}</button></td>
                     <td><button onclick="togPed(${x.uid},'confirmado')" class="status-badge ${x.confirmado?'btn-sim':'btn-nao'} font-black">${x.confirmado?'SIM':'NÃO'}</button></td>
                     <td><div class="flex gap-1 justify-center">
-                        <button onclick="copiarTexto(${x.uid})" title="Copiar">📋</button>
                         <button onclick="dupPed(${x.uid})" title="Duplicar">➕</button>
                         <button onclick="gerarAssistenciaRapida(${x.uid})" title="Assistência">🛠️</button>
                         <button onclick="excluirPedido(${x.uid})" class="text-red-500 font-black">✖</button>
@@ -192,7 +199,6 @@
             }).join('');
         }
 
-        // --- SISTEMA GERAL ---
         function switchTab(t){ document.querySelectorAll('main').forEach(x=>x.classList.add('hidden')); document.getElementById('view-'+t).classList.remove('hidden'); document.querySelectorAll('nav button').forEach(x=>x.classList.remove('tab-active')); document.getElementById('tab-'+t).classList.add('tab-active'); }
         function cycleStatus(u){ const x=pedidos.find(y=>y.uid==u); const s=["Não enviado","Pedido enviado ao fornecedor","Pedido chegou na loja"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarCloud(); }
         function togPed(u,c){ const x=pedidos.find(y=>y.uid==u); if(x){ x[c]=!x[c]; salvarCloud(); } }
@@ -201,7 +207,6 @@
         function autoSalvarNotas(){ notasMelhoria=document.getElementById('texto-melhorias').value; db.ref('dados/notasMelhoria').set(notasMelhoria); }
         function toggleFiltroNaoEnviado(){ filtrandoNaoEnviados=!filtrandoNaoEnviados; document.getElementById('btnFiltroNaoEnviado').classList.toggle('bg-red-600'); renderPedidos(); }
         function limparBusca(){ document.getElementById('busca').value=""; renderPedidos(); }
-        function marcarTodos(v){ document.querySelectorAll('#tabelaPedidos input[type=checkbox]').forEach(c=>c.checked=v); }
         function editField(u,f){ 
             const x=pedidos.find(y=>y.uid==u); 
             let n=prompt(`Editar:`, x[f]||""); 
@@ -211,16 +216,19 @@
                 salvarCloud(); 
             } 
         }
-        function calcP(d, pr){ if(!d)return{dias:0,classe:""}; try { const pA=d.split("/"); const dt=new Date(pA[2], pA[1]-1, pA[0]); let dF=new Date(dt); dF.setDate(dF.getDate()+parseInt(pr||30)); const df=Math.ceil((dF-new Date())/86400000); let c=df<0?"prazo-vencido":(df<=5?"prazo-urgente":(df<=10?"prazo-alerta":(df<=20?"prazo-atencao":""))); return {dias:df,classe:c}; } catch(e){return {dias:0,classe:""}} }
+
+        function getBD(s, d) { let c=0, dF=new Date(s); while(c<d){ dF.setDate(dF.getDate()+1); if(dF.getDay()!==0 && dF.getDay()!==6) c++; } return dF; }
+        function calcP(d, pr){ if(!d)return{dias:0,classe:""}; try { const pA=d.split("/"); const dt=new Date(pA[2], pA[1]-1, pA[0]); let dF; if(pr==="30-util") dF=getBD(dt,30); else if(pr==="40-util") dF=getBD(dt,40); else { dF=new Date(dt); dF.setDate(dF.getDate()+parseInt(pr||30)); } const df=Math.ceil((dF-new Date())/86400000); let c=df<0?"prazo-vencido":(df<=5?"prazo-urgente":(df<=10?"prazo-alerta":(df<=20?"prazo-atencao":""))); return {dias:df,classe:c}; } catch(e){return {dias:0,classe:""}} }
+        
         function excluirPedido(u){ if(confirm("Excluir?")){ pedidos=pedidos.filter(x=>x.uid!=u); salvarCloud(); } }
-        function dupPed(u){ const x=pedidos.find(y=>y.uid==u); const idDoc="ID#"+proximoID.toString().padStart(4,'0'); proximoID++; pedidos.unshift({...x, uid:Date.now(), idDoc}); salvarCloud(); }
-        function copiarTexto(u){ const x=pedidos.find(y=>y.uid==u); navigator.clipboard.writeText(`${x.qtd}x ${x.produto} ${x.cor} (${x.idDoc})`); alert("Copiado!"); }
         function atualizarSelectsFornecedores(){ const h = fornecedores.map(f => `<option value="${f.nome}">${f.nome}</option>`).join(''); document.getElementById('m_fornecedor_select').innerHTML = h || "<option>...</option>"; }
         function atualizarSugestoes(){ const n=[...new Set(pedidos.map(p=>p.cliente))].sort(); if(document.getElementById('listaSugestaoClientes')) document.getElementById('listaSugestaoClientes').innerHTML=n.map(x=>`<option value="${x}">`).join(''); }
         function adicionarItemAoCesto() { const p = document.getElementById('m_produto').value.trim().toUpperCase(); if(!p) return alert("Preencha!"); cestoItensTemporario.push({ q: document.getElementById('m_qtd').value, p, m: document.getElementById('m_medida').value, c: document.getElementById('m_cor').value.toUpperCase(), v: document.getElementById('m_custo').value }); document.getElementById('cesto-itens').innerText = "Cesto: " + cestoItensTemporario.length + " itens"; document.getElementById('m_produto').value = ""; }
         function cadastrarManual() { const cli = document.getElementById('m_cliente').value.trim().toUpperCase(); const forn = document.getElementById('m_fornecedor_select').value; if(!cli || cestoItensTemporario.length === 0) return alert("Falta preencher!"); const idDoc = "ID#" + proximoID.toString().padStart(4, '0'); proximoID++; const data = new Date().toLocaleDateString('pt-BR'); cestoItensTemporario.forEach(i => pedidos.unshift({ uid: Date.now() + Math.random(), idDoc, cliente: cli, dataPedido: data, qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false })); cestoItensTemporario = []; document.getElementById('m_cliente').value = ""; document.getElementById('cesto-itens').innerText = ""; salvarCloud(); }
+        function dupPed(u){ const x=pedidos.find(y=>y.uid==u); const idDoc="ID#"+proximoID.toString().padStart(4,'0'); proximoID++; pedidos.unshift({...x, uid:Date.now(), idDoc}); salvarCloud(); }
         function gerarAssistenciaRapida(u){ alert("Vá para a aba Assistências para registrar!"); }
-        function gerarEmailLote() { alert("Selecionados para e-mail!"); }
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
     </script>
 </body>
 </html>
