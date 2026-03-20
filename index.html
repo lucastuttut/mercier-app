@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mercier Design - Gestão Cloud Elite v64.0</title>
+    <title>Mercier Design - Gestão Cloud Elite v65.0</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
@@ -37,12 +37,14 @@
         input, select, textarea { text-transform: uppercase; outline: none; }
         .editable-cell:hover { background-color: #f8fafc; cursor: pointer; text-decoration: underline; color: #3b82f6; }
         
-        /* Ajustes de Largura e Truncagem */
-        .col-cliente { max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .col-movel { max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .col-medida { max-width: 60px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .col-cor { max-width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        
+        /* BLOQUEIO DE LARGURA E FONTES */
+        .col-cliente { max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px !important; }
+        .col-movel { max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px !important; }
+        .col-medida { max-width: 60px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10px !important; }
+        .col-cor { max-width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10px !important; }
+        .col-data { font-size: 9.5px !important; }
+        .col-custo { font-size: 11px !important; }
+
         #btn-sugestao-flutuante { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 15px rgba(59,130,246,0.5); cursor: pointer; z-index: 100; }
         #painel-sugestoes { position: fixed; bottom: 90px; right: 24px; width: 320px; height: 450px; background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 101; display: none; flex-direction: column; border: 1px solid #e2e8f0; }
         #modal-detalhes { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
@@ -74,7 +76,7 @@
                 <div class="flex flex-wrap gap-3 mb-4">
                     <input list="listaSugestaoClientes" id="m_cliente" placeholder="NOME DO CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold flex-1 outline-blue-500">
                     <select id="m_prazo_select" class="border-2 p-2 rounded-lg text-xs font-bold w-32 bg-white">
-                        <option value="15">15 Dias</option><option value="30" selected>30 Dias</option>
+                        <option value="15">15 Dias</option><option value="20">20 Dias</option><option value="30" selected>30 Dias</option><option value="30-util">30 Úteis</option><option value="40-util">40 Úteis</option>
                     </select>
                     <select id="m_fornecedor_select" class="border-2 p-2 rounded-lg text-xs font-bold w-48 bg-white"></select>
                 </div>
@@ -100,12 +102,13 @@
                         <button onclick="limparBusca()" class="absolute right-4 top-2.5 text-slate-400 font-bold">✕</button>
                     </div>
                     <button id="btnFiltroNaoEnviado" onclick="toggleFiltroNaoEnviado()" class="border-2 border-red-500 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase text-red-600 tracking-tighter">Não enviados</button>
+                    <button onclick="gerarEmailLote()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase shadow">📧 Enviar Selecionados</button>
                 </div>
                 <span id="contador" class="text-[10px] font-black bg-slate-900 text-white px-4 py-2 rounded-lg uppercase">0 Pedidos</span>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
-                    <thead><tr><th width="40"><input type="checkbox"></th><th width="65">Prazo</th><th width="70">ID</th><th>Cliente</th><th width="85">Data</th><th width="45">Qtd</th><th>Móvel</th><th width="70">Medida</th><th width="90">Cor</th><th width="95">Custo</th><th width="120">Status</th><th width="60">Whats?</th><th width="60">Conf?</th><th class="text-center" width="100">Ações</th></tr></thead>
+                    <thead><tr><th width="40"><input type="checkbox" onclick="marcarTodos(this.checked)"></th><th width="65">Prazo</th><th width="70">ID</th><th>Cliente</th><th width="85">Data</th><th width="45">Qtd</th><th>Móvel</th><th width="70">Medida</th><th width="90">Cor</th><th width="95">Custo</th><th width="120">Status</th><th width="60">Whats?</th><th width="60">Conf?</th><th class="text-center" width="100">Ações</th></tr></thead>
                     <tbody id="tabelaPedidos"></tbody>
                 </table>
             </div>
@@ -113,18 +116,11 @@
     </main>
 
     <!-- VIEWS SIMPLIFICADAS -->
-    <main id="view-tarefas" class="hidden p-6"></main>
-    <main id="view-assistencia" class="hidden p-6"></main>
-    <main id="view-estoque" class="hidden p-6"></main>
-    <main id="view-catalogo" class="hidden p-6"></main>
-    <main id="view-fornecedores" class="hidden p-6"></main>
-
-    <div id="modal-detalhes" onclick="if(event.target==this) this.style.display='none'"><div class="card-premium w-full max-w-2xl bg-white overflow-hidden flex flex-col max-h-[90vh]"><div class="bg-indigo-600 p-4 text-white font-black flex justify-between items-center uppercase text-sm"><span>Detalhes</span><button onclick="document.getElementById('modal-detalhes').style.display='none'">✕</button></div><div id="detalhe-corpo" class="p-8 overflow-y-auto"></div></div></div>
-    <div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()">💡</div>
-    <div id="painel-sugestoes"><div class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase tracking-widest"><span>💡 Sugestões</span><button onclick="togglePainelSugestoes()">✕</button></div><textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" oninput="autoSalvarNotas()"></textarea></div>
-
-    <datalist id="listaSugestaoProdutos"></datalist>
-    <datalist id="listaSugestaoClientes"></datalist>
+    <main id="view-tarefas" class="hidden p-6 max-w-5xl mx-auto"></main>
+    <main id="view-assistencia" class="hidden p-6 max-w-5xl mx-auto"></main>
+    <main id="view-estoque" class="hidden p-6 max-w-5xl mx-auto"></main>
+    <main id="view-catalogo" class="hidden p-6 max-w-5xl mx-auto"></main>
+    <main id="view-fornecedores" class="hidden p-6 max-w-5xl mx-auto"></main>
 
     <script>
         const firebaseConfig = {
@@ -146,11 +142,11 @@
             pedidos=d.pedidos||[]; fornecedores=d.fornecedores||[]; estoque=d.estoque||[]; catalogo=d.catalogo||[]; tarefas=d.tarefas||[]; proximoID=d.proximoID||255; notasMelhoria=d.notasMelhoria||"";
             document.getElementById('status-db').innerText="SINCRONIZADO";
             document.getElementById('status-db').className="text-[10px] px-4 py-1.5 rounded-full bg-green-600 font-black text-white uppercase";
-            document.getElementById('texto-melhorias').value=notasMelhoria;
             atualizarSugestoes(); atualizarSelectsFornecedores(); renderPedidos(); 
         });
 
         function salvarCloud(){ db.ref('dados').set({pedidos, fornecedores, estoque, catalogo, tarefas, proximoID, notasMelhoria}); }
+
         function maskMoney(i){ let v=i.value.replace(/\D/g,""); v=(v/100).toFixed(2).replace(".",","); v=v.replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1."); i.value="R$ "+v; }
 
         function renderPedidos() {
@@ -178,13 +174,13 @@
                         </select>
                     </div></td>
                     <td class="text-xs font-bold text-slate-400">${x.idDoc}</td>
-                    <td onclick="editField(${x.uid},'cliente')" class="editable-cell uppercase text-[12.5px] font-black col-cliente" title="${x.cliente}">${x.cliente}</td>
-                    <td class="text-[9px] font-bold">${x.dataPedido}</td>
+                    <td onclick="editField(${x.uid},'cliente')" class="editable-cell uppercase col-cliente" title="${x.cliente}">${x.cliente}</td>
+                    <td class="col-data">${x.dataPedido}</td>
                     <td class="text-center font-black text-xs">${x.qtd}</td>
-                    <td class="uppercase text-[12.5px] font-black col-movel" title="${x.produto}">${x.produto}</td>
-                    <td class="text-[10px] font-bold col-medida" title="${x.medida}">${x.medida||'-'}</td>
-                    <td class="uppercase text-[10px] font-bold col-cor" title="${x.cor}">${x.cor||'-'}</td>
-                    <td onclick="editField(${x.uid},'custo')" class="editable-cell whitespace-nowrap text-[11px]">
+                    <td class="uppercase col-movel" title="${x.produto}">${x.produto}</td>
+                    <td class="col-medida" title="${x.medida}">${x.medida||'-'}</td>
+                    <td class="uppercase col-cor" title="${x.cor}">${x.cor||'-'}</td>
+                    <td onclick="editField(${x.uid},'custo')" class="editable-cell whitespace-nowrap col-custo">
                         <span class="text-[8px] opacity-50">R$</span> ${vLimpo}
                     </td>
                     <td><button onclick="cycleStatus(${x.uid})" class="status-badge ${sCls} text-white">${x.status}</button></td>
@@ -208,9 +204,19 @@
         function toggleFiltroNaoEnviado(){ filtrandoNaoEnviados=!filtrandoNaoEnviados; document.getElementById('btnFiltroNaoEnviado').classList.toggle('bg-red-600'); renderPedidos(); }
         function limparBusca(){ document.getElementById('busca').value=""; renderPedidos(); }
         function marcarTodos(v){ document.querySelectorAll('#tabelaPedidos input[type=checkbox]').forEach(c=>c.checked=v); }
-        function editField(u,f){ const x=pedidos.find(y=>y.uid==u); let n=prompt(`Editar:`, x[f]||""); if(n!==null){ if(f==='custo'){ let v=n.replace(/\D/g,""); x[f]=v? "R$ "+(v/100).toFixed(2).replace(".",",").replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1.") : "R$ 0,00"; } else {x[f]=n.toUpperCase();} salvarCloud(); } }
+        function editField(u,f){ 
+            const x=pedidos.find(y=>y.uid==u); 
+            let n=prompt(`Editar:`, x[f]||""); 
+            if(n!==null){ 
+                if(f==='custo'){ let v=n.replace(/\D/g,""); x[f]=v? "R$ "+(v/100).toFixed(2).replace(".",",").replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1.") : "R$ 0,00"; }
+                else {x[f]=n.toUpperCase();} 
+                salvarCloud(); 
+            } 
+        }
+
         function getBD(s, d) { let c=0, dF=new Date(s); while(c<d){ dF.setDate(dF.getDate()+1); if(dF.getDay()!==0 && dF.getDay()!==6) c++; } return dF; }
         function calcP(d, pr){ if(!d)return{dias:0,classe:""}; try { const pA=d.split("/"); const dt=new Date(pA[2], pA[1]-1, pA[0]); let dF=new Date(dt); if(pr.includes("util")){ dF = getBD(dt, parseInt(pr)); } else { dF.setDate(dF.getDate()+parseInt(pr||30)); } const df=Math.ceil((dF-new Date())/86400000); let c=df<0?"prazo-vencido":(df<=5?"prazo-urgente":(df<=10?"prazo-alerta":(df<=20?"prazo-atencao":""))); return {dias:df,classe:c}; } catch(e){return {dias:0,classe:""}} }
+        
         function excluirPedido(u){ if(confirm("Excluir?")){ pedidos=pedidos.filter(x=>x.uid!=u); salvarCloud(); } }
         function atualizarSelectsFornecedores(){ const h = fornecedores.map(f => `<option value="${f.nome}">${f.nome}</option>`).join(''); document.getElementById('m_fornecedor_select').innerHTML = h || "<option>...</option>"; }
         function atualizarSugestoes(){ const n=[...new Set(pedidos.map(p=>p.cliente))].sort(); if(document.getElementById('listaSugestaoClientes')) document.getElementById('listaSugestaoClientes').innerHTML=n.map(x=>`<option value="${x}">`).join(''); }
@@ -218,6 +224,7 @@
         function cadastrarManual() { const cli = document.getElementById('m_cliente').value.trim().toUpperCase(); const forn = document.getElementById('m_fornecedor_select').value; if(!cli || cestoItensTemporario.length === 0) return alert("Falta preencher!"); const idDoc = "ID#" + proximoID.toString().padStart(4, '0'); proximoID++; const data = new Date().toLocaleDateString('pt-BR'); cestoItensTemporario.forEach(i => pedidos.unshift({ uid: Date.now() + Math.random(), idDoc, cliente: cli, dataPedido: data, qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false })); cestoItensTemporario = []; document.getElementById('m_cliente').value = ""; document.getElementById('cesto-itens').innerText = ""; salvarCloud(); }
         function dupPed(u){ const x=pedidos.find(y=>y.uid==u); const idDoc="ID#"+proximoID.toString().padStart(4,'0'); proximoID++; pedidos.unshift({...x, uid:Date.now(), idDoc}); salvarCloud(); }
         function gerarAssistenciaRapida(u){ alert("Vá para a aba Assistências para registrar!"); }
+
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
     </script>
 </body>
