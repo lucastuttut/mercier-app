@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mercier Design - Gestão Cloud v76.0</title>
+    <title>Mercier Design - Gestão Cloud v80.0</title>
     <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -12,17 +12,17 @@
     <link rel="stylesheet" href="style.css">
     <meta name="theme-color" content="#0f172a">
 </head>
-<body class="bg-slate-100">
+<body>
 
     <header class="glass-header text-white p-5 shadow-xl flex justify-between items-center sticky top-0 z-50">
         <h1 class="text-2xl font-black tracking-tighter uppercase italic">MERCIER <span class="text-blue-500">DESIGN</span></h1>
         <div id="status-db" class="status-offline">Conectando...</div>
     </header>
 
-    <nav class="bg-slate-900 text-slate-400 px-8 flex gap-8 shadow-md overflow-x-auto">
+    <nav class="bg-slate-900 text-slate-400 px-8 flex gap-8 shadow-md overflow-x-auto sticky top-[72px] z-40">
         <button onclick="switchTab('pedidos')" id="tab-pedidos" class="py-4 text-xs font-black uppercase tab-active whitespace-nowrap">📋 Pedidos</button>
-        <button onclick="switchTab('tarefas')" id="tab-tarefas" class="py-4 text-xs font-black uppercase whitespace-nowrap">📝 Tarefas</button>
-        <button onclick="switchTab('assistencia')" id="tab-assistencia" class="py-4 text-xs font-black uppercase whitespace-nowrap">🛠️ Assistência</button>
+        <button onclick="switchTab('tarefas')" id="tab-tarefas" class="py-4 text-xs font-black uppercase whitespace-nowrap">📝 Tarefas / Vendas</button>
+        <button onclick="switchTab('assistencia')" id="tab-assistencia" class="py-4 text-xs font-black uppercase whitespace-nowrap">🛠️ Assistências</button>
         <button onclick="switchTab('estoque')" id="tab-estoque" class="py-4 text-xs font-black uppercase whitespace-nowrap">📦 Estoque</button>
         <button onclick="switchTab('catalogo')" id="tab-catalogo" class="py-4 text-xs font-black uppercase whitespace-nowrap">📜 Catálogo</button>
         <button onclick="switchTab('fornecedores')" id="tab-fornecedores" class="py-4 text-xs font-black uppercase whitespace-nowrap">🏭 Fábricas</button>
@@ -30,37 +30,39 @@
 
     <!-- ABA PEDIDOS -->
     <main id="view-pedidos" class="max-w-[1950px] mx-auto p-4 md:p-6">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div class="card-premium p-4 border-b-4 border-red-500 bg-white">
-                <p class="text-[10px] font-black text-slate-400 uppercase">A Enviar (Custo)</p>
-                <h3 id="dash-custo-pendente" class="text-xl font-black text-red-600">R$ 0,00</h3>
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
+            <div class="card-premium p-4 flex flex-col justify-center bg-slate-50 border-2 border-dashed border-slate-300">
+                <input type="file" id="pdfInput" accept="application/pdf" class="text-[10px]">
             </div>
-            <div class="card-premium p-4 border-b-4 border-blue-500 bg-white">
-                <p class="text-[10px] font-black text-slate-400 uppercase">Em Produção (Custo)</p>
-                <h3 id="dash-custo-producao" class="text-xl font-black text-blue-600">R$ 0,00</h3>
-            </div>
-            <div class="card-premium p-4 border-b-4 border-green-500 bg-white">
-                <p class="text-[10px] font-black text-slate-400 uppercase">Pedidos na Loja</p>
-                <h3 id="dash-qtd-loja" class="text-xl font-black text-green-600">0 Itens</h3>
+            <div class="lg:col-span-3 card-premium p-5 border-l-8 border-blue-600">
+                <div class="flex flex-wrap gap-3 mb-4">
+                    <input list="listaSugestaoClientes" id="m_cliente" placeholder="NOME DO CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold flex-1">
+                    <select id="m_prazo_select" class="border-2 p-2 rounded-lg text-xs font-bold w-32 bg-white"><option value="15">15 Dias</option><option value="20">20 Dias</option><option value="30" selected>30 Dias</option><option value="30-util">30 Úteis</option><option value="40-util">40 Úteis</option></select>
+                    <select id="m_fornecedor_select" class="border-2 p-2 rounded-lg text-xs font-bold w-48 bg-white"></select>
+                </div>
+                <div class="flex flex-wrap gap-2 mb-3 bg-slate-50 p-3 rounded-xl border">
+                    <input type="number" id="m_qtd" value="1" class="border-2 p-1.5 rounded-lg text-xs font-bold w-16">
+                    <input list="listaSugestaoProdutos" id="m_produto" placeholder="PRODUTO" class="border-2 p-1.5 rounded-lg text-xs font-bold flex-1">
+                    <input type="text" id="m_medida" placeholder="MEDIDA" class="border-2 p-1.5 rounded-lg text-xs font-bold w-24">
+                    <input type="text" id="m_cor" placeholder="COR/TECIDO" class="border-2 p-1.5 rounded-lg text-xs font-bold w-32">
+                    <input type="text" id="m_custo" placeholder="R$ CUSTO" class="border-2 p-1.5 rounded-lg text-xs font-bold w-24" oninput="maskMoney(this)">
+                    <button onclick="adicionarItemAoCesto()" class="bg-slate-800 text-white px-6 rounded-lg text-[10px] font-black uppercase hover:bg-black transition">＋ ITEM</button>
+                </div>
+                <div id="cesto-itens" class="flex flex-wrap gap-2 mb-3"></div>
+                <button onclick="cadastrarManual()" class="bg-blue-600 text-white font-black rounded-xl text-xs px-8 py-3.5 w-full uppercase shadow-lg hover:bg-blue-700 transition">Finalizar e Sincronizar Pedido</button>
             </div>
         </div>
-
         <div class="card-premium overflow-hidden">
             <div class="p-4 bg-white border-b flex flex-col md:flex-row justify-between items-center gap-4">
-                <div class="flex items-center gap-3 w-full md:w-auto">
-                    <input type="text" id="busca" onkeyup="renderPedidos()" placeholder="🔍 BUSCAR..." class="border-2 border-slate-100 px-5 py-2.5 rounded-2xl text-xs w-full md:w-96 font-bold uppercase">
-                </div>
-                <span id="contador" class="text-[10px] font-black bg-slate-900 text-white px-4 py-2 rounded-lg uppercase">0 Itens</span>
+                <input type="text" id="busca" onkeyup="renderPedidos()" placeholder="🔍 BUSCAR..." class="border-2 border-slate-100 px-5 py-2.5 rounded-2xl text-xs w-full md:w-96 font-bold">
+                <span id="contador" class="text-[10px] font-black bg-slate-900 text-white px-4 py-2 rounded-lg uppercase">0 Pedidos</span>
             </div>
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto max-h-[600px]">
                 <table class="w-full text-left border-collapse">
-                    <thead>
+                    <thead class="sticky top-0 z-10">
                         <tr>
                             <th width="40"><input type="checkbox" id="checkMaster" onclick="marcarTodos(this.checked)"></th>
-                            <th width="65">Prazo</th><th width="70">ID</th><th>Cliente</th><th width="85">Data</th>
-                            <th width="45">Qtd</th><th>Móvel</th><th width="70">Medida</th><th width="90">Cor</th>
-                            <th width="95">Custo</th><th width="100">Fábrica</th><th width="120">Status</th>
-                            <th width="60">Whats</th><th width="60">Conf</th><th class="text-center" width="100">Ações</th>
+                            <th width="65">Prazo</th><th width="70">ID</th><th>Cliente</th><th width="85">Data</th><th width="45">Qtd</th><th>Móvel</th><th width="70">Medida</th><th width="90">Cor</th><th width="95">Custo</th><th width="100">Fábrica</th><th width="120">Status</th><th width="60">Whats?</th><th width="60">Conf?</th><th class="text-center" width="100">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="tabelaPedidos"></tbody>
@@ -70,78 +72,65 @@
     </main>
 
     <!-- ABA TAREFAS -->
-    <main id="view-tarefas" class="hidden max-w-[1400px] mx-auto p-4 md:p-6">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-xl font-black uppercase tracking-tighter">📝 Gestão de Tarefas e Vendas</h2>
-            <select id="filtro-tarefa-status" onchange="renderTarefas()" class="border-2 p-2 rounded-lg text-xs font-bold bg-white outline-none">
-                <option value="TODAS">TODAS AS TAREFAS</option>
-                <option value="Não Iniciado">NÃO INICIADO</option>
-                <option value="Em Andamento">EM ANDAMENTO</option>
-                <option value="Feito">CONCLUÍDO</option>
-            </select>
-        </div>
-        
-        <div class="card-premium p-6 border-l-8 border-indigo-600 mb-8">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <select id="t_tipo" onchange="mostrarCamposTarefa(this.value)" class="border-2 p-3 rounded-xl text-xs font-bold bg-white w-full md:w-80 outline-indigo-500">
+    <main id="view-tarefas" class="hidden max-w-[1950px] mx-auto p-4 md:p-6">
+        <div class="card-premium p-6 border-l-8 border-indigo-600 mb-6 shadow-2xl">
+            <div class="flex items-center gap-4 mb-6">
+                <select id="t_tipo" onchange="mostrarCamposTarefa(this.value)" class="border-2 p-2.5 rounded-xl text-xs font-bold bg-white w-full md:w-80 outline-indigo-500">
                     <option value="SIMPLES">Anotação Simples</option>
-                    <option value="TIRAR PEDIDO">Tirar Pedido (Venda Completa)</option>
+                    <option value="TIRAR PEDIDO">Gerar Novo Pedido / Venda</option>
                     <option value="MARCAR ENTREGA">Marcar Entrega</option>
-                    <option value="RETORNO CLIENTE">Retorno para Cliente</option>
+                    <option value="RETORNO CLIENTE">Retorno Cliente</option>
                 </select>
-                <div id="status-venda-alerta" class="hidden bg-amber-100 text-amber-700 px-4 py-2 rounded-lg text-[10px] font-black uppercase">Preencha todos os campos da venda</div>
+                <div id="loading-cep" class="hidden text-[10px] font-black text-indigo-500 animate-pulse uppercase">Buscando endereço...</div>
             </div>
-
-            <div id="container-campos-tarefa" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <!-- Campos dinâmicos via JS -->
-            </div>
-            
-            <div class="mt-8 pt-6 border-t flex flex-col md:flex-row gap-4">
-                <button onclick="cadastrarTarefa()" class="bg-indigo-600 text-white font-black px-12 py-4 rounded-xl text-xs uppercase shadow-lg hover:bg-indigo-700 transition-all flex-1">
-                    🚀 Finalizar e Salvar Tarefa
-                </button>
-                <button onclick="mostrarCamposTarefa(document.getElementById('t_tipo').value)" class="bg-slate-200 text-slate-600 font-black px-8 py-4 rounded-xl text-xs uppercase hover:bg-slate-300 transition-all">
-                    Limpar
-                </button>
+            <div id="container-campos-tarefa" class="grid grid-cols-1 md:grid-cols-4 gap-3"></div>
+            <div class="flex gap-4 mt-6">
+                <button onclick="cadastrarTarefa()" class="bg-indigo-600 text-white font-black px-12 py-4 rounded-xl text-xs uppercase shadow-lg hover:bg-indigo-700 transition flex-1">Salvar na Lista de Tarefas</button>
+                <button onclick="mostrarCamposTarefa(document.getElementById('t_tipo').value)" class="bg-slate-100 text-slate-500 font-black px-6 py-4 rounded-xl text-xs uppercase hover:bg-slate-200 transition">Limpar</button>
             </div>
         </div>
-
-        <div id="lista-tarefas-ancora" class="card-premium overflow-hidden">
-            <div class="p-4 bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest flex justify-between">
-                <span>Lista de Tarefas Recentes</span>
-                <span id="tarefa-count">0 itens</span>
+        <div class="card-premium overflow-hidden">
+            <div class="p-4 bg-slate-50 border-b flex justify-between items-center">
+                <h3 class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Histórico de Atividades</h3>
+                <select id="filtro-tarefa-status" onchange="renderTarefas()" class="border-2 p-1 rounded-lg text-[10px] font-bold bg-white">
+                    <option value="TODAS">TODAS</option>
+                    <option value="Não Iniciado">NÃO INICIADO</option>
+                    <option value="Em Andamento">EM ANDAMENTO</option>
+                    <option value="Feito">CONCLUÍDO</option>
+                </select>
             </div>
             <table class="w-full text-left">
-                <thead><tr class="bg-slate-50 text-slate-400"><th>Data</th><th>Descrição da Tarefa / Cliente</th><th>Tipo</th><th>Status</th><th class="text-center">Ação</th></tr></thead>
+                <thead><tr class="bg-white"><th>Data</th><th>Tarefa / Cliente</th><th>Tipo</th><th>Status</th><th class="text-center">Ação</th></tr></thead>
                 <tbody id="tabelaTarefas"></tbody>
             </table>
         </div>
     </main>
 
-    <!-- OUTRAS ABAS (CATALOGO, ESTOQUE, ETC) MANTIDAS IGUAIS -->
-    <main id="view-assistencia" class="hidden p-6 max-w-[1950px] mx-auto"><div class="card-premium p-6 border-l-8 border-orange-500 flex gap-4 mb-6"><input list="listaSugestaoClientes" id="as_cliente" placeholder="NOME DO CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold flex-1"><input id="as_produto" placeholder="PRODUTO / DEFEITO" class="border-2 p-2 rounded-lg text-xs font-bold flex-1"><select id="as_fabrica" class="border-2 p-2 rounded-lg text-xs font-bold bg-white w-48"></select><button onclick="cadastrarAssistencia()" class="bg-orange-600 text-white px-8 py-2 rounded-lg font-black text-xs uppercase shadow">Add</button></div><div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Data</th><th>Cliente</th><th>Produto</th><th>Fábrica</th><th>Status</th><th>Ação</th></tr></thead><tbody id="tabelaAssistencias"></tbody></table></div></main>
+    <!-- ABA ASSISTENCIAS -->
+    <main id="view-assistencia" class="hidden p-6 max-w-[1950px] mx-auto"><div class="card-premium p-6 border-l-8 border-orange-500 flex gap-4 mb-6"><input id="as_cliente" placeholder="NOME DO CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold flex-1"><input id="as_produto" placeholder="PRODUTO / DEFEITO" class="border-2 p-2 rounded-lg text-xs font-bold flex-1"><select id="as_fabrica" class="border-2 p-2 rounded-lg text-xs font-bold bg-white w-48"></select><button onclick="cadastrarAssistencia()" class="bg-orange-600 text-white px-8 py-2 rounded-lg font-black text-xs uppercase shadow">Registrar</button></div><div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Data</th><th>Cliente</th><th>Produto</th><th>Fábrica</th><th>Status</th><th>Ação</th></tr></thead><tbody id="tabelaAssistencias"></tbody></table></div></main>
+
+    <!-- ABA ESTOQUE -->
     <main id="view-estoque" class="hidden p-6 max-w-[1950px] mx-auto"><div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-3 items-end"><input id="e_produto" placeholder="PRODUTO" class="border-2 p-2 rounded-lg text-xs font-bold flex-1"><input id="e_qtd" type="number" value="1" class="border-2 p-2 rounded-lg text-xs font-bold w-20"><select id="e_situacao" class="border-2 p-2 rounded-lg text-xs font-bold bg-white"><option value="ESTOQUE">ESTOQUE</option><option value="VENDIDO">VENDIDO</option></select><button onclick="cadastrarEstoque()" class="bg-blue-600 text-white p-2.5 rounded-lg font-black text-xs uppercase shadow">Add</button></div><div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Móvel</th><th>Qtd</th><th>Situação</th><th>Ação</th></tr></thead><tbody id="tabelaEstoque"></tbody></table></div></main>
+
+    <!-- ABA CATALOGO -->
     <main id="view-catalogo" class="hidden p-6 max-w-[1200px] mx-auto"><div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-2"><input id="cat_nome" placeholder="NOME DO MÓVEL" class="border-2 p-2 rounded-lg flex-1 font-bold uppercase"><button onclick="cadastrarCatalogo()" class="bg-blue-600 text-white px-8 py-2 rounded-lg font-black text-xs uppercase shadow">Salvar</button></div><div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Nome</th><th class="text-center">Remover</th></tr></thead><tbody id="tabelaCatalogo"></tbody></table></div></main>
+
+    <!-- ABA FABRICAS -->
     <main id="view-fornecedores" class="hidden max-w-4xl mx-auto p-6"><div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-2"><input id="f_nome" placeholder="FÁBRICA" class="border-2 p-2 rounded-lg flex-1 font-bold"><input id="f_email" placeholder="EMAIL" class="border-2 p-2 rounded-lg flex-1 font-bold lowercase"><button onclick="cadastrarFornecedor()" class="bg-blue-600 text-white px-8 py-2 rounded font-black text-xs uppercase tracking-tighter">Salvar</button></div><div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Fábrica</th><th>E-mail</th><th class="text-center">Remover</th></tr></thead><tbody id="tabelaFornecedores"></tbody></table></div></main>
 
-    <!-- MODAL DE DETALHES -->
-    <div id="modal-detalhes" class="hidden fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4" onclick="if(event.target==this) this.classList.add('hidden')">
-        <div class="card-premium w-full max-w-3xl bg-white overflow-hidden flex flex-col max-h-[90vh] shadow-2xl scale-in">
-            <div class="bg-indigo-600 p-5 text-white font-black flex justify-between items-center uppercase text-sm tracking-widest">
-                <span id="modal-titulo">Resumo do Pedido</span>
-                <button onclick="document.getElementById('modal-detalhes').classList.add('hidden')" class="hover:rotate-90 transition-all text-xl">✕</button>
-            </div>
-            <div id="detalhe-corpo" class="p-8 overflow-y-auto space-y-6 bg-slate-50 text-slate-800"></div>
+    <!-- MODAL DETALHES -->
+    <div id="modal-detalhes" onclick="if(event.target==this) this.style.display='none'">
+        <div class="card-premium w-full max-w-2xl bg-white overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="bg-indigo-600 p-4 text-white font-black flex justify-between items-center uppercase text-sm tracking-widest shadow-lg"><span>📄 Ficha de Venda</span><button onclick="document.getElementById('modal-detalhes').style.display='none'">✕</button></div>
+            <div id="detalhe-corpo" class="p-8 overflow-y-auto space-y-4 bg-white"></div>
         </div>
     </div>
 
-    <!-- NOTAS FLUTUANTES -->
+    <!-- BLOCO DE NOTAS -->
     <div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()">💡</div>
-    <div id="painel-sugestoes" class="hidden">
-        <div class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase">
-            <span>💡 Bloco de Notas</span><button onclick="togglePainelSugestoes()">✕</button>
-        </div>
-        <textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" oninput="autoSalvarNotas()" placeholder="Ideias, lembretes..."></textarea>
+    <div id="painel-sugestoes">
+        <div class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase"><span>💡 Bloco de Notas</span><button onclick="togglePainelSugestoes()">✕</button></div>
+        <textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" oninput="autoSalvarNotas()"></textarea>
     </div>
 
     <datalist id="listaSugestaoProdutos"></datalist>
