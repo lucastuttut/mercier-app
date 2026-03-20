@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mercier Design - Gestão Cloud Elite v48.0</title>
+    <title>Mercier Design - Gestão Cloud Elite v49.0</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
@@ -121,7 +121,7 @@
             <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
                 <input list="listaSugestaoClientes" id="as_cliente" placeholder="CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold">
                 <input type="text" id="as_pedido_id" placeholder="ID DO PEDIDO (OPCIONAL)" class="border-2 p-2 rounded-lg text-xs font-bold">
-                <input list="listaSugestaoProdutos" id="as_produto" placeholder="PRODUTO" class="border-2 p-2 rounded-lg text-xs font-bold">
+                <input type="text" id="as_produto" placeholder="PRODUTO" class="border-2 p-2 rounded-lg text-xs font-bold">
                 <select id="as_fabrica" class="border-2 p-2 rounded-lg text-xs font-bold bg-white"></select>
             </div>
             <textarea id="as_descricao" placeholder="DESCREVA O PROBLEMA RELATADO PELO CLIENTE..." class="w-full border-2 p-3 rounded-lg text-xs font-bold h-24 mb-3 uppercase"></textarea>
@@ -178,7 +178,12 @@
             <input type="email" id="f_email" placeholder="E-MAIL DE PEDIDOS" class="border-2 p-2 rounded-lg flex-1 font-bold lowercase">
             <button onclick="cadastrarFornecedor()" class="bg-blue-600 text-white px-8 py-2 rounded font-black text-xs uppercase">Salvar Fábrica</button>
         </div>
-        <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Fábrica</th><th>E-mail</th><th class="text-center">Remover</th></tr></thead><tbody id="tabelaFornecedores"></tbody></table></div>
+        <div class="card-premium overflow-hidden">
+            <table class="w-full text-left">
+                <thead><tr class="bg-slate-50"><th>Fábrica</th><th>E-mail</th><th class="text-center">Remover</th></tr></thead>
+                <tbody id="tabelaFornecedores"></tbody>
+            </table>
+        </div>
     </main>
 
     <!-- ABA MELHORIAS -->
@@ -254,7 +259,8 @@
             if(!p) return;
             document.getElementById('as_cliente').value = p.cliente;
             document.getElementById('as_pedido_id').value = p.idDoc;
-            document.getElementById('as_produto').value = p.produto;
+            // AQUI ESTÁ O AJUSTE: Concatenando Nome + Cor + Medida
+            document.getElementById('as_produto').value = `${p.produto} - ${p.cor} (${p.medida})`;
             document.getElementById('as_fabrica').value = p.fornecedor;
             switchTab('assistencia');
             document.getElementById('as_descricao').focus();
@@ -365,7 +371,7 @@
                     <td class="text-[10px] font-bold">${a.data}</td>
                     <td class="text-xs font-bold text-slate-500">${a.pedidoId}</td>
                     <td class="uppercase text-sm font-black">${a.cliente}</td>
-                    <td class="uppercase text-xs">${a.produto}</td>
+                    <td class="uppercase text-xs font-black">${a.produto}</td>
                     <td class="text-[10px] font-black uppercase text-blue-800">${a.fabrica}</td>
                     <td class="text-[10px] font-bold max-w-xs overflow-hidden">${a.descricao}</td>
                     <td><button onclick="cycleAssistenciaStatus(${a.uid})" class="status-badge ${sCls} text-white">${a.status}</button></td>
