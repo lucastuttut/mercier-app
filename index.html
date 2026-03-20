@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mercier Design - Gestão Cloud Elite v62.0</title>
+    <title>Mercier Design - Gestão Cloud Elite v61.1</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
@@ -40,7 +40,8 @@
         #btn-sugestao-flutuante { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 15px rgba(59,130,246,0.5); cursor: pointer; z-index: 100; }
         #painel-sugestoes { position: fixed; bottom: 90px; right: 24px; width: 320px; height: 450px; background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 101; display: none; flex-direction: column; border: 1px solid #e2e8f0; }
         #modal-detalhes { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
-        .copy-btn-small { cursor: pointer; color: #64748b; font-size: 14px; }
+        
+        .select-prazo-tabela { background: #000; color: #fff; font-size: 8px !important; font-weight: 900; border-radius: 4px; padding: 1px 3px; cursor: pointer; border: none; }
         .sit-estoque { background: #dcfce7; color: #166534; }
         .sit-vendido { background: #fee2e2; color: #991b1b; }
     </style>
@@ -69,7 +70,7 @@
                 <div class="flex flex-wrap gap-3 mb-4">
                     <input list="listaSugestaoClientes" id="m_cliente" placeholder="NOME DO CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold flex-1 outline-blue-500">
                     <select id="m_prazo_select" class="border-2 p-2 rounded-lg text-xs font-bold w-32 bg-white">
-                        <option value="15">15 Dias</option><option value="20">20 Dias</option><option value="30" selected>30 Dias</option><option value="30-util">30 Úteis</option><option value="40-util">40 Úteis</option>
+                        <option value="15">15 Dias</option><option value="30" selected>30 Dias</option>
                     </select>
                     <select id="m_fornecedor_select" class="border-2 p-2 rounded-lg text-xs font-bold w-48 bg-white"></select>
                 </div>
@@ -79,7 +80,6 @@
                     <input type="text" id="m_medida" placeholder="MEDIDA" class="border-2 p-1.5 rounded-lg text-xs font-bold w-24">
                     <input type="text" id="m_cor" placeholder="COR/TECIDO" class="border-2 p-1.5 rounded-lg text-xs font-bold w-32">
                     <input type="text" id="m_custo" placeholder="R$ CUSTO" class="border-2 p-1.5 rounded-lg text-xs font-bold w-24" oninput="maskMoney(this)">
-                    <input type="text" id="m_pendencia" placeholder="PENDÊNCIA / OBS" class="border-2 p-1.5 rounded-lg text-xs font-bold flex-1">
                     <button onclick="adicionarItemAoCesto()" class="bg-slate-800 text-white px-6 rounded-lg text-[10px] font-black hover:bg-black transition">＋ ITEM</button>
                 </div>
                 <div id="cesto-itens" class="text-[11px] font-bold text-blue-600 mb-3 italic px-2"></div>
@@ -97,34 +97,26 @@
                 </div>
                 <span id="contador" class="text-[10px] font-black bg-slate-900 text-white px-4 py-2 rounded-lg uppercase">0 Pedidos</span>
             </div>
-            <div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr><th width="40"><input type="checkbox" onclick="marcarTodos(this.checked)"></th><th>Prazo</th><th>ID</th><th>Cliente</th><th>Data</th><th>Qtd</th><th>Móvel</th><th>Medida</th><th>Cor</th><th>Custo</th><th>Status</th><th>Whats?</th><th>Conf?</th><th class="text-center">Ações</th></tr></thead><tbody id="tabelaPedidos"></tbody></table></div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead><tr><th width="40"><input type="checkbox"></th><th>Prazo</th><th>ID</th><th>Cliente</th><th>Data</th><th>Qtd</th><th>Móvel</th><th>Medida</th><th>Cor</th><th>Custo</th><th>Status</th><th>Whats?</th><th>Conf?</th><th class="text-center">Ação</th></tr></thead>
+                    <tbody id="tabelaPedidos"></tbody>
+                </table>
+            </div>
         </div>
     </main>
 
     <!-- ABA TAREFAS -->
-    <main id="view-tarefas" class="hidden max-w-[1200px] mx-auto p-4 md:p-6">
-        <div class="card-premium p-6 border-l-8 border-indigo-600 mb-6">
-            <select id="t_tipo" onchange="mostrarCamposTarefa(this.value)" class="border-2 p-3 rounded-xl text-xs font-bold bg-white mb-4 w-full md:w-72 outline-indigo-500"><option value="SIMPLES">Anotação Simples</option><option value="TIRAR PEDIDO">Tirar Pedido</option></select>
-            <div id="container-campos-tarefa" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
-            <button onclick="cadastrarTarefa()" class="bg-indigo-600 text-white font-black px-12 py-3.5 rounded-xl text-xs uppercase shadow-lg mt-4">Salvar na Lista</button>
-        </div>
-        <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Data</th><th>Tarefa</th><th>Tipo</th><th>Status</th><th>Remover</th></tr></thead><tbody id="tabelaTarefas"></tbody></table></div>
-    </main>
+    <main id="view-tarefas" class="hidden max-w-[1200px] mx-auto p-4 md:p-6"></main>
+    <main id="view-assistencia" class="hidden p-6"></main>
+    <main id="view-estoque" class="hidden p-6"></main>
+    <main id="view-catalogo" class="hidden p-6"></main>
+    <main id="view-fornecedores" class="hidden p-6"></main>
 
-    <!-- ABA ESTOQUE -->
-    <main id="view-estoque" class="hidden p-6 max-w-[1950px] mx-auto"><div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-3 items-end"><input id="e_produto" placeholder="PRODUTO" class="border-2 p-2 rounded-lg text-xs font-bold flex-1"><input id="e_qtd" type="number" value="1" class="border-2 p-2 rounded-lg text-xs font-bold w-20"><select id="e_situacao" class="border-2 p-2 rounded-lg text-xs font-bold bg-white"><option value="ESTOQUE">ESTOQUE</option><option value="VENDIDO">VENDIDO</option><option value="DEVOLUÇÃO">DEVOLUÇÃO</option><option value="ASSISTENCIA">ASSISTENCIA</option></select><button onclick="cadastrarEstoque()" class="bg-blue-600 text-white p-2.5 rounded-lg font-black text-xs uppercase">Add</button></div><div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Móvel</th><th>Qtd</th><th>Situação</th><th>Ação</th></tr></thead><tbody id="tabelaEstoque"></tbody></table></div></main>
+    <!-- MODAL DETALHES -->
+    <div id="modal-detalhes" onclick="if(event.target==this) this.style.display='none'"><div class="card-premium w-full max-w-2xl bg-white overflow-hidden flex flex-col max-h-[90vh]"><div class="bg-indigo-600 p-4 text-white font-black flex justify-between items-center uppercase text-sm"><span>Detalhes</span><button onclick="document.getElementById('modal-detalhes').style.display='none'">✕</button></div><div id="detalhe-corpo" class="p-8 overflow-y-auto"></div></div></div>
     
-    <!-- ABA CATALOGO -->
-    <main id="view-catalogo" class="hidden p-6 max-w-[1200px] mx-auto"><div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-2"><input id="cat_nome" placeholder="NOME DO MÓVEL" class="border-2 p-2 rounded-lg flex-1 font-bold uppercase"><button onclick="cadastrarCatalogo()" class="bg-blue-600 text-white px-8 py-2 rounded-lg font-black text-xs">SALVAR NO CATÁLOGO</button></div><div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Nome</th><th class="text-center">Remover</th></tr></thead><tbody id="tabelaCatalogo"></tbody></table></div></main>
-
-    <!-- ABA FÁBRICAS -->
-    <main id="view-fornecedores" class="hidden max-w-4xl mx-auto p-6"><div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-2"><input id="f_nome" placeholder="FÁBRICA" class="border-2 p-2 rounded-lg flex-1 font-bold"><input id="f_email" placeholder="EMAIL" class="border-2 p-2 rounded-lg flex-1 font-bold"><button onclick="cadastrarFornecedor()" class="bg-blue-600 text-white px-8 py-2 rounded-lg font-black text-xs">SALVAR</button></div><div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Fábrica</th><th>E-mail</th><th class="text-center">Remover</th></tr></thead><tbody id="tabelaFornecedores"></tbody></table></div></main>
-
-    <!-- ASSISTENCIA -->
-    <main id="view-assistencia" class="hidden p-6 max-w-[1950px] mx-auto"><div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Data</th><th>ID Pedido</th><th>Cliente</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tabelaAssistencias"></tbody></table></div></main>
-
-    <!-- MODAIS -->
-    <div id="modal-detalhes" onclick="if(event.target==this) this.style.display='none'"><div class="card-premium w-full max-w-2xl bg-white overflow-hidden flex flex-col max-h-[90vh]"><div class="bg-indigo-600 p-4 text-white font-black flex justify-between items-center uppercase text-sm"><span>Resumo</span><button onclick="document.getElementById('modal-detalhes').style.display='none'">✕</button></div><div id="detalhe-corpo" class="p-8 overflow-y-auto"></div></div></div>
+    <!-- BALÃO FLUTUANTE -->
     <div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()">💡</div>
     <div id="painel-sugestoes"><div class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase tracking-widest"><span>💡 Sugestões</span><button onclick="togglePainelSugestoes()">✕</button></div><textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" oninput="autoSalvarNotas()"></textarea></div>
 
@@ -144,44 +136,20 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[], proximoID=255, notasMelhoria="", cestoItensTemporario=[], filtrandoNaoEnviados=false;
+        let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], proximoID=255, notasMelhoria="", cestoItensTemporario=[], filtrandoNaoEnviados=false;
 
         db.ref('dados').on('value', (s) => {
             const d = s.val() || {};
-            pedidos=d.pedidos||[]; fornecedores=d.fornecedores||[]; estoque=d.estoque||[]; catalogo=d.catalogo||[]; tarefas=d.tarefas||[]; assistencias=d.assistencias||[]; proximoID=d.proximoID||255; notasMelhoria=d.notasMelhoria||"";
+            pedidos=d.pedidos||[]; fornecedores=d.fornecedores||[]; estoque=d.estoque||[]; catalogo=d.catalogo||[]; tarefas=d.tarefas||[]; proximoID=d.proximoID||255; notasMelhoria=d.notasMelhoria||"";
             document.getElementById('status-db').innerText="SINCRONIZADO";
             document.getElementById('status-db').className="text-[10px] px-4 py-1.5 rounded-full bg-green-600 font-black text-white uppercase";
             document.getElementById('texto-melhorias').value=notasMelhoria;
-            atualizarSugestoes(); atualizarSelectsFornecedores(); renderPedidos(); renderEstoque(); renderCatalogo(); renderTarefas(); renderFornecedores(); renderAssistencias();
+            atualizarSugestoes(); atualizarSelectsFornecedores(); renderPedidos(); 
         });
 
-        function salvarCloud(){ db.ref('dados').set({pedidos, fornecedores, estoque, catalogo, tarefas, assistencias, proximoID, notasMelhoria}); }
+        function salvarCloud(){ db.ref('dados').set({pedidos, fornecedores, estoque, catalogo, tarefas, proximoID, notasMelhoria}); }
 
-        // --- PEDIDOS ---
-        function adicionarItemAoCesto() {
-            const p = document.getElementById('m_produto').value.trim().toUpperCase();
-            if(!p) return alert("Preencha o produto!");
-            cestoItensTemporario.push({
-                q: document.getElementById('m_qtd').value,
-                p: p,
-                m: document.getElementById('m_medida').value,
-                c: document.getElementById('m_cor').value.toUpperCase(),
-                v: document.getElementById('m_custo').value,
-                o: document.getElementById('m_pendencia').value.toUpperCase()
-            });
-            document.getElementById('cesto-itens').innerText = "Adicionados: " + cestoItensTemporario.length;
-            document.getElementById('m_produto').value = ""; document.getElementById('m_medida').value = ""; document.getElementById('m_cor').value = ""; document.getElementById('m_custo').value = ""; document.getElementById('m_pendencia').value = "";
-        }
-
-        function cadastrarManual() {
-            const cli = document.getElementById('m_cliente').value.trim().toUpperCase();
-            const forn = document.getElementById('m_fornecedor_select').value;
-            if(!cli || cestoItensTemporario.length === 0) return alert("Preencha cliente e itens!");
-            const idDoc = "ID#" + proximoID.toString().padStart(4, '0'); proximoID++;
-            const data = new Date().toLocaleDateString('pt-BR');
-            cestoItensTemporario.forEach(i => pedidos.unshift({ uid: Date.now() + Math.random(), idDoc, cliente: cli, dataPedido: data, qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, pendencia: i.o, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false }));
-            cestoItensTemporario = []; document.getElementById('m_cliente').value = ""; document.getElementById('cesto-itens').innerText = ""; salvarCloud();
-        }
+        function maskMoney(i){ let v=i.value.replace(/\D/g,""); v=(v/100).toFixed(2).replace(".",","); v=v.replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1."); i.value="R$ "+v; }
 
         function renderPedidos() {
             const tb=document.getElementById('tabelaPedidos'); if(!tb) return;
@@ -189,46 +157,69 @@
             let l=pedidos.filter(x=>(x.cliente||"").toLowerCase().includes(b)||(x.produto||"").toLowerCase().includes(b)||(x.idDoc||"").toLowerCase().includes(b));
             if(filtrandoNaoEnviados) l=l.filter(x=>x.status==="Não enviado");
             document.getElementById('contador').innerText=l.length+" PEDIDOS";
+            
             tb.innerHTML = l.map(x=>{
-                const p=calcP(x.dataPedido,x.prazo);
+                const p=calcP(x.dataPedido, x.prazo);
                 let sCls=x.status==="Não enviado"?"bg-red-600":(x.status.includes("enviado")?"bg-blue-600":"bg-green-700");
                 const vLimpo = (x.custo || "R$ 0,00").replace("R$ ", "");
-                return `<tr class="${p.classe}"><td><input type="checkbox"></td><td><span class="text-[9px] font-black">${p.dias}D</span></td><td class="text-xs font-bold text-slate-400">${x.idDoc}</td><td onclick="editField(${x.uid},'cliente')" class="editable-cell uppercase">${x.cliente}</td><td>${x.dataPedido}</td><td class="text-center font-black">${x.qtd}</td><td class="uppercase text-[11px] font-black">${x.produto}</td><td>${x.medida||'-'}</td><td class="uppercase">${x.cor||'-'}</td><td onclick="editField(${x.uid},'custo')" class="editable-cell whitespace-nowrap"><span class="text-[8px] opacity-50">R$</span> ${vLimpo}</td>
-                <td><button onclick="cycleStatus(${x.uid})" class="status-badge ${sCls} text-white">${x.status}</button></td>
-                <td><button onclick="togPed(${x.uid},'whatsEnviado')" class="status-badge ${x.whatsEnviado?'btn-sim':'btn-nao'} font-black">${x.whatsEnviado?'SIM':'NÃO'}</button></td>
-                <td><button onclick="togPed(${x.uid},'confirmado')" class="status-badge ${x.confirmado?'btn-sim':'btn-nao'} font-black">${x.confirmado?'SIM':'NÃO'}</button></td>
-                <td><div class="flex gap-1 justify-center"><button onclick="copiarTexto(${x.uid})">📋</button><button onclick="dupPed(${x.uid})">➕</button><button onclick="gerarAssistenciaRapida(${x.uid})">🛠️</button><button onclick="excluirPedido(${x.uid})" class="text-red-500 font-black">✖</button></div></td></tr>`;
+
+                return `<tr class="${p.classe}">
+                    <td><input type="checkbox"></td>
+                    <td><div class="flex flex-col gap-1 items-center">
+                        <span class="text-[9px] font-black">${p.dias}D</span>
+                        <select onchange="updPed(${x.uid},'prazo',this.value)" class="select-prazo-tabela">
+                            <option value="15" ${x.prazo=='15'?'selected':''}>15C</option>
+                            <option value="30" ${x.prazo=='30'?'selected':''}>30C</option>
+                        </select>
+                    </div></td>
+                    <td class="text-xs font-bold text-slate-400">${x.idDoc}</td>
+                    <td onclick="editField(${x.uid},'cliente')" class="editable-cell uppercase text-[11px] font-black">${x.cliente}</td>
+                    <td class="text-[9px] font-bold">${x.dataPedido}</td>
+                    <td class="text-center font-black text-xs">${x.qtd}</td>
+                    <td class="uppercase text-[10px] font-black">${x.produto}</td>
+                    <td class="text-[10px] font-bold">${x.medida||'-'}</td>
+                    <td class="uppercase text-[10px] font-bold">${x.cor||'-'}</td>
+                    <td onclick="editField(${x.uid},'custo')" class="editable-cell whitespace-nowrap text-[10px]">
+                        <span class="text-[8px] opacity-50">R$</span> ${vLimpo}
+                    </td>
+                    <td><button onclick="cycleStatus(${x.uid})" class="status-badge ${sCls} text-white">${x.status}</button></td>
+                    <td><button onclick="togPed(${x.uid},'whatsEnviado')" class="status-badge ${x.whatsEnviado?'btn-sim':'btn-nao'} font-black">${x.whatsEnviado?'SIM':'NÃO'}</button></td>
+                    <td><button onclick="togPed(${x.uid},'confirmado')" class="status-badge ${x.confirmado?'btn-sim':'btn-nao'} font-black">${x.confirmado?'SIM':'NÃO'}</button></td>
+                    <td><div class="flex gap-1 justify-center">
+                        <button onclick="duplicarPedido(${x.uid})" title="Duplicar">➕</button>
+                        <button onclick="excluirPedido(${x.uid})" class="text-red-500 font-black">✖</button>
+                    </div></td></tr>`;
             }).join('');
         }
 
-        // --- GERAL ---
-        function switchTab(t){ document.querySelectorAll('main').forEach(x=>x.classList.add('hidden')); document.getElementById('view-'+t).classList.remove('hidden'); document.querySelectorAll('nav button').forEach(x=>x.classList.remove('tab-active')); document.getElementById('tab-'+t).classList.add('tab-active'); if(t==='tarefas') mostrarCamposTarefa(document.getElementById('t_tipo').value); }
+        function switchTab(t){ document.querySelectorAll('main').forEach(x=>x.classList.add('hidden')); document.getElementById('view-'+t).classList.remove('hidden'); document.querySelectorAll('nav button').forEach(x=>x.classList.remove('tab-active')); document.getElementById('tab-'+t).classList.add('tab-active'); }
         function cycleStatus(u){ const x=pedidos.find(y=>y.uid==u); const s=["Não enviado","Pedido enviado ao fornecedor","Pedido chegou na loja"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarCloud(); }
-        function togPed(u,c){ const x=pedidos.find(y=>y.uid==u); x[c]=!x[c]; salvarCloud(); }
+        function togPed(u,c){ const x=pedidos.find(y=>y.uid==u); if(x){ x[c]=!x[c]; salvarCloud(); } }
+        function updPed(u,c,v){ const x=pedidos.find(y=>y.uid==u); if(x){ x[c]=v; salvarCloud(); } }
         function togglePainelSugestoes(){ const p=document.getElementById('painel-sugestoes'); p.style.display=p.style.display==='flex'?'none':'flex'; }
         function autoSalvarNotas(){ notasMelhoria=document.getElementById('texto-melhorias').value; db.ref('dados/notasMelhoria').set(notasMelhoria); }
         function toggleFiltroNaoEnviado(){ filtrandoNaoEnviados=!filtrandoNaoEnviados; document.getElementById('btnFiltroNaoEnviado').classList.toggle('bg-red-600'); renderPedidos(); }
         function limparBusca(){ document.getElementById('busca').value=""; renderPedidos(); }
         function marcarTodos(v){ document.querySelectorAll('#tabelaPedidos input[type=checkbox]').forEach(c=>c.checked=v); }
-        function maskMoney(i){ let v=i.value.replace(/\D/g,""); v=(v/100).toFixed(2).replace(".",","); v=v.replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1."); i.value="R$ "+v; }
-        function editField(u,f){ const x=pedidos.find(y=>y.uid==u); let n=prompt(`Editar:`,x[f]||""); if(n!==null){ if(f==='custo'){ let v=n.replace(/\D/g,""); x[f]=v? "R$ "+(v/100).toFixed(2).replace(".",",").replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1.") : "R$ 0,00"; } else {x[f]=n.toUpperCase();} salvarCloud(); } }
-        function excluirPedido(u){ if(confirm("Excluir?")){ pedidos=pedidos.filter(x=>x.uid!=u); salvarCloud(); } }
-        function dupPed(u){ const x=pedidos.find(y=>y.uid==u); const idDoc="ID#"+proximoID.toString().padStart(4,'0'); proximoID++; pedidos.unshift({...x, uid:Date.now(), idDoc}); salvarCloud(); }
-        function copiarTexto(u){ const x=pedidos.find(y=>y.uid==u); navigator.clipboard.writeText(`${x.qtd}x ${x.produto} ${x.cor} (${x.idDoc})`); alert("Copiado!"); }
-        function gerarAssistenciaRapida(u){ const x=pedidos.find(y=>y.uid==u); if(!x) return; alert("Dados prontos na aba assistências!"); }
-        function calcP(d, pr){ if(!d)return{dias:0,classe:""}; try { const pA=d.split("/"); const dt=new Date(pA[2], pA[1]-1, pA[0]); let dF=new Date(dt); dF.setDate(dF.getDate()+parseInt(pr||30)); const df=Math.ceil((dF-new Date())/86400000); let c=df<0?"prazo-vencido":(df<=5?"prazo-urgente":(df<=10?"prazo-alerta":(df<=20?"prazo-atencao":""))); return {dias:df,classe:c}; } catch(e){return {dias:0,classe:""}} }
+        
+        function editField(u,f){ 
+            const x=pedidos.find(y=>y.uid==u); 
+            let n=prompt(`Editar:`, x[f]||""); 
+            if(n!==null){ 
+                if(f==='custo'){ let v=n.replace(/\D/g,""); x[f]=v? "R$ "+(v/100).toFixed(2).replace(".",",").replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1.") : "R$ 0,00"; }
+                else {x[f]=n.toUpperCase();} 
+                salvarCloud(); 
+            } 
+        }
 
-        function cadastrarEstoque() { estoque.unshift({ uid: Date.now(), produto: document.getElementById('e_produto').value.toUpperCase(), qtd: document.getElementById('e_qtd').value, situacao: document.getElementById('e_situacao').value }); salvarCloud(); }
-        function renderEstoque() { const tb=document.getElementById('tabelaEstoque'); if(!tb) return; tb.innerHTML=estoque.map(x=>`<tr><td class="font-black text-xs p-4 uppercase">${x.produto}</td><td>${x.qtd}</td><td>${x.situacao}</td><td><button onclick="estoque=estoque.filter(y=>y.uid!=${x.uid});salvarCloud();">✖</button></td></tr>`).join(''); }
-        function cadastrarCatalogo() { catalogo.push({ nome: document.getElementById('cat_nome').value.toUpperCase() }); salvarCloud(); }
-        function renderCatalogo() { const tb=document.getElementById('tabelaCatalogo'); if(!tb) return; tb.innerHTML=catalogo.map((c,i)=>`<tr><td class="p-4 font-black uppercase text-xs">${c.nome}</td><td class="text-center"><button onclick="catalogo.splice(${i},1);salvarCloud();">✖</button></td></tr>`).join(''); }
-        function cadastrarFornecedor() { fornecedores.push({ nome: document.getElementById('f_nome').value.toUpperCase(), email: document.getElementById('f_email').value.toLowerCase() }); salvarCloud(); }
-        function renderFornecedores() { const tb=document.getElementById('tabelaFornecedores'); if(!tb) return; tb.innerHTML=fornecedores.map((f,i)=>`<tr><td class="p-4 font-black text-xs uppercase">${f.nome}</td><td class="p-4 text-xs lowercase">${f.email}</td><td class="text-center"><button onclick="fornecedores.splice(${i},1);salvarCloud();">✖</button></td></tr>`).join(''); }
-        function renderTarefas() { const tb=document.getElementById('tabelaTarefas'); if(!tb) return; const f=document.getElementById('filtro-tarefa').value; let l=f==='TODAS'?tarefas:tarefas.filter(x=>x.status===f); tb.innerHTML=l.map(x=>`<tr onclick="verDetalhesTarefa(${x.uid})" class="hover:bg-slate-50 cursor-pointer"><td>${x.data}</td><td class="font-black text-xs uppercase">${x.descricao}</td><td>${x.tipo}</td><td><button class="status-badge bg-slate-200">${x.status}</button></td><td><button onclick="event.stopPropagation(); tarefas=tarefas.filter(y=>y.uid!=${x.uid});salvarCloud();">✖</button></td></tr>`).join(''); }
-        function renderAssistencias() { const tb=document.getElementById('tabelaAssistencias'); if(!tb) return; tb.innerHTML=assistencias.map(a=>`<tr><td>${a.data}</td><td>${a.pedidoId}</td><td class="uppercase">${a.cliente}</td><td>${a.status}</td><td><button onclick="assistencias=assistencias.filter(x=>x.uid!=${a.uid});salvarCloud();">✖</button></td></tr>`).join(''); }
+        function calcP(d, pr){ if(!d)return{dias:0,classe:""}; try { const pA=d.split("/"); const dt=new Date(pA[2], pA[1]-1, pA[0]); let dF=new Date(dt); dF.setDate(dF.getDate()+parseInt(pr||30)); const df=Math.ceil((dF-new Date())/86400000); let c=df<0?"prazo-vencido":(df<=5?"prazo-urgente":(df<=10?"prazo-alerta":(df<=20?"prazo-atencao":""))); return {dias:df,classe:c}; } catch(e){return {dias:0,classe:""}} }
+        function excluirPedido(u){ if(confirm("Excluir?")){ pedidos=pedidos.filter(x=>x.uid!=u); salvarCloud(); } }
         function atualizarSelectsFornecedores(){ const h = fornecedores.map(f => `<option value="${f.nome}">${f.nome}</option>`).join(''); document.getElementById('m_fornecedor_select').innerHTML = h || "<option>...</option>"; }
         function atualizarSugestoes(){ const n=[...new Set(pedidos.map(p=>p.cliente))].sort(); if(document.getElementById('listaSugestaoClientes')) document.getElementById('listaSugestaoClientes').innerHTML=n.map(x=>`<option value="${x}">`).join(''); }
-        function gerarEmailLote() { alert("Função restaurada!"); }
+        function adicionarItemAoCesto() { const p = document.getElementById('m_produto').value.trim().toUpperCase(); if(!p) return alert("Preencha!"); cestoItensTemporario.push({ q: document.getElementById('m_qtd').value, p, m: document.getElementById('m_medida').value, c: document.getElementById('m_cor').value.toUpperCase(), v: document.getElementById('m_custo').value }); document.getElementById('cesto-itens').innerText = "Cesto: " + cestoItensTemporario.length + " itens"; document.getElementById('m_produto').value = ""; }
+        function cadastrarManual() { const cli = document.getElementById('m_cliente').value.trim().toUpperCase(); const forn = document.getElementById('m_fornecedor_select').value; if(!cli || cestoItensTemporario.length === 0) return alert("Falta preencher!"); const idDoc = "ID#" + proximoID.toString().padStart(4, '0'); proximoID++; const data = new Date().toLocaleDateString('pt-BR'); cestoItensTemporario.forEach(i => pedidos.unshift({ uid: Date.now() + Math.random(), idDoc, cliente: cli, dataPedido: data, qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false })); cestoItensTemporario = []; document.getElementById('m_cliente').value = ""; document.getElementById('cesto-itens').innerText = ""; salvarCloud(); }
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
     </script>
 </body>
 </html>
