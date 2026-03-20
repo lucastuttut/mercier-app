@@ -1,6 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
 
-/* Configurações Globais */
 * { box-sizing: border-box; }
 body { 
     font-family: 'Plus Jakarta Sans', sans-serif !important; 
@@ -10,21 +9,11 @@ body {
     padding: 0; 
 }
 
-/* Header e Nav */
-.glass-header { 
-    background: #0f172a; 
-    border-bottom: 4px solid #3b82f6; 
-}
+.glass-header { background: #0f172a; border-bottom: 4px solid #3b82f6; }
 .status-online { font-size: 10px; padding: 6px 16px; border-radius: 99px; background: #22c55e; font-weight: 900; color: white; text-transform: uppercase; }
 .status-offline { font-size: 10px; padding: 6px 16px; border-radius: 99px; background: #f97316; font-weight: 900; color: white; text-transform: uppercase; }
 
-/* Cards */
-.card-premium { 
-    background: white; 
-    border-radius: 20px; 
-    box-shadow: 0 4px 20px rgba(0,0,0,0.08); 
-    border: 1px solid #e2e8f0; 
-}
+.card-premium { background: white; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
 
 /* Prazos */
 .prazo-vencido { background-color: #fee2e2 !important; border-left: 8px solid #b91c1c !important; animation: pulse-red 2s infinite; }
@@ -33,15 +22,13 @@ body {
 .prazo-atencao { background-color: #fefce8 !important; border-left: 8px solid #eab308 !important; }
 @keyframes pulse-red { 0% { background-color: #fee2e2; } 50% { background-color: #fecaca; } 100% { background-color: #fee2e2; } }
 
-/* Badges e Status */
 .status-badge { font-size: 9px; font-weight: 900; padding: 8px; border-radius: 6px; text-transform: uppercase; width: 100%; text-align: center; cursor: pointer; border: none; display: block; }
 .btn-sim { background-color: #15803d !important; color: white !important; }
 .btn-nao { background-color: #b91c1c !important; color: white !important; }
 .tab-active { border-bottom: 4px solid #3b82f6; color: #3b82f6 !important; font-weight: 800; }
 
-/* Tabelas */
 th { font-size: 10px; font-weight: 900; text-transform: uppercase; color: #64748b; padding: 12px 4px; border-bottom: 2px solid #3b82f6; background: #fff; }
-td { padding: 6px 8px !important; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9; font-size: 11px; }
+td { padding: 8px 8px !important; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9; font-size: 11px; }
 input, select, textarea { text-transform: uppercase; outline: none; }
 .editable-cell:hover { background-color: #f8fafc; cursor: pointer; text-decoration: underline; color: #3b82f6; }
 
@@ -49,7 +36,6 @@ input, select, textarea { text-transform: uppercase; outline: none; }
 .col-cliente { max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .col-movel { max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* Utilitários */
 #btn-sugestao-flutuante { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 15px rgba(59,130,246,0.5); cursor: pointer; z-index: 100; }
 #painel-sugestoes { position: fixed; bottom: 90px; right: 24px; width: 320px; height: 450px; background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 101; display: none; flex-direction: column; border: 1px solid #e2e8f0; overflow: hidden;}
 #modal-detalhes { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
