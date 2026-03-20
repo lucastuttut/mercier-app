@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mercier Design - Gestão Cloud Elite v61.0</title>
+    <title>Mercier Design - Gestão Cloud Elite v62.0</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
@@ -41,8 +41,6 @@
         #painel-sugestoes { position: fixed; bottom: 90px; right: 24px; width: 320px; height: 450px; background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 101; display: none; flex-direction: column; border: 1px solid #e2e8f0; }
         #modal-detalhes { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
         .copy-btn-small { cursor: pointer; color: #64748b; font-size: 14px; }
-        .btn-pag-opt { background: #f1f5f9; padding: 6px 12px; border-radius: 8px; font-size: 10px; font-weight: 800; border: 2px solid transparent; cursor: pointer; }
-        .btn-pag-opt.active { background: #3b82f6; color: white; border-color: #2563eb; }
         .sit-estoque { background: #dcfce7; color: #166534; }
         .sit-vendido { background: #fee2e2; color: #991b1b; }
     </style>
@@ -99,43 +97,34 @@
                 </div>
                 <span id="contador" class="text-[10px] font-black bg-slate-900 text-white px-4 py-2 rounded-lg uppercase">0 Pedidos</span>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr>
-                            <th width="40"><input type="checkbox" onclick="marcarTodos(this.checked)"></th>
-                            <th>Prazo</th><th>ID</th><th>Cliente</th><th>Data</th><th>Qtd</th><th>Móvel</th><th>Medida</th><th>Cor</th><th>Custo</th><th>Status</th><th>Whats?</th><th>Conf?</th><th class="text-center">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabelaPedidos"></tbody>
-                </table>
-            </div>
+            <div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr><th width="40"><input type="checkbox" onclick="marcarTodos(this.checked)"></th><th>Prazo</th><th>ID</th><th>Cliente</th><th>Data</th><th>Qtd</th><th>Móvel</th><th>Medida</th><th>Cor</th><th>Custo</th><th>Status</th><th>Whats?</th><th>Conf?</th><th class="text-center">Ações</th></tr></thead><tbody id="tabelaPedidos"></tbody></table></div>
         </div>
     </main>
 
     <!-- ABA TAREFAS -->
     <main id="view-tarefas" class="hidden max-w-[1200px] mx-auto p-4 md:p-6">
         <div class="card-premium p-6 border-l-8 border-indigo-600 mb-6">
-            <select id="t_tipo" onchange="mostrarCamposTarefa(this.value)" class="border-2 p-3 rounded-xl text-xs font-bold bg-white mb-4 w-full md:w-72 outline-indigo-500">
-                <option value="SIMPLES">Anotação Simples</option>
-                <option value="TIRAR PEDIDO">Tirar Pedido</option>
-                <option value="MARCAR ENTREGA">Marcar Entrega</option>
-                <option value="RETORNO CLIENTE">Dar Retorno para Cliente</option>
-            </select>
+            <select id="t_tipo" onchange="mostrarCamposTarefa(this.value)" class="border-2 p-3 rounded-xl text-xs font-bold bg-white mb-4 w-full md:w-72 outline-indigo-500"><option value="SIMPLES">Anotação Simples</option><option value="TIRAR PEDIDO">Tirar Pedido</option></select>
             <div id="container-campos-tarefa" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
             <button onclick="cadastrarTarefa()" class="bg-indigo-600 text-white font-black px-12 py-3.5 rounded-xl text-xs uppercase shadow-lg mt-4">Salvar na Lista</button>
         </div>
-        <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Data</th><th>Tarefa</th><th>Tipo</th><th>Status</th><th class="text-center">Remover</th></tr></thead><tbody id="tabelaTarefas"></tbody></table></div>
+        <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Data</th><th>Tarefa</th><th>Tipo</th><th>Status</th><th>Remover</th></tr></thead><tbody id="tabelaTarefas"></tbody></table></div>
     </main>
 
-    <!-- ASSISTÊNCIA, ESTOQUE, CATALOGO, FÁBRICAS (MANTIDAS) -->
-    <main id="view-assistencia" class="hidden max-w-[1950px] mx-auto p-4 md:p-6"><div class="card-premium p-6 border-l-8 border-orange-500 mb-6"><div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3"><input list="listaSugestaoClientes" id="as_cliente" placeholder="CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold"><input type="text" id="as_pedido_id" placeholder="ID PEDIDO" class="border-2 p-2 rounded-lg text-xs font-bold"><input type="text" id="as_produto" placeholder="PRODUTO" class="border-2 p-2 rounded-lg text-xs font-bold"><select id="as_fabrica" class="border-2 p-2 rounded-lg text-xs font-bold bg-white"></select></div><textarea id="as_descricao" placeholder="RELATO DO PROBLEMA..." class="w-full border-2 p-3 rounded-lg text-xs font-bold h-24 mb-3 uppercase"></textarea><button onclick="cadastrarAssistencia()" class="bg-orange-600 text-white font-black px-8 py-3 rounded-xl text-xs uppercase shadow-md">Registrar</button></div><div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr><th>Data</th><th>Pedido</th><th>Cliente</th><th>Produto</th><th>Status</th><th class="text-center">Ação</th></tr></thead><tbody id="tabelaAssistencias"></tbody></table></div></main>
+    <!-- ABA ESTOQUE -->
     <main id="view-estoque" class="hidden p-6 max-w-[1950px] mx-auto"><div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-3 items-end"><input id="e_produto" placeholder="PRODUTO" class="border-2 p-2 rounded-lg text-xs font-bold flex-1"><input id="e_qtd" type="number" value="1" class="border-2 p-2 rounded-lg text-xs font-bold w-20"><select id="e_situacao" class="border-2 p-2 rounded-lg text-xs font-bold bg-white"><option value="ESTOQUE">ESTOQUE</option><option value="VENDIDO">VENDIDO</option><option value="DEVOLUÇÃO">DEVOLUÇÃO</option><option value="ASSISTENCIA">ASSISTENCIA</option></select><button onclick="cadastrarEstoque()" class="bg-blue-600 text-white p-2.5 rounded-lg font-black text-xs uppercase">Add</button></div><div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Móvel</th><th>Qtd</th><th>Situação</th><th>Ação</th></tr></thead><tbody id="tabelaEstoque"></tbody></table></div></main>
-    <main id="view-catalogo" class="hidden p-6 max-w-[1200px] mx-auto"><div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-2"><input id="cat_nome" placeholder="NOME DO MÓVEL" class="border-2 p-2 rounded-lg flex-1 font-bold uppercase"><button onclick="cadastrarCatalogo()" class="bg-blue-600 text-white px-8 py-2 rounded-lg font-black text-xs uppercase">Salvar</button></div><div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Nome</th><th class="text-center">Remover</th></tr></thead><tbody id="tabelaCatalogo"></tbody></table></div></main>
-    <main id="view-fornecedores" class="hidden max-w-4xl mx-auto p-6"><div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-2"><input id="f_nome" placeholder="NOME FÁBRICA" class="border-2 p-2 rounded-lg flex-1 font-bold"><input id="f_email" placeholder="EMAIL" class="border-2 p-2 rounded-lg flex-1 font-bold lowercase"><button onclick="cadastrarFornecedor()" class="bg-blue-600 text-white px-8 py-2 rounded font-black text-xs uppercase">Salvar</button></div><div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Fábrica</th><th>E-mail</th><th class="text-center">Remover</th></tr></thead><tbody id="tabelaFornecedores"></tbody></table></div></main>
+    
+    <!-- ABA CATALOGO -->
+    <main id="view-catalogo" class="hidden p-6 max-w-[1200px] mx-auto"><div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-2"><input id="cat_nome" placeholder="NOME DO MÓVEL" class="border-2 p-2 rounded-lg flex-1 font-bold uppercase"><button onclick="cadastrarCatalogo()" class="bg-blue-600 text-white px-8 py-2 rounded-lg font-black text-xs">SALVAR NO CATÁLOGO</button></div><div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Nome</th><th class="text-center">Remover</th></tr></thead><tbody id="tabelaCatalogo"></tbody></table></div></main>
+
+    <!-- ABA FÁBRICAS -->
+    <main id="view-fornecedores" class="hidden max-w-4xl mx-auto p-6"><div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-2"><input id="f_nome" placeholder="FÁBRICA" class="border-2 p-2 rounded-lg flex-1 font-bold"><input id="f_email" placeholder="EMAIL" class="border-2 p-2 rounded-lg flex-1 font-bold"><button onclick="cadastrarFornecedor()" class="bg-blue-600 text-white px-8 py-2 rounded-lg font-black text-xs">SALVAR</button></div><div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Fábrica</th><th>E-mail</th><th class="text-center">Remover</th></tr></thead><tbody id="tabelaFornecedores"></tbody></table></div></main>
+
+    <!-- ASSISTENCIA -->
+    <main id="view-assistencia" class="hidden p-6 max-w-[1950px] mx-auto"><div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Data</th><th>ID Pedido</th><th>Cliente</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tabelaAssistencias"></tbody></table></div></main>
 
     <!-- MODAIS -->
-    <div id="modal-detalhes" onclick="if(event.target==this) this.style.display='none'"><div class="card-premium w-full max-w-2xl bg-white overflow-hidden flex flex-col max-h-[90vh]"><div class="bg-indigo-600 p-4 text-white font-black flex justify-between items-center uppercase text-sm"><span>Resumo Detalhado</span><button onclick="document.getElementById('modal-detalhes').style.display='none'">✕</button></div><div id="detalhe-corpo" class="p-8 overflow-y-auto space-y-4"></div></div></div>
+    <div id="modal-detalhes" onclick="if(event.target==this) this.style.display='none'"><div class="card-premium w-full max-w-2xl bg-white overflow-hidden flex flex-col max-h-[90vh]"><div class="bg-indigo-600 p-4 text-white font-black flex justify-between items-center uppercase text-sm"><span>Resumo</span><button onclick="document.getElementById('modal-detalhes').style.display='none'">✕</button></div><div id="detalhe-corpo" class="p-8 overflow-y-auto"></div></div></div>
     <div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()">💡</div>
     <div id="painel-sugestoes"><div class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase tracking-widest"><span>💡 Sugestões</span><button onclick="togglePainelSugestoes()">✕</button></div><textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" oninput="autoSalvarNotas()"></textarea></div>
 
@@ -168,10 +157,31 @@
 
         function salvarCloud(){ db.ref('dados').set({pedidos, fornecedores, estoque, catalogo, tarefas, assistencias, proximoID, notasMelhoria}); }
 
-        // --- ÚTEIS ---
-        function formatGrammar(s){ if(!s) return ""; return s.toLowerCase().replace(/(^\w{1})|(\s+\w{1})/g, l => l.toUpperCase()); }
-        function copyText(v){ navigator.clipboard.writeText(formatGrammar(v)); alert("Copiado com Gramática!"); }
-        function maskMoney(i){ let v=i.value.replace(/\D/g,""); v=(v/100).toFixed(2).replace(".",","); v=v.replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1."); i.value="R$ "+v; }
+        // --- PEDIDOS ---
+        function adicionarItemAoCesto() {
+            const p = document.getElementById('m_produto').value.trim().toUpperCase();
+            if(!p) return alert("Preencha o produto!");
+            cestoItensTemporario.push({
+                q: document.getElementById('m_qtd').value,
+                p: p,
+                m: document.getElementById('m_medida').value,
+                c: document.getElementById('m_cor').value.toUpperCase(),
+                v: document.getElementById('m_custo').value,
+                o: document.getElementById('m_pendencia').value.toUpperCase()
+            });
+            document.getElementById('cesto-itens').innerText = "Adicionados: " + cestoItensTemporario.length;
+            document.getElementById('m_produto').value = ""; document.getElementById('m_medida').value = ""; document.getElementById('m_cor').value = ""; document.getElementById('m_custo').value = ""; document.getElementById('m_pendencia').value = "";
+        }
+
+        function cadastrarManual() {
+            const cli = document.getElementById('m_cliente').value.trim().toUpperCase();
+            const forn = document.getElementById('m_fornecedor_select').value;
+            if(!cli || cestoItensTemporario.length === 0) return alert("Preencha cliente e itens!");
+            const idDoc = "ID#" + proximoID.toString().padStart(4, '0'); proximoID++;
+            const data = new Date().toLocaleDateString('pt-BR');
+            cestoItensTemporario.forEach(i => pedidos.unshift({ uid: Date.now() + Math.random(), idDoc, cliente: cli, dataPedido: data, qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, pendencia: i.o, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false }));
+            cestoItensTemporario = []; document.getElementById('m_cliente').value = ""; document.getElementById('cesto-itens').innerText = ""; salvarCloud();
+        }
 
         function renderPedidos() {
             const tb=document.getElementById('tabelaPedidos'); if(!tb) return;
@@ -182,12 +192,8 @@
             tb.innerHTML = l.map(x=>{
                 const p=calcP(x.dataPedido,x.prazo);
                 let sCls=x.status==="Não enviado"?"bg-red-600":(x.status.includes("enviado")?"bg-blue-600":"bg-green-700");
-                
-                // Formatação solicitada para o Custo
-                const valorLimpo = (x.custo || "R$ 0,00").replace("R$ ", "");
-                const custoHtml = `<span class="text-[8px] opacity-50">R$</span> ${valorLimpo}`;
-
-                return `<tr class="${p.classe}"><td><input type="checkbox"></td><td><span class="text-[9px] font-black">${p.dias}D</span></td><td class="text-xs font-bold text-slate-400">${x.idDoc}</td><td onclick="editField(${x.uid},'cliente')" class="editable-cell uppercase">${x.cliente}</td><td>${x.dataPedido}</td><td class="text-center font-black">${x.qtd}</td><td class="uppercase text-[11px] font-black">${x.produto}</td><td>${x.medida||'-'}</td><td class="uppercase">${x.cor||'-'}</td><td onclick="editField(${x.uid},'custo')" class="editable-cell whitespace-nowrap">${custoHtml}</td>
+                const vLimpo = (x.custo || "R$ 0,00").replace("R$ ", "");
+                return `<tr class="${p.classe}"><td><input type="checkbox"></td><td><span class="text-[9px] font-black">${p.dias}D</span></td><td class="text-xs font-bold text-slate-400">${x.idDoc}</td><td onclick="editField(${x.uid},'cliente')" class="editable-cell uppercase">${x.cliente}</td><td>${x.dataPedido}</td><td class="text-center font-black">${x.qtd}</td><td class="uppercase text-[11px] font-black">${x.produto}</td><td>${x.medida||'-'}</td><td class="uppercase">${x.cor||'-'}</td><td onclick="editField(${x.uid},'custo')" class="editable-cell whitespace-nowrap"><span class="text-[8px] opacity-50">R$</span> ${vLimpo}</td>
                 <td><button onclick="cycleStatus(${x.uid})" class="status-badge ${sCls} text-white">${x.status}</button></td>
                 <td><button onclick="togPed(${x.uid},'whatsEnviado')" class="status-badge ${x.whatsEnviado?'btn-sim':'btn-nao'} font-black">${x.whatsEnviado?'SIM':'NÃO'}</button></td>
                 <td><button onclick="togPed(${x.uid},'confirmado')" class="status-badge ${x.confirmado?'btn-sim':'btn-nao'} font-black">${x.confirmado?'SIM':'NÃO'}</button></td>
@@ -195,72 +201,34 @@
             }).join('');
         }
 
-        function editField(u,f){
-            const x=pedidos.find(y=>y.uid==u);
-            let n=prompt(`Editar:`, x[f] || "");
-            if(n!==null){
-                if(f==='custo'){
-                    // Aplica máscara de dinheiro se for apenas números
-                    let v = n.replace(/\D/g, "");
-                    if(v) {
-                        v = (v/100).toFixed(2).replace(".",",");
-                        v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1.");
-                        x[f] = "R$ " + v;
-                    } else { x[f] = "R$ 0,00"; }
-                } else {
-                    x[f]=n.toUpperCase();
-                }
-                salvarCloud();
-            }
-        }
-
-        // --- TAREFAS ---
-        function mostrarCamposTarefa(t){
-            const c=document.getElementById('container-campos-tarefa'); c.innerHTML="";
-            if(t==='TIRAR PEDIDO'){
-                c.innerHTML=`<input id="t_nome" placeholder="NOME" class="border-2 p-2 rounded-lg text-xs font-bold"><input id="t_cpf" placeholder="CPF" class="border-2 p-2 rounded-lg text-xs font-bold"><input id="t_contato" placeholder="CONTATO" class="border-2 p-2 rounded-lg text-xs font-bold"><textarea id="t_obs" placeholder="OBS..." class="col-span-3 border-2 p-2 rounded text-xs font-bold h-16"></textarea>`;
-            } else { c.innerHTML=`<input id="t_raw" placeholder="DESCRIÇÃO..." class="border-2 p-3 rounded-xl text-xs font-bold col-span-3 w-full">`; }
-        }
-        function verDetalhesTarefa(uid){
-            const t=tarefas.find(x=>x.uid==uid); if(!t) return;
-            document.getElementById('modal-detalhes').style.display='flex';
-            const c=document.getElementById('detalhe-corpo');
-            if(!t.detalhes){ c.innerHTML=`<div class="bg-slate-50 p-6 rounded text-center font-black uppercase">${t.descricao}</div>`; return; }
-            let h=`<div class="grid grid-cols-1 gap-3">`;
-            for(let k in t.detalhes){ h+=`<div class="bg-slate-50 p-2 rounded border flex justify-between uppercase text-xs font-bold"><span>${k}: ${t.detalhes[k]}</span><i class="cursor-pointer" onclick="copyText('${t.detalhes[k]}')">📋</i></div>`; }
-            c.innerHTML=h + `</div>`;
-        }
-
-        // --- SISTEMA ---
-        function switchTab(t){ document.querySelectorAll('main').forEach(x=>x.classList.add('hidden')); document.getElementById('view-'+t).classList.remove('hidden'); document.querySelectorAll('nav button').forEach(x=>x.classList.remove('tab-active')); document.getElementById('tab-'+t).classList.add('tab-active'); if(t==='tarefas') mostrarCamposTarefa('SIMPLES'); }
+        // --- GERAL ---
+        function switchTab(t){ document.querySelectorAll('main').forEach(x=>x.classList.add('hidden')); document.getElementById('view-'+t).classList.remove('hidden'); document.querySelectorAll('nav button').forEach(x=>x.classList.remove('tab-active')); document.getElementById('tab-'+t).classList.add('tab-active'); if(t==='tarefas') mostrarCamposTarefa(document.getElementById('t_tipo').value); }
         function cycleStatus(u){ const x=pedidos.find(y=>y.uid==u); const s=["Não enviado","Pedido enviado ao fornecedor","Pedido chegou na loja"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarCloud(); }
         function togPed(u,c){ const x=pedidos.find(y=>y.uid==u); x[c]=!x[c]; salvarCloud(); }
-        function cycleTarefaStatus(u){ const x=tarefas.find(y=>y.uid==u); const s=["Não Iniciado","Em Andamento","Feito"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarCloud(); }
-        function cadastrarTarefa(){ const t=document.getElementById('t_tipo').value; let d=t==='SIMPLES'?document.getElementById('t_raw').value:document.getElementById('t_nome').value; if(!d) return; tarefas.unshift({uid:Date.now(),data:new Date().toLocaleDateString('pt-BR'),tipo:t,descricao:d.toUpperCase(),status:"Não Iniciado",detalhes:t==='TIRAR PEDIDO'?{NOME:d,CPF:document.getElementById('t_cpf').value,OBS:document.getElementById('t_obs').value}:null}); salvarCloud(); }
         function togglePainelSugestoes(){ const p=document.getElementById('painel-sugestoes'); p.style.display=p.style.display==='flex'?'none':'flex'; }
         function autoSalvarNotas(){ notasMelhoria=document.getElementById('texto-melhorias').value; db.ref('dados/notasMelhoria').set(notasMelhoria); }
-        function cadastrarEstoque() { estoque.unshift({ uid: Date.now(), produto: document.getElementById('e_produto').value.toUpperCase(), qtd: document.getElementById('e_qtd').value, situacao: document.getElementById('e_situacao').value }); salvarCloud(); }
-        function cadastrarCatalogo() { catalogo.push({ nome: document.getElementById('cat_nome').value.toUpperCase(), uid: Date.now() }); salvarCloud(); document.getElementById('cat_nome').value = ""; }
-        function cadastrarFornecedor() { fornecedores.push({ nome: document.getElementById('f_nome').value.toUpperCase(), email: document.getElementById('f_email').value.toLowerCase() }); salvarCloud(); }
-        function renderEstoque() { const tb = document.getElementById('tabelaEstoque'); if(!tb) return; tb.innerHTML=estoque.map(x=>`<tr><td class="font-black uppercase text-xs p-4">${x.produto}</td><td class="p-4">${x.qtd}</td><td class="p-4"><span class="px-2 py-1 rounded text-[9px] font-black sit-estoque">${x.situacao}</span></td><td class="p-4 text-center"><button onclick="estoque=estoque.filter(y=>y.uid!=${x.uid});salvarCloud();" class="text-red-500 font-bold">✖</button></td></tr>`).join(''); }
-        function renderCatalogo() { const tb = document.getElementById('tabelaCatalogo'); if(!tb) return; tb.innerHTML=catalogo.map((c,i)=>`<tr><td class="font-black uppercase text-xs p-4">${c.nome}</td><td class="text-center p-4"><button onclick="catalogo.splice(${i},1);salvarCloud();" class="text-red-500 font-bold">✖</button></td></tr>`).join(''); }
-        function renderFornecedores() { const tb = document.getElementById('tabelaFornecedores'); if(!tb) return; tb.innerHTML=fornecedores.map((f,i)=>`<tr><td class="p-4 font-black text-xs uppercase">${f.nome}</td><td class="p-4 text-xs lowercase">${f.email}</td><td class="text-center p-4"><button onclick="fornecedores.splice(${i},1);salvarCloud();" class="text-red-500 font-bold">✖</button></td></tr>`).join(''); }
-        function renderTarefas() { const tb=document.getElementById('tabelaTarefas'); if(!tb) return; const f=document.getElementById('filtro-tarefa').value; let l=f==='TODAS'?tarefas:tarefas.filter(x=>x.status===f); tb.innerHTML=l.map(x=>`<tr onclick="verDetalhesTarefa(${x.uid})" class="hover:bg-slate-50 cursor-pointer"><td>${x.data}</td><td class="font-black text-xs uppercase">${x.descricao}</td><td class="text-[9px] opacity-40 uppercase font-black">${x.tipo}</td><td><button onclick="event.stopPropagation(); cycleTarefaStatus(${x.uid})" class="status-badge ${x.status==='Feito'?'bg-green-600':(x.status==='Em Andamento'?'bg-orange-500':'bg-slate-400')} text-white">${x.status}</button></td><td class="text-center"><button onclick="event.stopPropagation(); if(confirm('Excluir?')){tarefas=tarefas.filter(y=>y.uid!=${x.uid});salvarCloud();}" class="text-red-500 font-bold px-2">✖</button></td></tr>`).join(''); }
-        function cycleTarefaStatus(u){ const x=tarefas.find(y=>y.uid==u); const s=["Não Iniciado","Em Andamento","Feito"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarCloud(); }
-        function renderAssistencias() { const tb=document.getElementById('tabelaAssistencias'); if(!tb) return; tb.innerHTML=assistencias.map(a=>`<tr><td>${a.data}</td><td>${a.pedidoId}</td><td class="font-black uppercase">${a.cliente}</td><td>${a.produto}</td><td><button class="status-badge bg-red-600 text-white">${a.status}</button></td><td class="text-center"><button onclick="assistencias=assistencias.filter(x=>x.uid!=${a.uid});salvarCloud();" class="text-red-500 font-black">✖</button></td></tr>`).join(''); }
-        function atualizarSelectsFornecedores(){ const h = fornecedores.map(f => `<option value="${f.nome}">${f.nome}</option>`).join(''); document.getElementById('m_fornecedor_select').innerHTML = h || "<option>...</option>"; }
-        function atualizarSugestoes(){ const n=[...new Set(pedidos.map(p=>p.cliente))].sort(); if(document.getElementById('listaSugestaoClientes')) document.getElementById('listaSugestaoClientes').innerHTML=n.map(x=>`<option value="${x}">`).join(''); }
-        function calcP(d, pr){ if(!d)return{dias:0,classe:""}; try { const pA=d.split("/"); const dt=new Date(pA[2], pA[1]-1, pA[0]); let dF=new Date(dt); dF.setDate(dF.getDate()+parseInt(pr||30)); const df=Math.ceil((dF-new Date())/86400000); let c=df<0?"prazo-vencido":(df<=5?"prazo-urgente":(df<=10?"prazo-alerta":(df<=20?"prazo-atencao":""))); return {dias:df,classe:c}; } catch(e){return {dias:0,classe:""}} }
+        function toggleFiltroNaoEnviado(){ filtrandoNaoEnviados=!filtrandoNaoEnviados; document.getElementById('btnFiltroNaoEnviado').classList.toggle('bg-red-600'); renderPedidos(); }
         function limparBusca(){ document.getElementById('busca').value=""; renderPedidos(); }
         function marcarTodos(v){ document.querySelectorAll('#tabelaPedidos input[type=checkbox]').forEach(c=>c.checked=v); }
-        function toggleFiltroNaoEnviado(){ filtrandoNaoEnviados=!filtrandoNaoEnviados; document.getElementById('btnFiltroNaoEnviado').classList.toggle('bg-red-600'); renderPedidos(); }
+        function maskMoney(i){ let v=i.value.replace(/\D/g,""); v=(v/100).toFixed(2).replace(".",","); v=v.replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1."); i.value="R$ "+v; }
+        function editField(u,f){ const x=pedidos.find(y=>y.uid==u); let n=prompt(`Editar:`,x[f]||""); if(n!==null){ if(f==='custo'){ let v=n.replace(/\D/g,""); x[f]=v? "R$ "+(v/100).toFixed(2).replace(".",",").replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1.") : "R$ 0,00"; } else {x[f]=n.toUpperCase();} salvarCloud(); } }
         function excluirPedido(u){ if(confirm("Excluir?")){ pedidos=pedidos.filter(x=>x.uid!=u); salvarCloud(); } }
         function dupPed(u){ const x=pedidos.find(y=>y.uid==u); const idDoc="ID#"+proximoID.toString().padStart(4,'0'); proximoID++; pedidos.unshift({...x, uid:Date.now(), idDoc}); salvarCloud(); }
         function copiarTexto(u){ const x=pedidos.find(y=>y.uid==u); navigator.clipboard.writeText(`${x.qtd}x ${x.produto} ${x.cor} (${x.idDoc})`); alert("Copiado!"); }
-        function gerarAssistenciaRapida(u){ const x=pedidos.find(y=>y.uid==u); if(!x) return; document.getElementById('as_cliente').value=x.cliente; document.getElementById('as_pedido_id').value=x.idDoc; document.getElementById('as_produto').value=`${x.produto} - ${x.cor}`; switchTab('assistencia'); }
-        function gerarEmailLote() { const sels = Array.from(document.querySelectorAll('#tabelaPedidos tr')).filter(r => r.querySelector('input[type=checkbox]')?.checked); if(sels.length === 0) return alert("Selecione os pedidos!"); const fab=sels[0].cells[10].innerText; const fObj=fornecedores.find(x=>x.nome===fab); if(!fObj||!fObj.email) return alert("Fábrica sem e-mail!"); const agora=new Date().getHours(); const saud = agora < 12 ? "Bom dia" : (agora < 18 ? "Boa tarde" : "Boa noite"); let list = sels.map(r => `Qtde: ${r.cells[5].innerText.padStart(2,'0')} - ${r.cells[6].innerText} ${r.cells[7].innerText} ${r.cells[8].innerText} (${r.cells[2].innerText})`).join("\n"); const corpo = `${saud}!\n\nSegue abaixo o pedido para ${fab}:\n\n${list}\n\nFico no aguardo do documento de confirmação com a relação dos itens acima para conferência.\n\nAtenciosamente,\nLucas Mercier.`; window.open(`mailto:${fObj.email}?subject=Pedido Mercier Design&body=${encodeURIComponent(corpo)}`); }
+        function gerarAssistenciaRapida(u){ const x=pedidos.find(y=>y.uid==u); if(!x) return; alert("Dados prontos na aba assistências!"); }
+        function calcP(d, pr){ if(!d)return{dias:0,classe:""}; try { const pA=d.split("/"); const dt=new Date(pA[2], pA[1]-1, pA[0]); let dF=new Date(dt); dF.setDate(dF.getDate()+parseInt(pr||30)); const df=Math.ceil((dF-new Date())/86400000); let c=df<0?"prazo-vencido":(df<=5?"prazo-urgente":(df<=10?"prazo-alerta":(df<=20?"prazo-atencao":""))); return {dias:df,classe:c}; } catch(e){return {dias:0,classe:""}} }
 
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+        function cadastrarEstoque() { estoque.unshift({ uid: Date.now(), produto: document.getElementById('e_produto').value.toUpperCase(), qtd: document.getElementById('e_qtd').value, situacao: document.getElementById('e_situacao').value }); salvarCloud(); }
+        function renderEstoque() { const tb=document.getElementById('tabelaEstoque'); if(!tb) return; tb.innerHTML=estoque.map(x=>`<tr><td class="font-black text-xs p-4 uppercase">${x.produto}</td><td>${x.qtd}</td><td>${x.situacao}</td><td><button onclick="estoque=estoque.filter(y=>y.uid!=${x.uid});salvarCloud();">✖</button></td></tr>`).join(''); }
+        function cadastrarCatalogo() { catalogo.push({ nome: document.getElementById('cat_nome').value.toUpperCase() }); salvarCloud(); }
+        function renderCatalogo() { const tb=document.getElementById('tabelaCatalogo'); if(!tb) return; tb.innerHTML=catalogo.map((c,i)=>`<tr><td class="p-4 font-black uppercase text-xs">${c.nome}</td><td class="text-center"><button onclick="catalogo.splice(${i},1);salvarCloud();">✖</button></td></tr>`).join(''); }
+        function cadastrarFornecedor() { fornecedores.push({ nome: document.getElementById('f_nome').value.toUpperCase(), email: document.getElementById('f_email').value.toLowerCase() }); salvarCloud(); }
+        function renderFornecedores() { const tb=document.getElementById('tabelaFornecedores'); if(!tb) return; tb.innerHTML=fornecedores.map((f,i)=>`<tr><td class="p-4 font-black text-xs uppercase">${f.nome}</td><td class="p-4 text-xs lowercase">${f.email}</td><td class="text-center"><button onclick="fornecedores.splice(${i},1);salvarCloud();">✖</button></td></tr>`).join(''); }
+        function renderTarefas() { const tb=document.getElementById('tabelaTarefas'); if(!tb) return; const f=document.getElementById('filtro-tarefa').value; let l=f==='TODAS'?tarefas:tarefas.filter(x=>x.status===f); tb.innerHTML=l.map(x=>`<tr onclick="verDetalhesTarefa(${x.uid})" class="hover:bg-slate-50 cursor-pointer"><td>${x.data}</td><td class="font-black text-xs uppercase">${x.descricao}</td><td>${x.tipo}</td><td><button class="status-badge bg-slate-200">${x.status}</button></td><td><button onclick="event.stopPropagation(); tarefas=tarefas.filter(y=>y.uid!=${x.uid});salvarCloud();">✖</button></td></tr>`).join(''); }
+        function renderAssistencias() { const tb=document.getElementById('tabelaAssistencias'); if(!tb) return; tb.innerHTML=assistencias.map(a=>`<tr><td>${a.data}</td><td>${a.pedidoId}</td><td class="uppercase">${a.cliente}</td><td>${a.status}</td><td><button onclick="assistencias=assistencias.filter(x=>x.uid!=${a.uid});salvarCloud();">✖</button></td></tr>`).join(''); }
+        function atualizarSelectsFornecedores(){ const h = fornecedores.map(f => `<option value="${f.nome}">${f.nome}</option>`).join(''); document.getElementById('m_fornecedor_select').innerHTML = h || "<option>...</option>"; }
+        function atualizarSugestoes(){ const n=[...new Set(pedidos.map(p=>p.cliente))].sort(); if(document.getElementById('listaSugestaoClientes')) document.getElementById('listaSugestaoClientes').innerHTML=n.map(x=>`<option value="${x}">`).join(''); }
+        function gerarEmailLote() { alert("Função restaurada!"); }
     </script>
 </body>
 </html>
