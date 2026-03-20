@@ -4,7 +4,6 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f1f5f9; 
 .glass-header { background: #0f172a; border-bottom: 4px solid #3b82f6; }
 .card-premium { background: white; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
 
-/* Status de Prazo */
 .prazo-vencido { background-color: #fee2e2 !important; border-left: 8px solid #b91c1c !important; animation: pulse-red 2s infinite; }
 .prazo-urgente { background-color: #fff1f2 !important; border-left: 8px solid #ef4444 !important; }
 .prazo-alerta { background-color: #fff7ed !important; border-left: 8px solid #f97316 !important; }
@@ -18,25 +17,22 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f1f5f9; 
 
 th { font-size: 10px; font-weight: 900; text-transform: uppercase; color: #64748b; padding: 10px 4px; border-bottom: 2px solid #3b82f6; background: #fff; }
 td { padding: 4px 8px !important; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9; font-size: 11px; }
+
 input, select, textarea { text-transform: uppercase; outline: none; transition: 0.2s; }
-input:focus { border-color: #3b82f6 !important; }
+.editable-cell:hover { background-color: #f8fafc; cursor: pointer; text-decoration: underline; color: #3b82f6; }
 
 .font-tabela-fixa { font-size: 11px !important; font-weight: 700 !important; }
 
-#btn-sugestao-flutuante { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 15px rgba(59,130,246,0.5); cursor: pointer; z-index: 100; transition: 0.3s; }
-#btn-sugestao-flutuante:hover { transform: scale(1.1) rotate(10deg); }
-
+#btn-sugestao-flutuante { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 15px rgba(59,130,246,0.5); cursor: pointer; z-index: 100; }
 #painel-sugestoes { position: fixed; bottom: 90px; right: 24px; width: 320px; height: 450px; background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 101; display: none; flex-direction: column; border: 1px solid #e2e8f0; overflow: hidden;}
-#modal-detalhes { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
+#modal-detalhes { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
 
 .status-online { background: #22c55e; color: white; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 900; }
 .status-offline { background: #f97316; color: white; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 900; }
 
-.btn-pag-opt { background: #f8fafc; padding: 8px 14px; border-radius: 10px; font-size: 10px; font-weight: 800; border: 2px solid #e2e8f0; cursor: pointer; transition: 0.2s; }
-.btn-pag-opt.active { background: #3b82f6; color: white; border-color: #2563eb; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(59,130,246,0.3); }
-
-.copy-btn-small { cursor: pointer; color: #94a3b8; font-size: 14px; transition: 0.2s; padding: 4px; border-radius: 4px; }
-.copy-btn-small:hover { color: #3b82f6; background: #eff6ff; }
-.copy-success { color: #22c55e !important; transform: scale(1.2); }
+.copy-btn-small { cursor: pointer; color: #94a3b8; font-size: 14px; transition: 0.2s; padding: 4px; }
+.copy-btn-small:hover { color: #3b82f6; }
 
 .item-cesto { background: #eff6ff; border: 1px solid #bfdbfe; padding: 6px 12px; border-radius: 10px; font-size: 10px; display: flex; align-items: center; gap: 6px; font-weight: 800; color: #1e40af; }
+.btn-pag-opt { background: #f1f5f9; padding: 6px 12px; border-radius: 8px; font-size: 10px; font-weight: 800; border: 2px solid transparent; cursor: pointer; }
+.btn-pag-opt.active { background: #3b82f6; color: white; border-color: #2563eb; }
