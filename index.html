@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mercier Design - Gestão Cloud Elite v49.0</title>
+    <title>Mercier Design - Gestão Cloud Elite v50.0</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
@@ -41,7 +41,10 @@
         .sit-assistencia { background: #e0f2fe; color: #075985; }
         .editable-cell:hover { background-color: #f8fafc; cursor: pointer; text-decoration: underline; color: #3b82f6; }
         
-        .row-resolvido { opacity: 0.6; background-color: #f8fafc !important; }
+        /* Botão Flutuante Sugestões */
+        #btn-sugestao-flutuante { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; background: #3b82f6; border-radius: 50%; display: flex; items-center: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 15px rgba(59,130,246,0.5); cursor: pointer; z-index: 100; transition: transform 0.2s; }
+        #btn-sugestao-flutuante:active { transform: scale(0.9); }
+        #painel-sugestoes { position: fixed; bottom: 90px; right: 24px; width: 320px; height: 450px; background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 101; display: none; flex-direction: column; overflow: hidden; border: 1px solid #e2e8f0; }
     </style>
 </head>
 <body>
@@ -53,11 +56,11 @@
 
     <nav class="bg-slate-900 text-slate-400 px-8 flex gap-8 shadow-md overflow-x-auto">
         <button onclick="switchTab('pedidos')" id="tab-pedidos" class="py-4 text-xs font-black uppercase tab-active whitespace-nowrap">📋 Pedidos</button>
+        <button onclick="switchTab('tarefas')" id="tab-tarefas" class="py-4 text-xs font-black uppercase whitespace-nowrap">📝 Tarefas</button>
         <button onclick="switchTab('assistencia')" id="tab-assistencia" class="py-4 text-xs font-black uppercase whitespace-nowrap">🛠️ Assistências</button>
         <button onclick="switchTab('estoque')" id="tab-estoque" class="py-4 text-xs font-black uppercase whitespace-nowrap">📦 Estoque</button>
         <button onclick="switchTab('catalogo')" id="tab-catalogo" class="py-4 text-xs font-black uppercase whitespace-nowrap">📜 Catálogo</button>
         <button onclick="switchTab('fornecedores')" id="tab-fornecedores" class="py-4 text-xs font-black uppercase whitespace-nowrap">🏭 Fábricas</button>
-        <button onclick="switchTab('melhorias')" id="tab-melhorias" class="py-4 text-xs font-black uppercase whitespace-nowrap">💡 Sugestões</button>
     </nav>
 
     <!-- ABA PEDIDOS -->
@@ -80,6 +83,7 @@
                     <input type="text" id="m_medida" placeholder="MEDIDA" class="border-2 p-1.5 rounded-lg text-xs font-bold w-24">
                     <input type="text" id="m_cor" placeholder="COR/TECIDO" class="border-2 p-1.5 rounded-lg text-xs font-bold w-32">
                     <input type="number" id="m_custo" placeholder="R$ CUSTO" class="border-2 p-1.5 rounded-lg text-xs font-bold w-24">
+                    <input type="text" id="m_pendencia" placeholder="O QUE FALTA? / OBS" class="border-2 p-1.5 rounded-lg text-xs font-bold flex-1">
                     <button onclick="adicionarItemAoCesto()" class="bg-slate-800 text-white px-6 rounded-lg text-[10px] font-black hover:bg-black transition">＋ ITEM</button>
                 </div>
                 <div id="cesto-itens" class="text-[11px] font-bold text-blue-600 mb-3 italic px-2"></div>
@@ -104,8 +108,8 @@
                 <table class="w-full text-left">
                     <thead>
                         <tr>
-                            <th width="40"><input type="checkbox" id="checkTodos" onclick="marcarTodos(this.checked)"></th>
-                            <th>Prazo</th><th>ID</th><th>Cliente</th><th>Data</th><th>Qtd</th><th>Móvel</th><th>Medida</th><th>Cor</th><th>Custo</th><th>Fábrica</th><th>Status</th><th>Whats?</th><th>Conf. Fábrica</th><th class="text-center">Ações</th>
+                            <th width="40"><input type="checkbox" onclick="marcarTodos(this.checked)"></th>
+                            <th>Prazo</th><th>ID</th><th>Cliente</th><th>Data</th><th>Qtd</th><th>Móvel</th><th>Medida</th><th>Cor</th><th>Custo</th><th>Pendências/Obs</th><th>Fábrica</th><th>Status</th><th>Whats?</th><th>Conf?</th><th class="text-center">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="tabelaPedidos"></tbody>
@@ -114,38 +118,48 @@
         </div>
     </main>
 
-    <!-- ABA ASSISTÊNCIA -->
+    <!-- ABA TAREFAS -->
+    <main id="view-tarefas" class="hidden max-w-[1200px] mx-auto p-4 md:p-6">
+        <div class="card-premium p-6 border-l-8 border-indigo-600 mb-6 flex flex-col md:flex-row gap-4 items-end">
+            <div class="flex flex-col flex-1"><label class="text-[9px] font-black ml-1 mb-1 uppercase">O que precisa ser feito?</label><input type="text" id="t_descricao" placeholder="EX: TIRAR PEDIDO DA CLIENTE ADRIANA..." class="border-2 p-3 rounded-xl text-xs font-bold w-full"></div>
+            <button onclick="cadastrarTarefa()" class="bg-indigo-600 text-white font-black px-10 py-3.5 rounded-xl text-xs uppercase shadow-lg h-[46px]">Adicionar Tarefa</button>
+        </div>
+
+        <div class="card-premium overflow-hidden">
+            <div class="p-4 bg-white border-b flex flex-wrap justify-between items-center gap-4">
+                <div class="flex gap-2">
+                    <select id="filtro-tarefa" onchange="renderTarefas()" class="border-2 p-2 rounded-lg text-[10px] font-black uppercase">
+                        <option value="TODAS">Ver Todas</option>
+                        <option value="Não Iniciado">Não Iniciado</option>
+                        <option value="Em Andamento">Em Andamento</option>
+                        <option value="Feito">Concluídas (Feito)</option>
+                    </select>
+                    <button onclick="gerarFechamentoDiario()" class="bg-slate-900 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase shadow">📊 Fechamento do Dia</button>
+                </div>
+            </div>
+            <table class="w-full text-left">
+                <thead><tr class="bg-slate-50"><th>Data</th><th>Tarefa</th><th>Status</th><th class="text-center">Ações</th></tr></thead>
+                <tbody id="tabelaTarefas"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- OUTRAS ABAS (ASSISTÊNCIA, ESTOQUE, CATALOGO, FORNECEDORES MANTIDAS) -->
     <main id="view-assistencia" class="hidden max-w-[1950px] mx-auto p-4 md:p-6">
         <div class="card-premium p-6 border-l-8 border-orange-500 mb-6">
             <h2 class="text-xs font-black text-slate-400 uppercase mb-4">Nova Solicitação de Assistência Técnica</h2>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
                 <input list="listaSugestaoClientes" id="as_cliente" placeholder="CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold">
-                <input type="text" id="as_pedido_id" placeholder="ID DO PEDIDO (OPCIONAL)" class="border-2 p-2 rounded-lg text-xs font-bold">
+                <input type="text" id="as_pedido_id" placeholder="ID DO PEDIDO" class="border-2 p-2 rounded-lg text-xs font-bold">
                 <input type="text" id="as_produto" placeholder="PRODUTO" class="border-2 p-2 rounded-lg text-xs font-bold">
                 <select id="as_fabrica" class="border-2 p-2 rounded-lg text-xs font-bold bg-white"></select>
             </div>
             <textarea id="as_descricao" placeholder="DESCREVA O PROBLEMA RELATADO PELO CLIENTE..." class="w-full border-2 p-3 rounded-lg text-xs font-bold h-24 mb-3 uppercase"></textarea>
-            <button onclick="cadastrarAssistencia()" class="bg-orange-600 text-white font-black px-8 py-3 rounded-xl text-xs uppercase shadow-md hover:bg-orange-700 transition w-full md:w-auto">Registrar Assistência</button>
+            <button onclick="cadastrarAssistencia()" class="bg-orange-600 text-white font-black px-8 py-3 rounded-xl text-xs uppercase shadow-md transition w-full md:w-auto">Registrar Assistência</button>
         </div>
-
-        <div class="card-premium overflow-hidden">
-            <div class="p-4 bg-white border-b flex justify-between items-center">
-                <h3 class="text-xs font-black uppercase">Fila de Assistências</h3>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left">
-                    <thead>
-                        <tr>
-                            <th>Data</th><th>ID/Pedido</th><th>Cliente</th><th>Produto</th><th>Fábrica</th><th>Relato/Descrição</th><th>Status</th><th class="text-center">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabelaAssistencias"></tbody>
-                </table>
-            </div>
-        </div>
+        <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr><th>Data</th><th>ID/Pedido</th><th>Cliente</th><th>Produto</th><th>Fábrica</th><th>Relato</th><th>Status</th><th class="text-center">Ações</th></tr></thead><tbody id="tabelaAssistencias"></tbody></table></div>
     </main>
 
-    <!-- ABA ESTOQUE -->
     <main id="view-estoque" class="hidden max-w-[1950px] mx-auto p-6">
         <div class="card-premium p-6 mb-8 border-l-8 border-blue-600 flex flex-wrap gap-3 items-end">
             <div class="flex flex-col flex-1"><label class="text-[9px] font-black ml-1">PRODUTO</label><input list="listaSugestaoProdutos" id="e_produto" class="border-2 p-2 rounded-lg text-xs font-bold"></div>
@@ -159,7 +173,6 @@
         <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Móvel</th><th>Cor</th><th>Medida</th><th>Fábrica</th><th>Qtd</th><th>Situação</th><th class="text-center">Ações</th></tr></thead><tbody id="tabelaEstoque"></tbody></table></div>
     </main>
 
-    <!-- ABA CATALOGO -->
     <main id="view-catalogo" class="hidden max-w-5xl mx-auto p-6">
         <div class="card-premium p-6 mb-6 border-l-8 border-blue-600 flex flex-wrap gap-2 items-end">
             <div class="flex flex-col flex-1"><label class="text-[9px] font-black ml-1">NOME DO MÓVEL</label><input type="text" id="cat_nome" class="border-2 p-2 rounded-lg font-bold"></div>
@@ -171,32 +184,24 @@
         <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Móvel</th><th>Medida</th><th>Cor/Tecido</th><th>Situação</th><th class="text-center">Ações</th></tr></thead><tbody id="tabelaCatalogo"></tbody></table></div>
     </main>
 
-    <!-- ABA FORNECEDORES -->
     <main id="view-fornecedores" class="hidden max-w-4xl mx-auto p-6">
         <div class="card-premium p-6 mb-6 border-l-8 border-blue-600 flex flex-wrap gap-2">
             <input type="text" id="f_nome" placeholder="NOME DA FÁBRICA" class="border-2 p-2 rounded-lg flex-1 font-bold">
             <input type="email" id="f_email" placeholder="E-MAIL DE PEDIDOS" class="border-2 p-2 rounded-lg flex-1 font-bold lowercase">
             <button onclick="cadastrarFornecedor()" class="bg-blue-600 text-white px-8 py-2 rounded font-black text-xs uppercase">Salvar Fábrica</button>
         </div>
-        <div class="card-premium overflow-hidden">
-            <table class="w-full text-left">
-                <thead><tr class="bg-slate-50"><th>Fábrica</th><th>E-mail</th><th class="text-center">Remover</th></tr></thead>
-                <tbody id="tabelaFornecedores"></tbody>
-            </table>
-        </div>
+        <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Fábrica</th><th>E-mail</th><th class="text-center">Remover</th></tr></thead><tbody id="tabelaFornecedores"></tbody></table></div>
     </main>
 
-    <!-- ABA MELHORIAS -->
-    <main id="view-melhorias" class="hidden max-w-4xl mx-auto p-6">
-        <div class="card-premium p-8 border-l-8 border-blue-600">
-            <h2 class="text-xl font-black mb-4 uppercase">🗒️ Sugestões e Notas</h2>
-            <textarea id="texto-melhorias" class="w-full h-96 border-2 border-slate-200 rounded-xl p-4 font-bold text-sm focus:border-blue-500"></textarea>
-            <div class="flex items-center gap-4 mt-4">
-                <button onclick="salvarMelhorias()" class="bg-blue-600 text-white font-black px-10 py-3 rounded-xl uppercase text-xs shadow-lg">Salvar Notas</button>
-                <span id="icon-salvo" class="hidden text-green-600 font-bold text-xs uppercase">✅ Salvo com sucesso!</span>
-            </div>
+    <!-- BALÃO FLUTUANTE DE SUGESTÕES -->
+    <div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()">💡</div>
+    <div id="painel-sugestoes">
+        <div class="bg-blue-600 p-4 text-white font-black text-xs flex justify-between items-center">
+            <span>💡 ANOTAÇÕES E SUGESTÕES</span>
+            <button onclick="togglePainelSugestoes()">✕</button>
         </div>
-    </main>
+        <textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" placeholder="DIGITE AQUI SUAS IDEIAS... ELAS SÃO SALVAS AUTOMATICAMENTE" oninput="autoSalvarNotas()"></textarea>
+    </div>
 
     <datalist id="listaSugestaoProdutos"></datalist>
     <datalist id="listaSugestaoClientes"></datalist>
@@ -214,8 +219,8 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        let pedidos = [], fornecedores = [], estoque = [], catalogo = [], assistencias = [], proximoID = 255, notasMelhoria = "";
-        let cestoItensTemporario = [], filtrandoNaoEnviados = false, selecionados = [];
+        let pedidos = [], fornecedores = [], estoque = [], catalogo = [], assistencias = [], tarefas = [], proximoID = 255, notasMelhoria = "";
+        let selecionados = [], filtrandoNaoEnviados = false, cestoItensTemporario = [];
 
         db.ref('dados').on('value', (snapshot) => {
             const data = snapshot.val() || {};
@@ -224,15 +229,16 @@
             estoque = data.estoque || [];
             catalogo = data.catalogo || [];
             assistencias = data.assistencias || [];
+            tarefas = data.tarefas || [];
             proximoID = data.proximoID || 255;
             notasMelhoria = data.notasMelhoria || "";
             document.getElementById('status-db').innerText = "ONLINE - SINCRONIZADO";
             document.getElementById('status-db').className = "text-[10px] px-4 py-1.5 rounded-full bg-green-600 font-black text-white uppercase tracking-widest";
             document.getElementById('texto-melhorias').value = notasMelhoria;
-            atualizarSugestoes(); atualizarSelectsFornecedores(); renderPedidos(); renderEstoque(); renderCatalogo(); renderFornecedores(); renderAssistencias();
+            atualizarSugestoes(); atualizarSelectsFornecedores(); renderPedidos(); renderEstoque(); renderCatalogo(); renderFornecedores(); renderAssistencias(); renderTarefas();
         });
 
-        function salvarCloud() { db.ref('dados').set({ pedidos, fornecedores, estoque, catalogo, assistencias, proximoID, notasMelhoria }); }
+        function salvarCloud() { db.ref('dados').set({ pedidos, fornecedores, estoque, catalogo, assistencias, tarefas, proximoID, notasMelhoria }); }
 
         function switchTab(tab) {
             document.querySelectorAll('main').forEach(m => m.classList.add('hidden'));
@@ -240,35 +246,52 @@
             document.querySelectorAll('nav button').forEach(b => b.classList.remove('tab-active'));
             document.getElementById('tab-' + tab).classList.add('tab-active');
             if(tab === 'pedidos') renderPedidos();
+            if(tab === 'tarefas') renderTarefas();
             if(tab === 'assistencia') renderAssistencias();
         }
 
-        // --- PEDIDOS ---
-        function marcarTodos(val) { selecionados = val ? pedidos.map(p => p.uid) : []; calcularTotalSelecionado(); renderPedidos(); }
-        function toggleSelecionado(uid) { if(selecionados.includes(uid)) selecionados = selecionados.filter(id => id !== uid); else selecionados.push(uid); calcularTotalSelecionado(); }
-        function calcularTotalSelecionado() {
-            const el = document.getElementById('total-selecionado');
-            if(selecionados.length === 0) { el.classList.add('hidden'); return; }
-            const total = pedidos.filter(p => selecionados.includes(p.uid)).reduce((acc, p) => acc + (parseFloat(p.custo) || 0), 0);
-            el.innerText = `TOTAL: R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`; el.classList.remove('hidden');
+        // --- SUGESTÕES FLUTUANTES ---
+        function togglePainelSugestoes() { const p = document.getElementById('painel-sugestoes'); p.style.display = p.style.display === 'flex' ? 'none' : 'flex'; }
+        function autoSalvarNotas() { notasMelhoria = document.getElementById('texto-melhorias').value; db.ref('dados/notasMelhoria').set(notasMelhoria); }
+
+        // --- TAREFAS ---
+        function cadastrarTarefa() {
+            const desc = document.getElementById('t_descricao').value.trim().toUpperCase();
+            if(!desc) return;
+            tarefas.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), descricao: desc, status: "Não Iniciado" });
+            document.getElementById('t_descricao').value = ""; salvarCloud();
         }
-        function limparBusca() { document.getElementById('busca').value = ""; renderPedidos(); }
-        
-        function gerarAssistenciaRapida(uid) {
-            const p = pedidos.find(x => x.uid == uid);
-            if(!p) return;
-            document.getElementById('as_cliente').value = p.cliente;
-            document.getElementById('as_pedido_id').value = p.idDoc;
-            // AQUI ESTÁ O AJUSTE: Concatenando Nome + Cor + Medida
-            document.getElementById('as_produto').value = `${p.produto} - ${p.cor} (${p.medida})`;
-            document.getElementById('as_fabrica').value = p.fornecedor;
-            switchTab('assistencia');
-            document.getElementById('as_descricao').focus();
+        function renderTarefas() {
+            const tbody = document.getElementById('tabelaTarefas'); if(!tbody) return;
+            const filtro = document.getElementById('filtro-tarefa').value;
+            let lista = tarefas;
+            if(filtro !== 'TODAS') lista = tarefas.filter(t => t.status === filtro);
+            tbody.innerHTML = lista.map(t => {
+                let sCls = t.status === 'Feito' ? 'bg-green-600' : (t.status === 'Em Andamento' ? 'bg-orange-500' : 'bg-slate-400');
+                return `<tr><td>${t.data}</td><td class="font-black text-sm">${t.descricao}</td><td><button onclick="cycleTarefaStatus(${t.uid})" class="status-badge ${sCls} text-white">${t.status}</button></td><td class="text-center"><button onclick="tarefas=tarefas.filter(x=>x.uid!=${t.uid}); salvarCloud();" class="text-red-500 font-bold">✖</button></td></tr>`;
+            }).join('');
+        }
+        function cycleTarefaStatus(uid) {
+            const t = tarefas.find(x => x.uid == uid);
+            const s = ["Não Iniciado", "Em Andamento", "Feito"];
+            t.status = s[(s.indexOf(t.status) + 1) % s.length]; salvarCloud();
+        }
+        function gerarFechamentoDiario() {
+            const hoje = new Date().toLocaleDateString('pt-BR');
+            const concluidas = tarefas.filter(t => t.status === 'Feito' && t.data === hoje);
+            if(concluidas.length === 0) return alert("Nenhuma tarefa marcada como 'FEITO' na data de hoje.");
+            let resumo = `📊 FECHAMENTO DIÁRIO (${hoje})\n\nTarefas Concluídas:\n`;
+            concluidas.forEach((t, i) => resumo += `${i+1}. ${t.descricao}\n`);
+            alert(resumo);
         }
 
+        // --- PEDIDOS ---
+        function marcarTodos(val) { selecionados = val ? pedidos.map(p => p.uid) : []; renderPedidos(); }
+        function toggleSelecionado(uid) { if(selecionados.includes(uid)) selecionados = selecionados.filter(id => id !== uid); else selecionados.push(uid); }
+        function limparBusca() { document.getElementById('busca').value = ""; renderPedidos(); }
         function editField(uid, field) {
             const p = pedidos.find(x => x.uid == uid);
-            const promptMap = { 'cliente': 'CLIENTE', 'qtd': 'QUANTIDADE', 'produto': 'MÓVEL', 'medida': 'MEDIDA', 'cor': 'COR/TECIDO', 'dataPedido': 'DATA (DD/MM/AAAA)', 'custo': 'VALOR DE CUSTO' };
+            const promptMap = { 'cliente': 'CLIENTE', 'qtd': 'QUANTIDADE', 'produto': 'MÓVEL', 'medida': 'MEDIDA', 'cor': 'COR/TECIDO', 'dataPedido': 'DATA', 'custo': 'CUSTO', 'pendencia': 'PENDÊNCIA/OBS' };
             let newVal = prompt(`Editar ${promptMap[field]}:`, p[field] || "");
             if (newVal !== null) {
                 if (field === 'qtd' || field === 'custo') p[field] = newVal.trim() === "" ? 0 : parseFloat(newVal.replace(',', '.'));
@@ -276,39 +299,21 @@
                 salvarCloud();
             }
         }
-        function cycleStatus(uid) {
-            const p = pedidos.find(x => x.uid == uid);
-            const s = ["Não enviado", "Pedido enviado ao fornecedor", "Pedido chegou na loja"];
-            p.status = s[(s.indexOf(p.status) + 1) % s.length]; salvarCloud();
-        }
-        function gerarEmailLote() {
-            if(selecionados.length === 0) return alert("Selecione os pedidos!");
-            const itens = pedidos.filter(p => selecionados.includes(p.uid));
-            const fabricaNome = itens[0].fornecedor;
-            if(!itens.every(p => p.fornecedor === fabricaNome)) return alert("Selecione apenas uma fábrica por vez!");
-            const fObj = fornecedores.find(f => f.nome === fabricaNome);
-            if(!fObj || !fObj.email) return alert("Fábrica sem e-mail!");
-            const agora = new Date().getHours();
-            const saudacao = agora < 12 ? "Bom dia" : (agora < 18 ? "Boa tarde" : "Boa noite");
-            let lista = itens.map(i => `Qtde: ${i.qtd.toString().padStart(2,'0')} - ${i.produto} ${i.medida} ${i.cor} (${i.idDoc})`).join("\n");
-            const corpo = `${saudacao}!\n\nSegue abaixo o pedido para ${fabricaNome}:\n\n${lista}\n\nFico no aguardo do documento de confirmação com a relação dos itens acima para conferência.\n\nObs: IDS para controle interno, favor desconsiderar.\n\nAtenciosamente,\nLucas Mercier.`;
-            window.open(`mailto:${fObj.email}?subject=Pedido Mercier Design&body=${encodeURIComponent(corpo)}`);
+        function cadastrarManual() {
+            const cli = document.getElementById('m_cliente').value.trim().toUpperCase();
+            const forn = document.getElementById('m_fornecedor_select').value;
+            if(!cli || cestoItensTemporario.length === 0) return alert("Falta cliente ou itens!");
+            const idDoc = "ID#" + proximoID.toString().padStart(4, '0'); proximoID++;
+            const data = new Date().toLocaleDateString('pt-BR');
+            cestoItensTemporario.forEach(i => pedidos.unshift({ uid: Date.now() + Math.random(), idDoc, cliente: cli, dataPedido: data, qtd: i.qtd, produto: i.produto, medida: i.medida, cor: i.cor, custo: i.custo, pendencia: i.pendencia, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false }));
+            cestoItensTemporario = []; document.getElementById('m_cliente').value = ""; document.getElementById('cesto-itens').innerText = ""; salvarCloud();
         }
         function adicionarItemAoCesto() {
             const p = document.getElementById('m_produto').value.trim().toUpperCase();
             if(!p) return;
-            cestoItensTemporario.push({ qtd: document.getElementById('m_qtd').value, produto: p, medida: document.getElementById('m_medida').value, cor: document.getElementById('m_cor').value.toUpperCase(), custo: document.getElementById('m_custo').value || 0 });
+            cestoItensTemporario.push({ qtd: document.getElementById('m_qtd').value, produto: p, medida: document.getElementById('m_medida').value, cor: document.getElementById('m_cor').value.toUpperCase(), custo: document.getElementById('m_custo').value || 0, pendencia: document.getElementById('m_pendencia').value.toUpperCase() });
             document.getElementById('cesto-itens').innerText = "Cesto: " + cestoItensTemporario.length + " itens";
-            document.getElementById('m_produto').value = ""; document.getElementById('m_medida').value = ""; document.getElementById('m_cor').value = ""; document.getElementById('m_custo').value = "";
-        }
-        function cadastrarManual() {
-            const cli = document.getElementById('m_cliente').value.trim().toUpperCase();
-            const forn = document.getElementById('m_fornecedor_select').value;
-            if(!cli || cestoItensTemporario.length === 0) return alert("Dados incompletos!");
-            const idDoc = "ID#" + proximoID.toString().padStart(4, '0'); proximoID++;
-            const data = new Date().toLocaleDateString('pt-BR');
-            cestoItensTemporario.forEach(i => pedidos.unshift({ uid: Date.now() + Math.random(), idDoc, cliente: cli, dataPedido: data, qtd: i.qtd, produto: i.produto, medida: i.medida, cor: i.cor, custo: i.custo, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false }));
-            cestoItensTemporario = []; document.getElementById('m_cliente').value = ""; document.getElementById('cesto-itens').innerText = ""; salvarCloud();
+            document.getElementById('m_produto').value = ""; document.getElementById('m_medida').value = ""; document.getElementById('m_cor').value = ""; document.getElementById('m_custo').value = ""; document.getElementById('m_pendencia').value = "";
         }
         function renderPedidos() {
             const tbody = document.getElementById('tabelaPedidos'); if(!tbody) return;
@@ -320,7 +325,6 @@
             lista.forEach(p => {
                 const prazo = calcularPrazo(p.dataPedido, p.prazo);
                 let sCls = p.status === "Não enviado" ? "bg-red-600" : (p.status === "Pedido enviado ao fornecedor" ? "bg-blue-600" : "bg-green-700");
-                const custoDisplay = p.custo ? `R$ ${parseFloat(p.custo).toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : "R$ 0,00";
                 tbody.innerHTML += `<tr class="${prazo.classe}">
                     <td><input type="checkbox" ${selecionados.includes(p.uid)?'checked':''} onclick="toggleSelecionado(${p.uid})"></td>
                     <td><div class="flex flex-col gap-1"><span class="bg-black text-white text-[9px] px-1 text-center rounded font-black">${prazo.dias}D</span>
@@ -332,7 +336,8 @@
                     <td onclick="editField(${p.uid}, 'produto')" class="editable-cell uppercase">${p.produto}</td>
                     <td onclick="editField(${p.uid}, 'medida')" class="editable-cell text-[11px]">${p.medida}</td>
                     <td onclick="editField(${p.uid}, 'cor')" class="editable-cell uppercase text-[11px]">${p.cor}</td>
-                    <td onclick="editField(${p.uid}, 'custo')" class="editable-cell text-[10px]">${custoDisplay}</td>
+                    <td onclick="editField(${p.uid}, 'custo')" class="editable-cell text-[10px]">R$ ${p.custo || 0}</td>
+                    <td onclick="editField(${p.uid}, 'pendencia')" class="editable-cell text-[9px] text-red-600 italic font-black">${p.pendencia || "-"}</td>
                     <td class="text-[10px] uppercase font-black text-blue-800">${p.fornecedor}</td>
                     <td><button onclick="cycleStatus(${p.uid})" class="status-badge ${sCls} text-white">${p.status}</button></td>
                     <td><button onclick="togPed(${p.uid}, 'whatsEnviado')" class="status-badge ${p.whatsEnviado?'btn-sim':'btn-nao'} font-black">${p.whatsEnviado?'SIM':'NÃO'}</button></td>
@@ -342,71 +347,10 @@
             });
         }
 
-        // --- ASSISTÊNCIAS ---
-        function cadastrarAssistencia() {
-            const cli = document.getElementById('as_cliente').value.trim().toUpperCase();
-            const forn = document.getElementById('as_fabrica').value;
-            const prod = document.getElementById('as_produto').value.toUpperCase();
-            const desc = document.getElementById('as_descricao').value.toUpperCase();
-            if(!cli || !forn || !desc) return alert("Preencha Cliente, Fábrica e Descrição!");
-            assistencias.unshift({
-                uid: Date.now() + Math.random(),
-                data: new Date().toLocaleDateString('pt-BR'),
-                cliente: cli,
-                pedidoId: document.getElementById('as_pedido_id').value.toUpperCase() || "N/A",
-                produto: prod,
-                fabrica: forn,
-                descricao: desc,
-                status: "Aguardando Envio"
-            });
-            document.getElementById('as_cliente').value = ""; document.getElementById('as_pedido_id').value = ""; document.getElementById('as_produto').value = ""; document.getElementById('as_descricao').value = "";
-            salvarCloud();
-        }
-        function renderAssistencias() {
-            const tbody = document.getElementById('tabelaAssistencias'); if(!tbody) return;
-            tbody.innerHTML = assistencias.map(a => {
-                let sCls = a.status === "Resolvido" ? "bg-green-700" : (a.status === "Em Trânsito" ? "bg-orange-500" : (a.status === "Enviado para Fábrica" ? "bg-blue-600" : "bg-red-600"));
-                let rowCls = a.status === "Resolvido" ? "row-resolvido" : "";
-                return `<tr class="${rowCls}">
-                    <td class="text-[10px] font-bold">${a.data}</td>
-                    <td class="text-xs font-bold text-slate-500">${a.pedidoId}</td>
-                    <td class="uppercase text-sm font-black">${a.cliente}</td>
-                    <td class="uppercase text-xs font-black">${a.produto}</td>
-                    <td class="text-[10px] font-black uppercase text-blue-800">${a.fabrica}</td>
-                    <td class="text-[10px] font-bold max-w-xs overflow-hidden">${a.descricao}</td>
-                    <td><button onclick="cycleAssistenciaStatus(${a.uid})" class="status-badge ${sCls} text-white">${a.status}</button></td>
-                    <td class="flex gap-2 justify-center py-4">
-                        <button onclick="enviarEmailAssistencia(${a.uid})" title="Enviar para Fábrica" class="text-lg">✉️</button>
-                        <button onclick="excluirAssistencia(${a.uid})" class="text-red-500">✖</button>
-                    </td>
-                </tr>`;
-            }).join('');
-        }
-        function cycleAssistenciaStatus(uid) {
-            const a = assistencias.find(x => x.uid == uid);
-            const s = ["Aguardando Envio", "Enviado para Fábrica", "Em Trânsito", "Resolvido"];
-            a.status = s[(s.indexOf(a.status) + 1) % s.length]; salvarCloud();
-        }
-        function enviarEmailAssistencia(uid) {
-            const a = assistencias.find(x => x.uid == uid);
-            const f = fornecedores.find(f => f.nome === a.fabrica);
-            if(!f || !f.email) return alert("Fábrica sem e-mail cadastrado!");
-            const h = new Date().getHours();
-            const saud = h < 12 ? "Bom dia" : (h < 18 ? "Boa tarde" : "Boa noite");
-            const corpo = `${saud}!\n\nSegue solicitação de assistência técnica para o cliente ${a.cliente}, referente ao pedido ${a.pedidoId} - ${a.produto}.\n\nProblema relatado: ${a.descricao}.\n\nSeguem anexos as fotos e vídeos para análise.\n\nFico no aguardo do documento de confirmação com a relação dos itens acima para conferência.\n\nAtenciosamente,\nLucas Mercier.`;
-            window.open(`mailto:${f.email}?subject=Assistência Técnica - ${a.cliente}&body=${encodeURIComponent(corpo)}`);
-        }
-        function excluirAssistencia(uid) { if(confirm("Excluir assistência?")) { assistencias = assistencias.filter(a => a.uid != uid); salvarCloud(); } }
-
         // --- AUXILIARES GERAIS ---
-        function salvarMelhorias() { 
-            notasMelhoria = document.getElementById('texto-melhorias').value; 
-            salvarCloud(); 
-            const icon = document.getElementById('icon-salvo');
-            icon.classList.remove('hidden');
-            setTimeout(() => icon.classList.add('hidden'), 3000);
-        }
+        function cycleStatus(uid) { const p = pedidos.find(x => x.uid == uid); const s = ["Não enviado", "Pedido enviado ao fornecedor", "Pedido chegou na loja"]; p.status = s[(s.indexOf(p.status) + 1) % s.length]; salvarCloud(); }
         function togPed(uid, c) { const p = pedidos.find(x => x.uid == uid); if(p) p[c] = !p[c]; salvarCloud(); }
+        function updPed(uid, c, v) { pedidos.find(p => p.uid == uid)[c] = v; salvarCloud(); }
         function dupPed(uid) { const p = pedidos.find(x => x.uid == uid); const idDoc = "ID#" + proximoID.toString().padStart(4, '0'); proximoID++; pedidos.unshift({...p, uid: Date.now(), idDoc}); salvarCloud(); }
         function excluirPedido(uid) { if(confirm("Excluir?")) { pedidos = pedidos.filter(p => p.uid != uid); salvarCloud(); } }
         function toggleFiltroNaoEnviado() { filtrandoNaoEnviados = !filtrandoNaoEnviados; document.getElementById('btnFiltroNaoEnviado').classList.toggle('bg-red-600'); document.getElementById('btnFiltroNaoEnviado').classList.toggle('text-white'); renderPedidos(); }
@@ -420,14 +364,40 @@
         function cadastrarFornecedor() { fornecedores.push({ nome: document.getElementById('f_nome').value.toUpperCase(), email: document.getElementById('f_email').value.toLowerCase() }); salvarCloud(); document.getElementById('f_nome').value = ""; document.getElementById('f_email').value = ""; }
         function renderFornecedores() { const tb = document.getElementById('tabelaFornecedores'); if(!tb) return; tb.innerHTML = fornecedores.map((f, i) => `<tr><td class="text-xs font-bold">${f.nome}</td><td class="lowercase text-xs">${f.email}</td><td class="text-center"><button onclick="fornecedores.splice(${i},1); salvarCloud();" class="text-red-500 font-bold">✖</button></td></tr>`).join(''); }
         function atualizarSelectsFornecedores() { const h = fornecedores.map(f => `<option value="${f.nome}">${f.nome}</option>`).join(''); document.getElementById('m_fornecedor_select').innerHTML = h || "<option>...</option>"; document.getElementById('e_fornecedor_select').innerHTML = h || "<option>...</option>"; document.getElementById('as_fabrica').innerHTML = h || "<option>...</option>"; }
+        function atualizarSugestoes() { document.getElementById('listaSugestaoProdutos').innerHTML = catalogo.map(c => `<option value="${c.nome}">`).join(''); const n = [...new Set(pedidos.map(p => p.cliente))].sort(); document.getElementById('listaSugestaoClientes').innerHTML = n.map(x => `<option value="${x}">`).join(''); }
         
-        function atualizarSugestoes() { 
-            document.getElementById('listaSugestaoProdutos').innerHTML = catalogo.map(c => `<option value="${c.nome}">`).join(''); 
-            const n = [...new Set(pedidos.map(p => p.cliente))].sort();
-            document.getElementById('listaSugestaoClientes').innerHTML = n.map(x => `<option value="${x}">`).join('');
+        function gerarAssistenciaRapida(uid) {
+            const p = pedidos.find(x => x.uid == uid);
+            if(!p) return;
+            document.getElementById('as_cliente').value = p.cliente;
+            document.getElementById('as_pedido_id').value = p.idDoc;
+            document.getElementById('as_produto').value = `${p.produto} - ${p.cor} (${p.medida})`;
+            document.getElementById('as_fabrica').value = p.fornecedor;
+            switchTab('assistencia');
+            document.getElementById('as_descricao').focus();
         }
-        function updPed(uid, c, v) { pedidos.find(p => p.uid == uid)[c] = v; salvarCloud(); }
 
+        // --- ASSISTÊNCIAS ---
+        function cadastrarAssistencia() {
+            const cli = document.getElementById('as_cliente').value.trim().toUpperCase();
+            const forn = document.getElementById('as_fabrica').value;
+            const prod = document.getElementById('as_produto').value.toUpperCase();
+            const desc = document.getElementById('as_descricao').value.toUpperCase();
+            if(!cli || !forn || !desc) return alert("Preencha Cliente, Fábrica e Descrição!");
+            assistencias.unshift({ uid: Date.now() + Math.random(), data: new Date().toLocaleDateString('pt-BR'), cliente: cli, pedidoId: document.getElementById('as_pedido_id').value.toUpperCase() || "N/A", produto: prod, fabrica: forn, descricao: desc, status: "Aguardando Envio" });
+            document.getElementById('as_cliente').value = ""; document.getElementById('as_pedido_id').value = ""; document.getElementById('as_produto').value = ""; document.getElementById('as_descricao').value = ""; salvarCloud();
+        }
+        function renderAssistencias() {
+            const tbody = document.getElementById('tabelaAssistencias'); if(!tbody) return;
+            tbody.innerHTML = assistencias.map(a => {
+                let sCls = a.status === "Resolvido" ? "bg-green-700" : (a.status === "Em Trânsito" ? "bg-orange-500" : (a.status === "Enviado para Fábrica" ? "bg-blue-600" : "bg-red-600"));
+                return `<tr class="${a.status==='Resolvido'?'opacity-50':''}"><td>${a.data}</td><td>${a.pedidoId}</td><td class="font-black">${a.cliente}</td><td>${a.produto}</td><td>${a.fabrica}</td><td class="text-[9px]">${a.descricao}</td><td><button onclick="cycleAssistenciaStatus(${a.uid})" class="status-badge ${sCls} text-white">${a.status}</button></td><td class="text-center"><button onclick="enviarEmailAssistencia(${a.uid})">✉️</button> <button onclick="assistencias=assistencias.filter(x=>x.uid!=${a.uid});salvarCloud();" class="text-red-500">✖</button></td></tr>`;
+            }).join('');
+        }
+        function cycleAssistenciaStatus(uid) { const a = assistencias.find(x => x.uid == uid); const s = ["Aguardando Envio", "Enviado para Fábrica", "Em Trânsito", "Resolvido"]; a.status = s[(s.indexOf(a.status) + 1) % s.length]; salvarCloud(); }
+        function enviarEmailAssistencia(uid) { const a = assistencias.find(x => x.uid == uid); const f = fornecedores.find(f => f.nome === a.fabrica); if(!f || !f.email) return alert("Fábrica sem e-mail!"); const h = new Date().getHours(); const saud = h < 12 ? "Bom dia" : (h < 18 ? "Boa tarde" : "Boa noite"); const corpo = `${saud}!\n\nSegue solicitação de assistência técnica para o cliente ${a.cliente}, referente ao pedido ${a.pedidoId} - ${a.produto}.\n\nProblema relatado: ${a.descricao}.\n\nSeguem anexos as fotos e vídeos para análise.\n\nFico no aguardo do documento de confirmação com a relação dos itens acima para conferência.\n\nAtenciosamente,\nLucas Mercier.`; window.open(`mailto:${f.email}?subject=Assistência Técnica - ${a.cliente}&body=${encodeURIComponent(corpo)}`); }
+
+        // PDF
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
         document.getElementById('pdfInput').addEventListener('change', async function(e) {
             const file = e.target.files[0]; if (!file) return;
@@ -447,7 +417,7 @@
                     if(prod.includes(" - ")){ const s = prod.split(" - "); cor=s[1].trim(); prod=s[0].trim(); }
                     const m = prod.match(/(\d+[\d\.,\s]*[xX]\s*\d+[\d\.,\s]*|\d+[\.,]\d{2})/i);
                     if(m){ med=m[0].trim(); prod=prod.replace(m[0],"").trim(); }
-                    pedidos.unshift({ uid: Date.now() + Math.random(), idDoc, cliente: cliente.toUpperCase(), dataPedido: dataP, qtd: 1, produto: prod.toUpperCase(), medida: med, cor: cor.toUpperCase(), custo: 0, fornecedor: document.getElementById('m_fornecedor_select').value, prazo: "30", status: "Não enviado", whatsEnviado: false, confirmado: false });
+                    pedidos.unshift({ uid: Date.now() + Math.random(), idDoc, cliente: cliente.toUpperCase(), dataPedido: dataP, qtd: 1, produto: prod.toUpperCase(), medida: med, cor: cor.toUpperCase(), custo: 0, pendencia: "", fornecedor: document.getElementById('m_fornecedor_select').value, prazo: "30", status: "Não enviado", whatsEnviado: false, confirmado: false });
                 });
                 salvarCloud();
             };
