@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mercier Design - Gestão Cloud Elite v63.0</title>
+    <title>Mercier Design - Gestão Cloud Elite v63.1</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
@@ -32,15 +32,15 @@
         .btn-nao { background-color: #b91c1c !important; color: white !important; }
         .tab-active { border-bottom: 4px solid #3b82f6; color: #3b82f6; font-weight: 800; }
         
-        th { font-size: 10px; font-weight: 900; text-transform: uppercase; color: #64748b; padding: 10px 8px; border-bottom: 2px solid #3b82f6; background: #fff; }
-        td { padding: 4px 8px !important; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9; }
+        th { font-size: 10px; font-weight: 900; text-transform: uppercase; color: #64748b; padding: 10px 4px; border-bottom: 2px solid #3b82f6; background: #fff; }
+        td { padding: 4px 6px !important; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9; }
         input, select, textarea { text-transform: uppercase; outline: none; }
         .editable-cell:hover { background-color: #f8fafc; cursor: pointer; text-decoration: underline; color: #3b82f6; }
         
-        /* Ajustes de Largura das Colunas */
-        .col-movel { max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .col-medida { max-width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .col-cor { max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* Ajustes Finais de Largura solicitados */
+        .col-movel { max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .col-medida { max-width: 60px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .col-cor { max-width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
         #btn-sugestao-flutuante { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 15px rgba(59,130,246,0.5); cursor: pointer; z-index: 100; }
         #painel-sugestoes { position: fixed; bottom: 90px; right: 24px; width: 320px; height: 450px; background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 101; display: none; flex-direction: column; border: 1px solid #e2e8f0; }
@@ -65,7 +65,6 @@
         <button onclick="switchTab('fornecedores')" id="tab-fornecedores" class="py-4 text-xs font-black uppercase whitespace-nowrap">🏭 Fábricas</button>
     </nav>
 
-    <!-- ABA PEDIDOS -->
     <main id="view-pedidos" class="max-w-[1950px] mx-auto p-4 md:p-6">
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
             <div class="card-premium p-4 flex flex-col justify-center bg-slate-50 border-2 border-dashed border-slate-300"><input type="file" id="pdfInput" accept="application/pdf" class="text-[10px] cursor-pointer"></div>
@@ -116,10 +115,7 @@
     <main id="view-catalogo" class="hidden p-6"></main>
     <main id="view-fornecedores" class="hidden p-6"></main>
 
-    <!-- MODAL DETALHES -->
     <div id="modal-detalhes" onclick="if(event.target==this) this.style.display='none'"><div class="card-premium w-full max-w-2xl bg-white overflow-hidden flex flex-col max-h-[90vh]"><div class="bg-indigo-600 p-4 text-white font-black flex justify-between items-center uppercase text-sm"><span>Detalhes</span><button onclick="document.getElementById('modal-detalhes').style.display='none'">✕</button></div><div id="detalhe-corpo" class="p-8 overflow-y-auto"></div></div></div>
-    
-    <!-- BALÃO FLUTUANTE -->
     <div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()">💡</div>
     <div id="painel-sugestoes"><div class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase tracking-widest"><span>💡 Sugestões</span><button onclick="togglePainelSugestoes()">✕</button></div><textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" oninput="autoSalvarNotas()"></textarea></div>
 
@@ -207,19 +203,10 @@
         function autoSalvarNotas(){ notasMelhoria=document.getElementById('texto-melhorias').value; db.ref('dados/notasMelhoria').set(notasMelhoria); }
         function toggleFiltroNaoEnviado(){ filtrandoNaoEnviados=!filtrandoNaoEnviados; document.getElementById('btnFiltroNaoEnviado').classList.toggle('bg-red-600'); renderPedidos(); }
         function limparBusca(){ document.getElementById('busca').value=""; renderPedidos(); }
-        function editField(u,f){ 
-            const x=pedidos.find(y=>y.uid==u); 
-            let n=prompt(`Editar:`, x[f]||""); 
-            if(n!==null){ 
-                if(f==='custo'){ let v=n.replace(/\D/g,""); x[f]=v? "R$ "+(v/100).toFixed(2).replace(".",",").replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1.") : "R$ 0,00"; }
-                else {x[f]=n.toUpperCase();} 
-                salvarCloud(); 
-            } 
-        }
-
+        function marcarTodos(v){ document.querySelectorAll('#tabelaPedidos input[type=checkbox]').forEach(c=>c.checked=v); }
+        function editField(u,f){ const x=pedidos.find(y=>y.uid==u); let n=prompt(`Editar:`, x[f]||""); if(n!==null){ if(f==='custo'){ let v=n.replace(/\D/g,""); x[f]=v? "R$ "+(v/100).toFixed(2).replace(".",",").replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1.") : "R$ 0,00"; } else {x[f]=n.toUpperCase();} salvarCloud(); } }
+        function calcP(d, pr){ if(!d)return{dias:0,classe:""}; try { const pA=d.split("/"); const dt=new Date(pA[2], pA[1]-1, pA[0]); let dF=new Date(dt); if(pr.includes("util")){ dF = getBD(dt, parseInt(pr)); } else { dF.setDate(dF.getDate()+parseInt(pr||30)); } const df=Math.ceil((dF-new Date())/86400000); let c=df<0?"prazo-vencido":(df<=5?"prazo-urgente":(df<=10?"prazo-alerta":(df<=20?"prazo-atencao":""))); return {dias:df,classe:c}; } catch(e){return {dias:0,classe:""}} }
         function getBD(s, d) { let c=0, dF=new Date(s); while(c<d){ dF.setDate(dF.getDate()+1); if(dF.getDay()!==0 && dF.getDay()!==6) c++; } return dF; }
-        function calcP(d, pr){ if(!d)return{dias:0,classe:""}; try { const pA=d.split("/"); const dt=new Date(pA[2], pA[1]-1, pA[0]); let dF; if(pr==="30-util") dF=getBD(dt,30); else if(pr==="40-util") dF=getBD(dt,40); else { dF=new Date(dt); dF.setDate(dF.getDate()+parseInt(pr||30)); } const df=Math.ceil((dF-new Date())/86400000); let c=df<0?"prazo-vencido":(df<=5?"prazo-urgente":(df<=10?"prazo-alerta":(df<=20?"prazo-atencao":""))); return {dias:df,classe:c}; } catch(e){return {dias:0,classe:""}} }
-        
         function excluirPedido(u){ if(confirm("Excluir?")){ pedidos=pedidos.filter(x=>x.uid!=u); salvarCloud(); } }
         function atualizarSelectsFornecedores(){ const h = fornecedores.map(f => `<option value="${f.nome}">${f.nome}</option>`).join(''); document.getElementById('m_fornecedor_select').innerHTML = h || "<option>...</option>"; }
         function atualizarSugestoes(){ const n=[...new Set(pedidos.map(p=>p.cliente))].sort(); if(document.getElementById('listaSugestaoClientes')) document.getElementById('listaSugestaoClientes').innerHTML=n.map(x=>`<option value="${x}">`).join(''); }
@@ -227,8 +214,6 @@
         function cadastrarManual() { const cli = document.getElementById('m_cliente').value.trim().toUpperCase(); const forn = document.getElementById('m_fornecedor_select').value; if(!cli || cestoItensTemporario.length === 0) return alert("Falta preencher!"); const idDoc = "ID#" + proximoID.toString().padStart(4, '0'); proximoID++; const data = new Date().toLocaleDateString('pt-BR'); cestoItensTemporario.forEach(i => pedidos.unshift({ uid: Date.now() + Math.random(), idDoc, cliente: cli, dataPedido: data, qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false })); cestoItensTemporario = []; document.getElementById('m_cliente').value = ""; document.getElementById('cesto-itens').innerText = ""; salvarCloud(); }
         function dupPed(u){ const x=pedidos.find(y=>y.uid==u); const idDoc="ID#"+proximoID.toString().padStart(4,'0'); proximoID++; pedidos.unshift({...x, uid:Date.now(), idDoc}); salvarCloud(); }
         function gerarAssistenciaRapida(u){ alert("Vá para a aba Assistências para registrar!"); }
-
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
     </script>
 </body>
 </html>
