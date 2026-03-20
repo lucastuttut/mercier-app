@@ -1,0 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+
+body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f1f5f9; color: #000; margin: 0; padding: 0; }
+.glass-header { background: #0f172a; border-bottom: 4px solid #3b82f6; }
+.card-premium { background: white; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+
+.prazo-vencido { background-color: #fecaca !important; border-left: 8px solid #b91c1c !important; animation: pulse-red 2s infinite; }
+.prazo-urgente { background-color: #fee2e2 !important; border-left: 8px solid #ef4444 !important; }
+.prazo-alerta { background-color: #ffedd5 !important; border-left: 8px solid #f97316 !important; }
+.prazo-atencao { background-color: #fef9c3 !important; border-left: 8px solid #eab308 !important; }
+
+@keyframes pulse-red { 0% { background-color: #fecaca; } 50% { background-color: #f87171; } 100% { background-color: #fecaca; } }
+
+.status-badge { font-size: 9px; font-weight: 900; padding: 8px; border-radius: 6px; text-transform: uppercase; width: 100%; text-align: center; cursor: pointer; border: none; }
+.btn-sim { background-color: #15803d !important; color: white !important; }
+.btn-nao { background-color: #b91c1c !important; color: white !important; }
+.tab-active { border-bottom: 4px solid #3b82f6; color: #3b82f6; font-weight: 800; }
+
+th { font-size: 10px; font-weight: 900; text-transform: uppercase; color: #64748b; padding: 10px 4px; border-bottom: 2px solid #3b82f6; background: #fff; }
+td { padding: 4px 8px !important; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9; }
+
+/* FONTES UNIFORMES 11PX TRAVADAS */
+.font-tabela-fixa { font-size: 11px !important; font-weight: 700 !important; }
+.col-cliente { max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.col-movel { max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.col-medida { max-width: 95px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.col-cor { max-width: 110px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+#btn-sugestao-flutuante { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 15px rgba(59,130,246,0.5); cursor: pointer; z-index: 100; }
+#painel-sugestoes { position: fixed; bottom: 90px; right: 24px; width: 320px; height: 450px; background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 101; display: none; flex-direction: column; border: 1px solid #e2e8f0; }
+#modal-detalhes { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
+
+.select-prazo-tabela { background: #000; color: #fff; font-size: 7.5px !important; font-weight: 900; border-radius: 4px; padding: 1px 2px; cursor: pointer; border: none; }
+.copy-btn-small { cursor: pointer; color: #64748b; font-size: 14px; transition: 0.2s; }
+.btn-pag-opt { background: #f1f5f9; padding: 6px 12px; border-radius: 8px; font-size: 10px; font-weight: 800; border: 2px solid transparent; cursor: pointer; }
+.btn-pag-opt.active { background: #3b82f6; color: white; border-color: #2563eb; }
