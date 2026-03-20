@@ -18,7 +18,7 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f1f5f9; 
 th { font-size: 10px; font-weight: 900; text-transform: uppercase; color: #64748b; padding: 12px 6px; border-bottom: 2px solid #3b82f6; background: #fff; }
 td { padding: 6px 8px !important; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9; font-size: 11px; }
 
-input, select, textarea { text-transform: uppercase; outline: none; }
+input, select, textarea { text-transform: uppercase; outline: none; transition: 0.2s; }
 .editable-cell:hover { background-color: #f8fafc; cursor: pointer; text-decoration: underline; color: #3b82f6; }
 
 .status-online { background: #22c55e; color: white; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 900; }
@@ -28,7 +28,8 @@ input, select, textarea { text-transform: uppercase; outline: none; }
 #painel-sugestoes { position: fixed; bottom: 90px; right: 24px; width: 320px; height: 450px; background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 101; display: none; flex-direction: column; border: 1px solid #e2e8f0; overflow: hidden;}
 #modal-detalhes { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
 
-.select-prazo-tabela { background: #000; color: #fff; font-size: 7.5px !important; font-weight: 900; border-radius: 4px; padding: 1px 2px; cursor: pointer; border: none; }
-.item-cesto { background: #eff6ff; border: 1px solid #bfdbfe; padding: 4px 8px; border-radius: 6px; font-size: 10px; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-weight: 800; }
+.copy-btn-small { cursor: pointer; color: #94a3b8; font-size: 14px; transition: 0.2s; padding: 4px; }
+.item-cesto { background: #eff6ff; border: 1px solid #bfdbfe; padding: 6px 12px; border-radius: 10px; font-size: 10px; display: flex; align-items: center; gap: 6px; font-weight: 800; color: #1e40af; }
 .btn-pag-opt { background: #f1f5f9; padding: 6px 12px; border-radius: 8px; font-size: 10px; font-weight: 800; border: 2px solid transparent; cursor: pointer; }
 .btn-pag-opt.active { background: #3b82f6; color: white; border-color: #2563eb; }
+.select-prazo-tabela { background: #000; color: #fff; font-size: 7.5px !important; font-weight: 900; border-radius: 4px; padding: 1px 2px; cursor: pointer; border: none; }
