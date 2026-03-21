@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mercier Design - Gestão Cloud v89.0</title>
+    <title>Mercier Design - Gestão Cloud v91.0</title>
     <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -22,7 +22,7 @@
     <nav class="bg-slate-900 text-slate-400 px-8 flex gap-8 shadow-md overflow-x-auto sticky top-[72px] z-40">
         <button onclick="switchTab('pedidos')" id="tab-pedidos" class="py-4 text-xs font-black uppercase tab-active whitespace-nowrap">📋 Pedidos</button>
         <button onclick="switchTab('tarefas')" id="tab-tarefas" class="py-4 text-xs font-black uppercase whitespace-nowrap">📝 Tarefas / Venda</button>
-        <button onclick="switchTab('assistencia')" id="tab-assistencia" class="py-4 text-xs font-black uppercase whitespace-nowrap">🛠️ Assistência</button>
+        <button onclick="switchTab('assistencia')" id="tab-assistencia" class="py-4 text-xs font-black uppercase whitespace-nowrap">🛠️ Assistências</button>
         <button onclick="switchTab('estoque')" id="tab-estoque" class="py-4 text-xs font-black uppercase whitespace-nowrap">📦 Estoque</button>
         <button onclick="switchTab('catalogo')" id="tab-catalogo" class="py-4 text-xs font-black uppercase whitespace-nowrap">📜 Catálogo</button>
         <button onclick="switchTab('fornecedores')" id="tab-fornecedores" class="py-4 text-xs font-black uppercase whitespace-nowrap">🏭 Fábricas</button>
@@ -52,7 +52,6 @@
                 <button onclick="cadastrarManual()" class="bg-blue-600 text-white font-black rounded-xl text-xs px-8 py-3.5 w-full uppercase shadow-lg hover:bg-blue-700 transition">Finalizar e Sincronizar Pedido</button>
             </div>
         </div>
-
         <div class="card-premium overflow-hidden">
             <div class="p-4 bg-white border-b flex flex-col md:flex-row justify-between items-center gap-4">
                 <input type="text" id="busca" onkeyup="renderPedidos()" placeholder="🔍 BUSCAR..." class="border-2 border-slate-100 px-5 py-2.5 rounded-2xl text-xs w-full md:w-96 font-bold uppercase">
@@ -62,17 +61,7 @@
                 </div>
                 <span id="contador" class="text-[10px] font-black bg-slate-900 text-white px-4 py-2 rounded-lg uppercase">0 Pedidos</span>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr>
-                            <th width="40"><input type="checkbox" id="checkMaster" onclick="marcarTodos(this.checked)"></th>
-                            <th width="65">Prazo</th><th width="70">ID</th><th>Cliente</th><th width="85">Data</th><th width="45">Qtd</th><th>Móvel</th><th width="70">Medida</th><th width="90">Cor</th><th width="95">Custo</th><th width="100">Fábrica</th><th width="120">Status</th><th width="60">Whats?</th><th width="60">Conf?</th><th class="text-center" width="100">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabelaPedidos"></tbody>
-                </table>
-            </div>
+            <div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr><th width="40"><input type="checkbox" onclick="marcarTodos(this.checked)"></th><th width="65">Prazo</th><th width="70">ID</th><th>Cliente</th><th width="85">Data</th><th width="45">Qtd</th><th>Móvel</th><th width="70">Medida</th><th width="90">Cor</th><th width="95">Custo</th><th width="100">Fábrica</th><th width="120">Status</th><th width="60">Whats?</th><th width="60">Conf?</th><th class="text-center" width="100">Ações</th></tr></thead><tbody id="tabelaPedidos"></tbody></table></div>
         </div>
     </main>
 
@@ -90,17 +79,18 @@
             <button onclick="cadastrarTarefa()" class="mt-6 bg-indigo-600 text-white font-black px-12 py-4 rounded-xl text-xs uppercase shadow-lg w-full">Salvar Tarefa / Pedido</button>
         </div>
         <div class="card-premium overflow-hidden">
-            <table class="w-full text-left">
-                <thead><tr class="bg-slate-50"><th>Data</th><th>Tarefa / Cliente</th><th>Tipo</th><th>Status</th><th class="text-center">Ação</th></tr></thead>
-                <tbody id="tabelaTarefas"></tbody>
-            </table>
+            <div class="p-4 bg-slate-50 border-b flex justify-between items-center">
+                <span class="text-[10px] font-black uppercase text-slate-400">Histórico</span>
+                <select id="filtro-tarefa-status" onchange="renderTarefas()" class="border-2 p-1 rounded-lg text-[10px] font-bold bg-white"><option value="TODAS">TODAS</option><option value="Não Iniciado">Não Iniciado</option><option value="Em Andamento">Em Andamento</option><option value="Feito">Feito</option></select>
+            </div>
+            <table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Data</th><th>Descrição / Cliente</th><th>Tipo</th><th>Status</th><th class="text-center">Ação</th></tr></thead><tbody id="tabelaTarefas"></tbody></table>
         </div>
     </main>
 
-    <!-- ABA ASSISTENCIAS -->
+    <!-- ABA ASSISTÊNCIA -->
     <main id="view-assistencia" class="hidden p-6 max-w-[1950px] mx-auto">
         <div class="card-premium p-6 border-l-8 border-orange-500 flex gap-4 mb-6 uppercase">
-            <input list="listaSugestaoClientes" id="as_cliente" placeholder="NOME DO CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold flex-1">
+            <input list="listaSugestaoClientes" id="as_cliente" placeholder="CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold flex-1">
             <input id="as_produto" placeholder="PRODUTO / DEFEITO" class="border-2 p-2 rounded-lg text-xs font-bold flex-1">
             <select id="as_fabrica" class="border-2 p-2 rounded-lg text-xs font-bold bg-white w-48"></select>
             <button onclick="cadastrarAssistencia()" class="bg-orange-600 text-white px-8 py-2 rounded-lg font-black text-xs uppercase shadow">Registrar</button>
@@ -119,7 +109,7 @@
         <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Móvel</th><th>Qtd</th><th>Situação</th><th>Ação</th></tr></thead><tbody id="tabelaEstoque"></tbody></table></div>
     </main>
 
-    <!-- ABA CATALOGO -->
+    <!-- ABA CATÁLOGO -->
     <main id="view-catalogo" class="hidden p-6 max-w-[1200px] mx-auto">
         <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-2">
             <input id="cat_nome" placeholder="NOME DO MÓVEL" class="border-2 p-2 rounded-lg flex-1 font-bold uppercase">
@@ -128,12 +118,12 @@
         <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Nome</th><th class="text-center">Remover</th></tr></thead><tbody id="tabelaCatalogo"></tbody></table></div>
     </main>
 
-    <!-- ABA FABRICAS -->
+    <!-- ABA FÁBRICAS -->
     <main id="view-fornecedores" class="hidden max-w-4xl mx-auto p-6">
         <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-2">
             <input id="f_nome" placeholder="FÁBRICA" class="border-2 p-2 rounded-lg flex-1 font-bold uppercase">
             <input id="f_email" placeholder="EMAIL" class="border-2 p-2 rounded-lg flex-1 font-bold lowercase">
-            <button onclick="cadastrarFornecedor()" class="bg-blue-600 text-white px-8 py-2 rounded font-black text-xs uppercase tracking-tighter">Salvar</button>
+            <button onclick="cadastrarFornecedor()" class="bg-blue-600 text-white px-8 py-2 rounded font-black text-xs uppercase">Salvar</button>
         </div>
         <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Fábrica</th><th>E-mail</th><th class="text-center">Remover</th></tr></thead><tbody id="tabelaFornecedores"></tbody></table></div>
     </main>
@@ -141,7 +131,7 @@
     <!-- MODAL DETALHES -->
     <div id="modal-detalhes" onclick="if(event.target==this) this.style.display='none'">
         <div class="card-premium w-full max-w-2xl bg-white overflow-hidden flex flex-col max-h-[90vh]">
-            <div class="bg-indigo-600 p-4 text-white font-black flex justify-between items-center uppercase text-sm"><span>📄 Resumo do Pedido</span><button onclick="document.getElementById('modal-detalhes').style.display='none'">✕</button></div>
+            <div class="bg-indigo-600 p-4 text-white font-black flex justify-between items-center uppercase text-sm"><span>📄 Resumo Detalhado</span><button onclick="document.getElementById('modal-detalhes').style.display='none'">✕</button></div>
             <div id="detalhe-corpo" class="p-8 overflow-y-auto space-y-4 bg-white"></div>
         </div>
     </div>
