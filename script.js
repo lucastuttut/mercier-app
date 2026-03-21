@@ -12,25 +12,28 @@ const firebaseConfig = {
 if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
 const db = firebase.database();
 
-let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[], proximoID=255, notasMelhoria="", cestoItensTemporario=[], filtrandoNaoEnviados=false, filtrandoVendidos=false, cpfValido=true;
+let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[], proximoID=255, notasMelhoria="", notasEstoque="", cestoItensTemporario=[], filtrandoNaoEnviados=false, filtrandoVendidos=false, cpfValido=true;
 
-// SINCRONIZAÇÃO
+// SINCRONIZAÇÃO TOTAL
 db.ref('dados').on('value', (s) => {
     const d = s.val() || {};
-    pedidos=d.pedidos||[]; fornecedores=d.fornecedores||[]; estoque=d.estoque||[]; catalogo=d.catalogo||[]; tarefas=d.tarefas||[]; assistencias=d.assistencias||[]; proximoID=d.proximoID||255; notasMelhoria=d.notasMelhoria||"";
+    pedidos=d.pedidos||[]; fornecedores=d.fornecedores||[]; estoque=d.estoque||[]; catalogo=d.catalogo||[]; tarefas=d.tarefas||[]; assistencias=d.assistencias||[]; proximoID=d.proximoID||255; notasMelhoria=d.notasMelhoria||""; notasEstoque=d.notasEstoque||"";
+    
     document.getElementById('status-db').innerText="ONLINE";
     document.getElementById('status-db').className="status-online";
     if(document.getElementById('texto-melhorias')) document.getElementById('texto-melhorias').value=notasMelhoria;
+    if(document.getElementById('estoque-notas-gerais')) document.getElementById('estoque-notas-gerais').value=notasEstoque;
+    
     atualizarSelectsFornecedores(); atualizarSugestoes(); renderAll();
 });
 
 function renderAll(){ renderPedidos(); renderTarefas(); renderFornecedores(); renderEstoque(); renderCatalogo(); renderAssistencias(); }
-function salvarCloud(){ db.ref('dados').set({pedidos, fornecedores, estoque, catalogo, tarefas, assistencias, proximoID, notasMelhoria}); }
+function salvarCloud(){ db.ref('dados').set({pedidos, fornecedores, estoque, catalogo, tarefas, assistencias, proximoID, notasMelhoria, notasEstoque}); }
 
-// --- ATALHOS ---
+// --- ATALHOS ESC ---
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape') { document.getElementById('modal-detalhes').style.display='none'; document.getElementById('painel-sugestoes').style.display='none'; }});
 
-// --- DRAG BLOCO ---
+// --- ARRASTAR BLOCO ---
 const dragPanel = document.getElementById('painel-sugestoes'), dragHandle = document.getElementById('drag-handle');
 let isDragging = false, offset = [0,0];
 dragHandle.onmousedown = (e) => { isDragging = true; offset = [dragPanel.offsetLeft - e.clientX, dragPanel.offsetTop - e.clientY]; };
@@ -90,11 +93,13 @@ function renderPedidos() {
     }).join('');
 }
 function editField(u,f){ const x=pedidos.find(y=>y.uid==u); let n=prompt(`ALTERAR ${f.toUpperCase()}:`,x[f]||""); if(n!==null){ if(f==='custo'){ let v=n.replace(/\D/g,""); x[f]=v?"R$ "+(v/100).toFixed(2).replace(".",",").replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1."):"R$ 0,00"; } else if(f==='qtd'){ x[f]=parseInt(n)||1; } else { x[f]=n.toUpperCase(); } salvarCloud(); }}
-function adicionarItemAoCesto() { const p = document.getElementById('m_produto').value.trim().toUpperCase(); if(!p) return alert("PRODUTO!"); cestoItensTemporario.push({ uid: Date.now(), q: document.getElementById('m_qtd').value || 1, p, m: document.getElementById('m_medida').value || "-", c: document.getElementById('m_cor').value.toUpperCase() || "-", v: document.getElementById('m_custo').value || "R$ 0,00" }); renderCesto(); document.getElementById('m_produto').value = ""; }
+function adicionarItemAoCesto() { const p = document.getElementById('m_produto').value.trim().toUpperCase(); if(!p) return alert("INFORME O PRODUTO!"); cestoItensTemporario.push({ uid: Date.now(), q: document.getElementById('m_qtd').value || 1, p, m: document.getElementById('m_medida').value || "-", c: document.getElementById('m_cor').value.toUpperCase() || "-", v: document.getElementById('m_custo').value || "R$ 0,00" }); renderCesto(); document.getElementById('m_produto').value = ""; }
 function renderCesto() { document.getElementById('cesto-itens').innerHTML = cestoItensTemporario.map((item, idx) => `<div class="item-cesto"><span>${item.q}x</span><span>${item.p}</span><button onclick="cestoItensTemporario.splice(${idx},1); renderCesto();" class="text-red-500 font-bold ml-2">✕</button></div>`).join(''); }
 function cadastrarManual() { const cli = document.getElementById('m_cliente').value.trim().toUpperCase(); const forn = document.getElementById('m_fornecedor_select').value; if(!cli || cestoItensTemporario.length === 0) return alert("FALTA DADOS!"); const idDoc = "ID#" + proximoID.toString().padStart(4, '0'); proximoID++; cestoItensTemporario.forEach(i => { pedidos.unshift({ uid: Date.now()+Math.random(), idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false }); }); cestoItensTemporario = []; document.getElementById('m_cliente').value = ""; renderCesto(); salvarCloud(); }
 
-// --- ESTOQUE (OTIMIZADO) ---
+// --- ESTOQUE (v100 FIX) ---
+function autoSalvarNotasEstoque() { notasEstoque = document.getElementById('estoque-notas-gerais').value; salvarCloud(); }
+
 function renderEstoque() {
     const tb = document.getElementById('tabelaEstoque'); if(!tb) return;
     const b = document.getElementById('estoque-busca').value.toLowerCase();
@@ -106,7 +111,7 @@ function renderEstoque() {
         if(x.situacao === 'ESTOQUE') totEst += parseInt(x.qtd || 0);
         if(x.situacao === 'VENDIDO') totVen += parseInt(x.qtd || 0);
         
-        const matBusca = (x.produto||"").toLowerCase().includes(b) || (x.fabrica||"").toLowerCase().includes(b) || (x.obs||"").toLowerCase().includes(b);
+        const matBusca = (x.produto||"").toLowerCase().includes(b) || (x.fabrica||"").toLowerCase().includes(b);
         const matFab = fFab === "TODAS" || x.fabrica === fFab;
         const matSit = fSit === "TODAS" || x.situacao === fSit;
         let matToggle = true; if(filtrandoVendidos) matToggle = x.situacao === 'VENDIDO';
@@ -122,8 +127,9 @@ function renderEstoque() {
             <td onclick="editFieldEstoque(${x.uid},'produto')" class="editable-cell uppercase font-bold">${x.produto}</td>
             <td onclick="editFieldEstoque(${x.uid},'fabrica')" class="editable-cell text-blue-600 text-[10px] font-black uppercase">${x.fabrica || "-"}</td>
             <td onclick="editFieldEstoque(${x.uid},'qtd')" class="editable-cell text-center">${x.qtd}</td>
-            <td><span class="px-2 py-1 rounded text-[9px] font-black ${x.situacao === 'ESTOQUE' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${x.situacao}</span></td>
-            <td onclick="editFieldEstoque(${x.uid},'obs')" class="editable-cell text-[10px] uppercase italic text-slate-500">${x.obs || "-"}</td>
+            <td onclick="editFieldEstoque(${x.uid},'situacao')" class="editable-cell">
+                <span class="px-2 py-1 rounded text-[9px] font-black ${x.situacao === 'ESTOQUE' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${x.situacao}</span>
+            </td>
             <td class="text-center flex gap-1 justify-center">
                 ${x.situacao === 'ESTOQUE' ? `<button onclick="darBaixaEstoque(${x.uid})" title="Dar Baixa">📉</button>` : ''}
                 <button onclick="if(confirm('EXCLUIR?')){estoque=estoque.filter(y=>y.uid!=${x.uid}); salvarCloud();}" class="text-red-500 font-black px-2">✕</button>
@@ -136,13 +142,13 @@ function darBaixaEstoque(u) {
     if (qS === null) return; qS = parseInt(qS);
     if (isNaN(qS) || qS <= 0 || qS > it.qtd) return alert("Qtd Inválida!");
     if (qS == it.qtd) { it.situacao = "VENDIDO"; it.data = new Date().toLocaleDateString('pt-BR'); }
-    else { it.qtd -= qS; estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: it.produto, fabrica: it.fabrica, qtd: qS, situacao: "VENDIDO", obs: it.obs }); }
+    else { it.qtd -= qS; estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: it.produto, fabrica: it.fabrica, qtd: qS, situacao: "VENDIDO" }); }
     salvarCloud();
 }
-function editFieldEstoque(u,f){ const x=estoque.find(y=>y.uid==u); let n=prompt(`ALTERAR ${f.toUpperCase()}:`,x[f]||""); if(n!==null){ if(f==='qtd') x[f]=parseInt(n)||1; else x[f]=n.toUpperCase(); salvarCloud(); }}
+function editFieldEstoque(u,f){ const x=estoque.find(y=>y.uid==u); let n=prompt(`ALTERAR ${f.toUpperCase()}:`,x[f]||""); if(n!==null){ if(f==='qtd') x[f]=parseInt(n)||1; else if(f==='situacao') x[f] = n.toUpperCase() === 'VENDIDO' ? 'VENDIDO' : 'ESTOQUE'; else x[f]=n.toUpperCase(); salvarCloud(); }}
 function cadastrarEstoque() {
-    const p = document.getElementById('e_produto').value.toUpperCase().trim(), f = document.getElementById('e_fabrica_select').value, q = document.getElementById('e_qtd').value, s = document.getElementById('e_situacao').value, o = document.getElementById('e_obs').value.toUpperCase();
-    if (p) { estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: p, fabrica: f, qtd: q, situacao: s, obs: o }); salvarCloud(); document.getElementById('e_produto').value = ""; document.getElementById('e_obs').value = ""; }
+    const p = document.getElementById('e_produto').value.toUpperCase().trim(), f = document.getElementById('e_fabrica_select').value, q = document.getElementById('e_qtd').value, s = document.getElementById('e_situacao').value;
+    if (p) { estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: p, fabrica: f, qtd: q, situacao: s }); salvarCloud(); document.getElementById('e_produto').value = ""; }
 }
 function toggleFiltroVendidos(){ filtrandoVendidos=!filtrandoVendidos; document.getElementById('btnFiltroVendidos').classList.toggle('bg-red-600'); document.getElementById('btnFiltroVendidos').classList.toggle('text-white'); renderEstoque(); }
 
@@ -154,7 +160,7 @@ function mostrarCamposTarefa(t){
         addProdutoLinha(); addPagamentoLinha();
     } else { c.innerHTML = `<input id="t_raw" placeholder="DESCRIÇÃO..." class="border-2 p-2 rounded-lg text-xs font-bold col-span-4 uppercase">`; }
 }
-function addProdutoLinha(){ const d = document.getElementById('lista-produtos-tarefa'); const r = document.createElement('div'); r.className = "flex gap-2 mb-1 row-prod"; r.innerHTML = `<input class="t-p-nome border-2 p-2 rounded text-xs font-bold flex-1 uppercase" placeholder="MÓVEL"><input class="t-v-orig border-2 p-2 rounded text-xs font-bold w-24" placeholder="ORIGINAL" oninput="maskMoney(this)"><input class="t-v-desc border-2 p-2 rounded text-xs font-bold w-24 text-indigo-600" placeholder="DESC." oninput="maskMoney(this)"><button onclick="this.parentElement.remove(); calcTotalTirarPedido();">✕</button>`; d.appendChild(r); }
+function addProdutoLinha(){ const d = document.getElementById('lista-produtos-tarefa'); const r = document.createElement('div'); r.className = "flex gap-2 mb-1 items-center row-prod bg-slate-50 p-2 rounded border border-dashed"; r.innerHTML = `<input class="t-p-nome border-2 p-2 rounded text-xs font-bold flex-1 uppercase" placeholder="MÓVEL"><input class="t-v-orig border-2 p-2 rounded text-xs font-bold w-32" placeholder="ORIGINAL" oninput="maskMoney(this)"><input class="t-v-desc border-2 p-2 rounded text-xs font-bold w-32 text-indigo-600" placeholder="DESCONTO" oninput="maskMoney(this)"><button onclick="this.parentElement.remove(); calcTotalTirarPedido();" class="text-red-500 font-black px-2">✕</button>`; d.appendChild(r); }
 function addPagamentoLinha(){ const d = document.getElementById('lista-pagamentos-tarefa'); let t=0; document.querySelectorAll('.t-v-desc').forEach(i=>t+=parseMoney(i.value)); let p=0; document.querySelectorAll('.t-p-val').forEach(i=>p+=parseMoney(i.value)); let s=t-p; if(s<0) s=0; const r=document.createElement('div'); r.className="flex flex-col bg-slate-50 p-2 rounded border mb-2 row-pag"; r.innerHTML=`<div class="flex gap-1 mb-1 flex-wrap"><button onclick="setP(this,'PIX')" class="btn-pag-opt active">PIX</button><button onclick="setP(this,'CRÉDITO')" class="btn-pag-opt">CRÉDITO</button><button onclick="setP(this,'DÉBITO')" class="btn-pag-opt">DÉBITO</button><button onclick="setP(this,'CHEQUE')" class="btn-pag-opt">CHEQUE</button><input type="hidden" class="t-p-tipo" value="PIX"><select class="t-p-parc hidden border-2 p-1 rounded text-[10px] font-bold bg-white">${[...Array(12).keys()].map(n => `<option value="${n+1}x">${n+1}x</option>`).join('')}</select></div><div class="flex gap-1"><input class="t-p-val border-2 p-1.5 rounded text-xs font-bold w-32 text-emerald-600" placeholder="VALOR" oninput="maskMoney(this)" value="R$ ${s.toLocaleString('pt-BR',{minimumFractionDigits:2})}"><input class="t-p-obs border-2 p-1.5 rounded text-xs font-bold flex-1 uppercase" placeholder="OBS"><button onclick="this.parentElement.parentElement.remove()">✕</button></div>`; d.appendChild(r); }
 function setP(b,v){ const p = b.parentElement; p.querySelectorAll('button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); p.querySelector('.t-p-tipo').value=v; const s = p.querySelector('.t-p-parc'); if(v === 'CRÉDITO') s.classList.remove('hidden'); else s.classList.add('hidden'); }
 function calcTotalTirarPedido(){ let t=0; document.querySelectorAll('.t-v-desc').forEach(i=>t+=parseMoney(i.value)); document.getElementById('total-pedido-tarefa').innerText="Total: R$ "+t.toLocaleString('pt-BR',{minimumFractionDigits:2}); }
@@ -175,7 +181,7 @@ function verDetalhesTarefa(uid){
 }
 function l_i(l, v){ return `<div class="border p-2 rounded text-[10px] font-bold uppercase flex justify-between"><span>${l}: ${v}</span><button onclick="copyText('${v}', this)">📋</button></div>`; }
 
-// --- OUTRAS ABAS ---
+// --- FORNECEDORES E CATÁLOGO ---
 function renderFornecedores() { const tb = document.getElementById('tabelaFornecedores'); if(!tb) return; tb.innerHTML = fornecedores.map((f, i) => `<tr><td class="font-bold uppercase">${f.nome}</td><td class="lowercase text-blue-600">${f.email}</td><td class="text-center"><button onclick="fornecedores.splice(${i},1); salvarCloud();" class="text-red-500 font-black">✕</button></td></tr>`).join(''); }
 function cadastrarFornecedor(){ const n=document.getElementById('f_nome').value.toUpperCase().trim(), e=document.getElementById('f_email').value.toLowerCase().trim(); if(n&&e){fornecedores.push({nome:n,email:e}); salvarCloud(); document.getElementById('f_nome').value=""; document.getElementById('f_email').value="";}}
 function renderCatalogo() { const tb=document.getElementById('tabelaCatalogo'); if(!tb) return; tb.innerHTML=catalogo.map((c,i)=>`<tr><td class="uppercase">${c.nome}</td><td class="text-center"><button onclick="catalogo.splice(${i},1); salvarCloud();">✕</button></td></tr>`).join(''); }
