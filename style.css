@@ -1,55 +1,218 @@
+/* --- MERCIER DESIGN - CSS OFICIAL v102.0 --- */
+
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
 
-body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f1f5f9; color: #000; margin: 0; padding: 0; }
-.glass-header { background: #0f172a; border-bottom: 4px solid #3b82f6; }
-.card-premium { background: white; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+/* --- CONFIGURAÇÕES GERAIS --- */
+body { 
+    font-family: 'Plus Jakarta Sans', sans-serif; 
+    background-color: #f1f5f9; 
+    color: #000; 
+    margin: 0; 
+    padding: 0; 
+    overflow-x: hidden;
+}
 
-/* --- EFEITO DE PASSAR O MOUSE (MAIS MARCANTE) --- */
-tbody tr { transition: all 0.15s ease-in-out; }
+/* Força maiúsculas em entradas de texto para manter o padrão */
+input, select, textarea { 
+    text-transform: uppercase; 
+    outline: none; 
+    transition: 0.2s; 
+}
+
+/* --- ESTRUTURA --- */
+.glass-header { 
+    background: #0f172a; 
+    border-bottom: 4px solid #3b82f6; 
+}
+
+.card-premium { 
+    background: white; 
+    border-radius: 20px; 
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08); 
+    border: 1px solid #e2e8f0; 
+    overflow: hidden;
+}
+
+/* --- TABELAS E DESTAQUES (HOVER) --- */
+th { 
+    font-size: 10px; 
+    font-weight: 900; 
+    text-transform: uppercase; 
+    color: #64748b; 
+    padding: 12px 6px; 
+    border-bottom: 2px solid #3b82f6; 
+    background: #fff; 
+}
+
+td { 
+    padding: 6px 8px !important; 
+    font-weight: 700; 
+    color: #0f172a; 
+    border-bottom: 1px solid #f1f5f9; 
+    font-size: 11px; 
+}
+
+/* Efeito de passar o mouse nas linhas (Marcante) */
+tbody tr { 
+    transition: all 0.15s ease-in-out; 
+}
+
 tbody tr:hover { 
-    background-color: #cbd5e1 !important; 
-    box-shadow: inset 10px 0 0 #1d4ed8; 
+    background-color: #cbd5e1 !important; /* Cinza sólido para destaque */
+    box-shadow: inset 10px 0 0 #1d4ed8; /* Barra azul lateral grossa */
     transform: scale(1.002);
     cursor: pointer;
 }
 
-.prazo-vencido:hover, .prazo-urgente:hover, .prazo-alerta:hover, .prazo-atencao:hover {
-    filter: contrast(130%) brightness(90%);
+/* Estilo para células que podem ser editadas ao clicar */
+.editable-cell {
+    position: relative;
 }
 
-/* --- PRAZOS --- */
+.editable-cell:hover {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+    text-decoration: underline;
+}
+
+/* --- CORES DE PRAZOS (PRIORIDADE) --- */
 .prazo-vencido { background-color: #fee2e2 !important; border-left: 8px solid #b91c1c !important; animation: pulse-red 2s infinite; }
 .prazo-urgente { background-color: #fff1f2 !important; border-left: 8px solid #ef4444 !important; }
 .prazo-alerta { background-color: #fff7ed !important; border-left: 8px solid #f97316 !important; }
 .prazo-atencao { background-color: #fefce8 !important; border-left: 8px solid #eab308 !important; }
-@keyframes pulse-red { 0% { background-color: #fee2e2; } 50% { background-color: #fecaca; } 100% { background-color: #fee2e2; } }
+
+@keyframes pulse-red { 
+    0% { background-color: #fee2e2; } 
+    50% { background-color: #fecaca; } 
+    100% { background-color: #fee2e2; } 
+}
+
+/* Intensifica o hover em linhas que já têm cor de prazo */
+.prazo-vencido:hover, .prazo-urgente:hover, .prazo-alerta:hover, .prazo-atencao:hover {
+    filter: contrast(130%) brightness(90%);
+}
 
 /* --- COMPONENTES --- */
-.status-badge { font-size: 9px; font-weight: 900; padding: 8px; border-radius: 6px; text-transform: uppercase; width: 100%; text-align: center; cursor: pointer; border: none; display: block; }
+.status-badge { 
+    font-size: 9px; 
+    font-weight: 900; 
+    padding: 8px; 
+    border-radius: 6px; 
+    text-transform: uppercase; 
+    width: 100%; 
+    text-align: center; 
+    cursor: pointer; 
+    border: none; 
+    display: block; 
+}
+
 .btn-sim { background-color: #15803d !important; color: white !important; }
 .btn-nao { background-color: #b91c1c !important; color: white !important; }
 .tab-active { border-bottom: 4px solid #3b82f6; color: #3b82f6 !important; font-weight: 800; }
 
-th { font-size: 10px; font-weight: 900; text-transform: uppercase; color: #64748b; padding: 12px 6px; border-bottom: 2px solid #3b82f6; background: #fff; }
-td { padding: 6px 8px !important; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9; font-size: 11px; }
-
-input, select, textarea { text-transform: uppercase; outline: none; transition: 0.2s; }
-.editable-cell:hover { background-color: #f1f5f9; cursor: pointer; text-decoration: underline; color: #3b82f6; }
-
 .status-online { background: #22c55e; color: white; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 900; }
 .status-offline { background: #f97316; color: white; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 900; }
 
-#btn-sugestao-flutuante { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 15px rgba(59,130,246,0.5); cursor: pointer; z-index: 100; }
+.select-prazo-tabela { 
+    background: #000; 
+    color: #fff; 
+    font-size: 7.5px !important; 
+    font-weight: 900; 
+    border-radius: 4px; 
+    padding: 1px 2px; 
+    cursor: pointer; 
+    border: none; 
+}
+
+/* --- BLOCO DE NOTAS E MODAIS --- */
+#btn-sugestao-flutuante { 
+    position: fixed; 
+    bottom: 24px; 
+    right: 24px; 
+    width: 56px; 
+    height: 56px; 
+    background: #3b82f6; 
+    border-radius: 50%; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    font-size: 24px; 
+    box-shadow: 0 4px 15px rgba(59,130,246,0.5); 
+    cursor: pointer; 
+    z-index: 100; 
+}
 
 #painel-sugestoes { 
-    position: fixed; bottom: 90px; right: 24px; width: 320px; height: 450px; 
-    background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
-    z-index: 101; display: none; flex-direction: column; border: 1px solid #e2e8f0; 
+    position: fixed; 
+    bottom: 90px; 
+    right: 24px; 
+    width: 320px; 
+    height: 450px; 
+    background: white; 
+    border-radius: 20px; 
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
+    z-index: 101; 
+    display: none; 
+    flex-direction: column; 
+    border: 1px solid #e2e8f0; 
     overflow: hidden;
 }
-#modal-detalhes { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
 
-.item-cesto { background: #eff6ff; border: 1px solid #bfdbfe; padding: 6px 12px; border-radius: 10px; font-size: 10px; display: flex; align-items: center; gap: 6px; font-weight: 800; color: #1e40af; }
-.btn-pag-opt { background: #f1f5f9; padding: 6px 12px; border-radius: 8px; font-size: 10px; font-weight: 800; border: 2px solid transparent; cursor: pointer; }
-.btn-pag-opt.active { background: #3b82f6; color: white; border-color: #2563eb; }
-.select-prazo-tabela { background: #000; color: #fff; font-size: 7.5px !important; font-weight: 900; border-radius: 4px; padding: 1px 2px; cursor: pointer; border: none; }
+/* Estilo para a barra de arrastar do bloco de notas */
+#drag-handle {
+    cursor: move;
+}
+
+#modal-detalhes { 
+    position: fixed; 
+    inset: 0; 
+    background: rgba(15, 23, 42, 0.85); 
+    z-index: 200; 
+    display: none; 
+    align-items: center; 
+    justify-content: center; 
+    padding: 20px; 
+}
+
+/* --- ELEMENTOS DE LISTA E BOTÕES --- */
+.item-cesto { 
+    background: #eff6ff; 
+    border: 1px solid #bfdbfe; 
+    padding: 6px 12px; 
+    border-radius: 10px; 
+    font-size: 10px; 
+    display: flex; 
+    align-items: center; 
+    gap: 6px; 
+    font-weight: 800; 
+    color: #1e40af; 
+}
+
+.btn-pag-opt { 
+    background: #f1f5f9; 
+    padding: 6px 12px; 
+    border-radius: 8px; 
+    font-size: 10px; 
+    font-weight: 800; 
+    border: 2px solid transparent; 
+    cursor: pointer; 
+    transition: 0.2s;
+}
+
+.btn-pag-opt.active { 
+    background: #3b82f6; 
+    color: white; 
+    border-color: #2563eb; 
+}
+
+.copy-btn-small { 
+    cursor: pointer; 
+    color: #94a3b8; 
+    font-size: 14px; 
+    transition: 0.2s; 
+    padding: 4px; 
+}
+
+.copy-btn-small:hover { 
+    color: #3b82f6; 
+}
