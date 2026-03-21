@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mercier Design - Gestão Cloud v96.0</title>
+    <title>Mercier Design - Gestão Cloud v97.0</title>
     <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -76,11 +76,11 @@
                 <div id="loading-cep" class="hidden text-[10px] font-black text-indigo-500 animate-pulse uppercase">Buscando CEP...</div>
             </div>
             <div id="container-campos-tarefa" class="grid grid-cols-1 md:grid-cols-4 gap-3"></div>
-            <button onclick="cadastrarTarefa()" class="mt-6 bg-indigo-600 text-white font-black px-12 py-4 rounded-xl text-xs uppercase shadow-lg hover:bg-indigo-700 transition w-full">Salvar Tarefa / Pedido</button>
+            <button onclick="cadastrarTarefa()" class="mt-6 bg-indigo-600 text-white font-black px-12 py-4 rounded-xl text-xs uppercase shadow-lg w-full">Salvar Tarefa / Pedido</button>
         </div>
         <div class="card-premium overflow-hidden">
             <div class="p-4 bg-slate-50 border-b flex justify-between items-center">
-                <span class="text-[10px] font-black uppercase text-slate-400">Histórico de Atividades</span>
+                <span class="text-[10px] font-black uppercase text-slate-400">Histórico</span>
                 <select id="filtro-tarefa-status" onchange="renderTarefas()" class="border-2 p-1 rounded-lg text-[10px] font-bold bg-white"><option value="TODAS">TODAS</option><option value="Não Iniciado">Não Iniciado</option><option value="Em Andamento">Em Andamento</option><option value="Feito">Feito</option></select>
             </div>
             <table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Data</th><th>Descrição / Cliente</th><th>Tipo</th><th>Status</th><th class="text-center">Ação</th></tr></thead><tbody id="tabelaTarefas"></tbody></table>
@@ -98,7 +98,7 @@
         <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Data</th><th>Cliente</th><th>Produto</th><th>Fábrica</th><th>Status</th><th>Ação</th></tr></thead><tbody id="tabelaAssistencias"></tbody></table></div>
     </main>
 
-    <!-- ABA ESTOQUE (ATUALIZADA COM BUSCA E FILTROS) -->
+    <!-- ABA ESTOQUE -->
     <main id="view-estoque" class="hidden p-6 max-w-[1950px] mx-auto">
         <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex flex-wrap gap-3 items-end uppercase">
             <div class="flex-1 min-w-[200px]">
@@ -154,7 +154,7 @@
         <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-2">
             <input id="f_nome" placeholder="FÁBRICA" class="border-2 p-2 rounded-lg flex-1 font-bold uppercase">
             <input id="f_email" placeholder="EMAIL" class="border-2 p-2 rounded-lg flex-1 font-bold lowercase">
-            <button onclick="cadastrarFornecedor()" class="bg-blue-600 text-white px-8 py-2 rounded font-black text-xs uppercase">Salvar</button>
+            <button onclick="cadastrarFornecedor()" class="bg-blue-600 text-white px-8 py-2 rounded font-black text-xs uppercase tracking-tighter">Salvar</button>
         </div>
         <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Fábrica</th><th>E-mail</th><th class="text-center">Remover</th></tr></thead><tbody id="tabelaFornecedores"></tbody></table></div>
     </main>
@@ -170,7 +170,7 @@
     <!-- BLOCO DE NOTAS -->
     <div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()">💡</div>
     <div id="painel-sugestoes">
-        <div class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase"><span>💡 Bloco de Notas</span><button onclick="togglePainelSugestoes()">✕</button></div>
+        <div id="drag-handle" class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase cursor-move"><span>💡 Bloco de Notas</span><button onclick="togglePainelSugestoes()">✕</button></div>
         <textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" oninput="autoSalvarNotas()"></textarea>
     </div>
 
