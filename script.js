@@ -13,7 +13,6 @@ const db = firebase.database();
 
 let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[], proximoID=255, notasMelhoria="", cestoItensTemporario=[], filtrandoNaoEnviados=false, cpfValido=true;
 
-// SINCRONIZAÇÃO TOTAL
 db.ref('dados').on('value', (s) => {
     const d = s.val() || {};
     pedidos=d.pedidos||[]; 
@@ -103,30 +102,51 @@ function renderPedidos() {
     }).join('');
 }
 
-function adicionarItemAoCesto() {
-    const p = document.getElementById('m_produto').value.trim().toUpperCase();
-    if(!p) return alert("PRODUTO!");
-    cestoItensTemporario.push({ uid: Date.now(), q: document.getElementById('m_qtd').value || 1, p, m: document.getElementById('m_medida').value || "-", c: document.getElementById('m_cor').value.toUpperCase() || "-", v: document.getElementById('m_custo').value || "R$ 0,00" });
-    renderCesto(); document.getElementById('m_produto').value = "";
-}
-function renderCesto() { document.getElementById('cesto-itens').innerHTML = cestoItensTemporario.map((item, idx) => `<div class="item-cesto"><span>${item.q}x</span><span>${item.p}</span><button onclick="cestoItensTemporario.splice(${idx},1); renderCesto();">✕</button></div>`).join(''); }
+// --- CORREÇÃO DO E-MAIL EM LOTE ---
+function gerarEmailLote() {
+    const checks = document.querySelectorAll('.ped-check:checked');
+    if (checks.length === 0) return alert("POR FAVOR, SELECIONE AO MENOS UM PEDIDO NA TABELA!");
 
-function cadastrarManual() {
-    const cli = document.getElementById('m_cliente').value.trim().toUpperCase(); const forn = document.getElementById('m_fornecedor_select').value;
-    if(!cli || cestoItensTemporario.length === 0) return alert("FALTA DADOS!");
-    const idDoc = "ID#" + proximoID.toString().padStart(4, '0'); proximoID++;
-    cestoItensTemporario.forEach(i => { pedidos.unshift({ uid: Date.now()+Math.random(), idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false }); });
-    cestoItensTemporario = []; document.getElementById('m_cliente').value = ""; renderCesto(); salvarCloud();
+    const selecionados = Array.from(checks).map(c => pedidos.find(p => p.uid == c.value)).filter(p => p);
+
+    // Agrupar pedidos por fábrica
+    const grupos = {};
+    selecionados.forEach(p => {
+        if (!grupos[p.fornecedor]) grupos[p.fornecedor] = [];
+        grupos[p.fornecedor].push(p);
+    });
+
+    for (const fab in grupos) {
+        const fornecedorData = fornecedores.find(f => f.nome === fab);
+        const email = fornecedorData ? fornecedorData.email : "";
+
+        let corpo = `Olá, seguem pedidos da MERCIER DESIGN:%0D%0A%0D%0A`;
+
+        grupos[fab].forEach(p => {
+            corpo += `ITEM: ${p.qtd}x ${p.produto}%0D%0A`;
+            corpo += `MEDIDA: ${p.medida}%0D%0A`;
+            corpo += `COR/TECIDO: ${p.cor}%0D%0A`;
+            corpo += `REF: ${p.idDoc}%0D%0A`;
+            corpo += `--------------------------%0D%0A`;
+        });
+
+        corpo += `%0D%0AFavor confirmar o recebimento e nos enviar a previsão de entrega.%0D%0A%0D%0AAtenciosamente,%0D%0AMercier Design`;
+
+        const subject = encodeURIComponent(`PEDIDO - MERCIER DESIGN - ${fab}`);
+        
+        // Abre o gerenciador de e-mail padrão
+        window.open(`mailto:${email}?subject=${subject}&body=${corpo}`);
+    }
 }
 
 // --- FORNECEDORES ---
 function renderFornecedores() {
     const tb = document.getElementById('tabelaFornecedores'); if(!tb) return;
-    tb.innerHTML = fornecedores.map((f, i) => `<tr><td class="font-bold">${f.nome}</td><td class="lowercase text-blue-600">${f.email}</td><td class="text-center"><button onclick="fornecedores.splice(${i},1); salvarCloud();" class="text-red-500">✕</button></td></tr>`).join('');
+    tb.innerHTML = fornecedores.map((f, i) => `<tr><td class="font-bold uppercase">${f.nome}</td><td class="lowercase text-blue-600">${f.email}</td><td class="text-center"><button onclick="fornecedores.splice(${i},1); salvarCloud();" class="text-red-500 font-black">✕</button></td></tr>`).join('');
 }
 function cadastrarFornecedor() {
-    const n = document.getElementById('f_nome').value.toUpperCase();
-    const e = document.getElementById('f_email').value.toLowerCase();
+    const n = document.getElementById('f_nome').value.toUpperCase().trim();
+    const e = document.getElementById('f_email').value.toLowerCase().trim();
     if(n && e) { fornecedores.push({nome: n, email: e}); salvarCloud(); document.getElementById('f_nome').value=""; document.getElementById('f_email').value=""; }
 }
 
@@ -139,7 +159,7 @@ function cadastrarCatalogo() { const n=document.getElementById('cat_nome').value
 // --- ASSISTÊNCIAS ---
 function renderAssistencias() {
     const tb=document.getElementById('tabelaAssistencias'); if(!tb) return;
-    tb.innerHTML=assistencias.map(x=>`<tr><td>${x.data}</td><td class="uppercase font-bold">${x.cliente}</td><td class="uppercase">${x.produto}</td><td class="font-black text-blue-800">${x.fabrica}</td><td><button onclick="cycleAssisStatus(${x.uid})" class="status-badge bg-slate-200">${x.status}</button></td><td><button onclick="assistencias=assistencias.filter(y=>y.uid!=${x.uid}); salvarCloud();">✕</button></td></tr>`).join('');
+    tb.innerHTML=assistencias.map(x=>`<tr><td>${x.data}</td><td class="uppercase font-bold">${x.cliente}</td><td class="uppercase">${x.produto}</td><td class="font-black text-blue-800 uppercase">${x.fabrica}</td><td><button onclick="cycleAssisStatus(${x.uid})" class="status-badge bg-slate-200">${x.status}</button></td><td><button onclick="assistencias=assistencias.filter(y=>y.uid!=${x.uid}); salvarCloud();" class="text-red-500 font-black">✕</button></td></tr>`).join('');
 }
 function cadastrarAssistencia(){
     const c=document.getElementById('as_cliente').value.toUpperCase(), p=document.getElementById('as_produto').value.toUpperCase(), f=document.getElementById('as_fabrica').value;
@@ -149,7 +169,7 @@ function cadastrarAssistencia(){
 // --- TAREFAS ---
 function renderTarefas() {
     const tb=document.getElementById('tabelaTarefas'); if(!tb) return;
-    tb.innerHTML=tarefas.map(x=>`<tr onclick="verDetalhesTarefa(${x.uid})" class="hover:bg-slate-50 cursor-pointer border-b transition"><td>${x.data}</td><td class="font-black text-xs uppercase">${x.descricao}</td><td class="text-[10px] font-black text-slate-400">${x.tipo}</td><td><button onclick="event.stopPropagation(); cycleTarefaStatus(${x.uid})" class="status-badge bg-slate-100">${x.status}</button></td><td class="text-center"><button onclick="event.stopPropagation(); if(confirm('Excluir?')){tarefas=tarefas.filter(y=>y.uid!=${x.uid});salvarCloud();}" class="text-red-400 hover:text-red-600 font-black text-lg">✕</button></td></tr>`).join('');
+    tb.innerHTML=tarefas.map(x=>`<tr onclick="verDetalhesTarefa(${x.uid})" class="hover:bg-slate-50 cursor-pointer border-b transition"><td>${x.data}</td><td class="font-black text-xs uppercase">${x.descricao}</td><td class="text-[10px] font-black text-slate-400 uppercase">${x.tipo}</td><td><button onclick="event.stopPropagation(); cycleTarefaStatus(${x.uid})" class="status-badge bg-slate-100">${x.status}</button></td><td class="text-center"><button onclick="event.stopPropagation(); if(confirm('Excluir?')){tarefas=tarefas.filter(y=>y.uid!=${x.uid});salvarCloud();}" class="text-red-400 hover:text-red-600 font-black text-lg">✕</button></td></tr>`).join('');
 }
 
 // --- SISTEMA GERAL ---
@@ -163,7 +183,7 @@ function marcarTodos(v){ document.querySelectorAll('.ped-check').forEach(c=>c.ch
 function toggleFiltroNaoEnviado(){ filtrandoNaoEnviados=!filtrandoNaoEnviados; document.getElementById('btnFiltroNaoEnviado').classList.toggle('bg-red-600'); document.getElementById('btnFiltroNaoEnviado').classList.toggle('text-white'); renderPedidos(); }
 function updPed(u,c,v){ pedidos.find(x=>x.uid==u)[c]=v; salvarCloud(); }
 function togPed(u,c){ const x=pedidos.find(y=>y.uid==u); if(x) x[c]=!x[c]; salvarCloud(); }
-function excluirPedido(u){ if(confirm("Excluir?")){ pedidos=pedidos.filter(x=>x.uid!=u); salvarCloud(); } }
+function excluirPedido(u){ if(confirm("EXCLUIR?")){ pedidos=pedidos.filter(x=>x.uid!=u); salvarCloud(); } }
 function calcP(d, pr){ if(!d)return{dias:0,classe:""}; try { const pA=d.split("/"); const dt=new Date(pA[2], pA[1]-1, pA[0]); let dF=new Date(dt); if(pr.includes("util")){ let c=0; while(c<parseInt(pr)){dF.setDate(dF.getDate()+1); if(dF.getDay()!==0&&dF.getDay()!==6)c++;} } else {dF.setDate(dF.getDate()+parseInt(pr||30));} const df=Math.ceil((dF-new Date())/86400000); let c=df<0?"prazo-vencido":(df<=5?"prazo-urgente":(df<=10?"prazo-alerta":(df<=20?"prazo-atencao":""))); return {dias:df,classe:c}; } catch(e){return {dias:0,classe:""}} }
 
 function atualizarSelectsFornecedores(){ 
@@ -178,21 +198,7 @@ function atualizarSugestoes(){
 function dupPed(u){ const x=pedidos.find(y=>y.uid==u); const idDoc="ID#"+proximoID.toString().padStart(4,'0'); proximoID++; pedidos.unshift({...x, uid:Date.now()+Math.random(), idDoc}); salvarCloud(); }
 function gerarAssistenciaRapida(u){ const p=pedidos.find(x=>x.uid==u); if(p){ document.getElementById('as_cliente').value=p.cliente; document.getElementById('as_produto').value=p.produto+" (DEFEITO)"; document.getElementById('as_fabrica').value=p.fornecedor; switchTab('assistencia'); }}
 
-function gerarEmailLote() {
-    const checks = document.querySelectorAll('.ped-check:checked');
-    if(checks.length === 0) return alert("SELECIONE PEDIDOS!");
-    const selecionados = Array.from(checks).map(c => pedidos.find(p => p.uid == c.value));
-    const grupos = {};
-    selecionados.forEach(p => { if(!grupos[p.fornecedor]) grupos[p.fornecedor] = []; grupos[p.fornecedor].push(p); });
-    for(const fab in grupos) {
-        const f = fornecedores.find(x => x.nome === fab);
-        let corpo = `Olá, segue pedido(s):\n\n`;
-        grupos[fab].forEach(p => corpo += `${p.qtd}x ${p.produto} - COR: ${p.cor} (${p.idDoc})\n`);
-        window.open(`mailto:${f?f.email:''}?subject=${encodeURIComponent('PEDIDO MERCIER DESIGN - '+fab)}&body=${encodeURIComponent(corpo)}`);
-    }
-}
-
-// MOSTRAR CAMPOS TAREFA
+// TAREFAS - CAMPOS DINAMICOS
 function mostrarCamposTarefa(t){
     const c=document.getElementById('container-campos-tarefa'); c.innerHTML="";
     if(t==='TIRAR PEDIDO'){
@@ -201,14 +207,14 @@ function mostrarCamposTarefa(t){
     } else { c.innerHTML = `<input id="t_raw" placeholder="DESCREVA A TAREFA..." class="border-2 p-2 rounded-lg text-xs font-bold col-span-4 uppercase">`; }
 }
 function addProdutoLinha(){ const d = document.getElementById('lista-produtos-tarefa'); const r = document.createElement('div'); r.className = "flex gap-2 mb-1 items-center row-prod"; r.innerHTML = `<input class="t-p-nome border-2 p-2 rounded text-xs font-bold flex-1" placeholder="MÓVEL"><input class="t-v-orig border-2 p-2 rounded text-xs font-bold w-24" placeholder="ORIGINAL" oninput="maskMoney(this)"><input class="t-v-desc border-2 p-2 rounded text-xs font-bold w-24" placeholder="DESC." oninput="maskMoney(this)"><button onclick="this.parentElement.remove();">✕</button>`; d.appendChild(r); }
-function addPagamentoLinha(){ const d = document.getElementById('lista-pagamentos-tarefa'); const r = document.createElement('div'); r.className = "flex flex-col bg-slate-50 p-2 rounded border mb-2 row-pag"; r.innerHTML = `<div class="flex gap-1 mb-1"><button onclick="setP(this,'PIX')" class="btn-pag-opt active">PIX</button><button onclick="setP(this,'CRÉDITO')" class="btn-pag-opt">CRÉDITO</button><input type="hidden" class="t-p-tipo" value="PIX"></div><div class="flex gap-1"><input class="t-p-val border-2 p-1.5 rounded text-xs font-bold w-32" placeholder="VALOR" oninput="maskMoney(this)"><input class="t-p-obs border-2 p-1.5 rounded text-xs font-bold flex-1" placeholder="DETALHES"><button onclick="this.parentElement.remove()">✕</button></div>`; d.appendChild(r); }
+function addPagamentoLinha(){ const d = document.getElementById('lista-pagamentos-tarefa'); const r = document.createElement('div'); r.className = "flex flex-col bg-slate-50 p-2 rounded border mb-2 row-pag"; r.innerHTML = `<div class="flex gap-1 mb-1"><button onclick="setP(this,'PIX')" class="btn-pag-opt active">PIX</button><button onclick="setP(this,'CRÉDITO')" class="btn-pag-opt">CRÉDITO</button><input type="hidden" class="t-p-tipo" value="PIX"></div><div class="flex gap-1"><input class="t-p-val border-2 p-1.5 rounded text-xs font-bold w-32" placeholder="VALOR" oninput="maskMoney(this)"><input class="t-p-obs border-2 p-1.5 rounded text-xs font-bold flex-1" placeholder="DATA/OBS"><button onclick="this.parentElement.remove()">✕</button></div>`; d.appendChild(r); }
 function setP(b, v){ b.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active')); b.classList.add('active'); b.parentElement.querySelector('.t-p-tipo').value = v; }
 
 function cadastrarTarefa(){
-    const t = document.getElementById('t_tipo').value;
+    const t = document.getElementById('t_tipo').value; if(t==='TIRAR PEDIDO' && !cpfValido) return alert("CPF INVÁLIDO!");
     let obj = { uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), tipo: t, status: "Não Iniciado" };
     if(t === 'TIRAR PEDIDO'){
-        const cli = document.getElementById('t_nome').value; if(!cli) return alert("NOME!");
+        const cli = document.getElementById('t_nome').value; if(!cli) return alert("FALTA NOME!");
         obj.descricao = "PEDIDO: " + cli.toUpperCase();
         obj.detalhes = { cliente: cli.toUpperCase(), cpf: document.getElementById('t_cpf').value, contato: document.getElementById('t_contato').value, cep: document.getElementById('t_cep').value, end: document.getElementById('t_end').value, bairro: document.getElementById('t_bairro').value, cidade: document.getElementById('t_cidade').value, num: document.getElementById('t_num').value, torre: document.getElementById('t_torre').value, obs: document.getElementById('t_obs').value, produtos: [], pagamentos: [] };
         document.querySelectorAll('.row-prod').forEach(row => { if(row.querySelector('.t-p-nome').value) obj.detalhes.produtos.push({ nome: row.querySelector('.t-p-nome').value.toUpperCase(), orig: row.querySelector('.t-v-orig').value, desc: row.querySelector('.t-v-desc').value }); });
@@ -229,5 +235,21 @@ function verDetalhesTarefa(uid){
     c.innerHTML = h;
 }
 function l_i(l, v){ return `<div class="border p-2 rounded text-[10px] font-bold uppercase"><div>${l}:</div>${v} <button onclick="copyText('${v}')">📋</button></div>`; }
+
+function adicionarItemAoCesto() {
+    const p = document.getElementById('m_produto').value.trim().toUpperCase();
+    if(!p) return alert("PRODUTO!");
+    cestoItensTemporario.push({ uid: Date.now(), q: document.getElementById('m_qtd').value || 1, p, m: document.getElementById('m_medida').value || "-", c: document.getElementById('m_cor').value.toUpperCase() || "-", v: document.getElementById('m_custo').value || "R$ 0,00" });
+    renderCesto(); document.getElementById('m_produto').value = "";
+}
+function renderCesto() { document.getElementById('cesto-itens').innerHTML = cestoItensTemporario.map((item, idx) => `<div class="item-cesto"><span>${item.q}x</span><span>${item.p}</span><button onclick="cestoItensTemporario.splice(${idx},1); renderCesto();">✕</button></div>`).join(''); }
+
+function cadastrarManual() {
+    const cli = document.getElementById('m_cliente').value.trim().toUpperCase(); const forn = document.getElementById('m_fornecedor_select').value;
+    if(!cli || cestoItensTemporario.length === 0) return alert("FALTA DADOS!");
+    const idDoc = "ID#" + proximoID.toString().padStart(4, '0'); proximoID++;
+    cestoItensTemporario.forEach(i => { pedidos.unshift({ uid: Date.now()+Math.random(), idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false }); });
+    cestoItensTemporario = []; document.getElementById('m_cliente').value = ""; renderCesto(); salvarCloud();
+}
 
 mostrarCamposTarefa('SIMPLES');
