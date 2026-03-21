@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mercier Design - Gestão Cloud v97.0</title>
+    <title>Mercier Design - Gestão Cloud v98.0</title>
     <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -61,7 +61,7 @@
                 </div>
                 <span id="contador" class="text-[10px] font-black bg-slate-900 text-white px-4 py-2 rounded-lg uppercase">0 Pedidos</span>
             </div>
-            <div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr><th width="40"><input type="checkbox" onclick="marcarTodos(this.checked)"></th><th width="65">Prazo</th><th width="70">ID</th><th>Cliente</th><th width="85">Data</th><th width="45">Qtd</th><th>Móvel</th><th width="70">Medida</th><th width="90">Cor</th><th width="95">Custo</th><th width="100">Fábrica</th><th width="120">Status</th><th width="60">Whats?</th><th width="60">Conf?</th><th class="text-center" width="100">Ações</th></tr></thead><tbody id="tabelaPedidos"></tbody></table></div>
+            <div class="overflow-x-auto max-h-[600px]"><table class="w-full text-left border-collapse"><thead><tr><th width="40"><input type="checkbox" onclick="marcarTodos(this.checked)"></th><th width="65">Prazo</th><th width="70">ID</th><th>Cliente</th><th width="85">Data</th><th width="45">Qtd</th><th>Móvel</th><th width="70">Medida</th><th width="90">Cor</th><th width="95">Custo</th><th width="100">Fábrica</th><th width="120">Status</th><th width="60">Whats?</th><th width="60">Conf?</th><th class="text-center" width="100">Ações</th></tr></thead><tbody id="tabelaPedidos"></tbody></table></div>
         </div>
     </main>
 
@@ -73,7 +73,7 @@
                     <option value="SIMPLES">Anotação Simples</option>
                     <option value="TIRAR PEDIDO">Tirar Pedido (Venda Completa)</option>
                 </select>
-                <div id="loading-cep" class="hidden text-[10px] font-black text-indigo-500 animate-pulse uppercase">Buscando CEP...</div>
+                <div id="loading-cep" class="hidden text-[10px] font-black text-indigo-500 animate-pulse uppercase">Buscando...</div>
             </div>
             <div id="container-campos-tarefa" class="grid grid-cols-1 md:grid-cols-4 gap-3"></div>
             <button onclick="cadastrarTarefa()" class="mt-6 bg-indigo-600 text-white font-black px-12 py-4 rounded-xl text-xs uppercase shadow-lg w-full">Salvar Tarefa / Pedido</button>
@@ -87,6 +87,51 @@
         </div>
     </main>
 
+    <!-- ABA ESTOQUE (OTIMIZADA) -->
+    <main id="view-estoque" class="hidden p-6 max-w-[1950px] mx-auto">
+        <!-- RESUMO DE ESTOQUE -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div class="card-premium p-4 border-l-8 border-green-500 bg-white">
+                <p class="text-[10px] font-black text-slate-400 uppercase">Itens Físicos Disponíveis</p>
+                <h3 id="resumo-estoque-total" class="text-xl font-black text-green-600">0</h3>
+            </div>
+            <div class="card-premium p-4 border-l-8 border-red-500 bg-white">
+                <p class="text-[10px] font-black text-slate-400 uppercase">Itens Vendidos (Histórico)</p>
+                <h3 id="resumo-estoque-vendidos" class="text-xl font-black text-red-600">0</h3>
+            </div>
+        </div>
+
+        <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex flex-wrap gap-3 items-end uppercase shadow-lg">
+            <div class="flex-1 min-w-[200px]">
+                <label class="text-[9px] font-black text-slate-400 uppercase">Produto</label>
+                <input id="e_produto" placeholder="EX: CADEIRA PARIS" class="border-2 p-2 rounded-lg text-xs font-bold w-full uppercase outline-blue-500">
+            </div>
+            <div class="w-48">
+                <label class="text-[9px] font-black text-slate-400 uppercase">Fábrica</label>
+                <select id="e_fabrica_select" class="border-2 p-2 rounded-lg text-xs font-bold bg-white w-full"></select>
+            </div>
+            <div class="w-20">
+                <label class="text-[9px] font-black text-slate-400 uppercase">Qtd</label>
+                <input id="e_qtd" type="number" value="1" class="border-2 p-2 rounded-lg text-xs font-bold w-full">
+            </div>
+            <div class="w-32">
+                <label class="text-[9px] font-black text-slate-400 uppercase">Situação</label>
+                <select id="e_situacao" class="border-2 p-2 rounded-lg text-xs font-bold bg-white w-full"><option value="ESTOQUE">ESTOQUE</option><option value="VENDIDO">VENDIDO</option></select>
+            </div>
+            <button onclick="cadastrarEstoque()" class="bg-blue-600 text-white px-8 py-2.5 rounded-lg font-black text-xs uppercase shadow hover:bg-blue-700 transition">Adicionar</button>
+        </div>
+
+        <div class="card-premium p-4 mb-4 bg-slate-50 flex flex-wrap gap-4 items-center uppercase">
+            <div class="flex-1 min-w-[300px]">
+                <input type="text" id="estoque-busca" onkeyup="renderEstoque()" placeholder="🔍 BUSCAR NO ESTOQUE..." class="border-2 p-2.5 rounded-xl text-xs font-bold w-full outline-blue-500">
+            </div>
+            <select id="estoque-filtro-fabrica" onchange="renderEstoque()" class="border-2 p-2.5 rounded-xl text-xs font-bold bg-white w-48"><option value="TODAS">TODAS AS FÁBRICAS</option></select>
+            <select id="estoque-filtro-situacao" onchange="renderEstoque()" class="border-2 p-2.5 rounded-xl text-xs font-bold bg-white w-40"><option value="TODAS">SITUAÇÕES</option><option value="ESTOQUE">NO ESTOQUE</option><option value="VENDIDO">VENDIDO</option></select>
+        </div>
+
+        <div class="card-premium overflow-hidden"><table class="w-full text-left border-collapse"><thead><tr class="bg-slate-50 text-slate-500 uppercase text-[10px]"><th>Data</th><th>Móvel</th><th>Fábrica</th><th width="60">Qtd</th><th width="120">Situação</th><th class="text-center" width="100">Ação</th></tr></thead><tbody id="tabelaEstoque"></tbody></table></div>
+    </main>
+
     <!-- ABA ASSISTÊNCIA -->
     <main id="view-assistencia" class="hidden p-6 max-w-[1950px] mx-auto">
         <div class="card-premium p-6 border-l-8 border-orange-500 flex gap-4 mb-6 uppercase">
@@ -96,48 +141,6 @@
             <button onclick="cadastrarAssistencia()" class="bg-orange-600 text-white px-8 py-2 rounded-lg font-black text-xs uppercase shadow">Registrar</button>
         </div>
         <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Data</th><th>Cliente</th><th>Produto</th><th>Fábrica</th><th>Status</th><th>Ação</th></tr></thead><tbody id="tabelaAssistencias"></tbody></table></div>
-    </main>
-
-    <!-- ABA ESTOQUE -->
-    <main id="view-estoque" class="hidden p-6 max-w-[1950px] mx-auto">
-        <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex flex-wrap gap-3 items-end uppercase">
-            <div class="flex-1 min-w-[200px]">
-                <label class="text-[9px] font-black text-slate-400">Produto</label>
-                <input id="e_produto" placeholder="EX: CADEIRA PARIS" class="border-2 p-2 rounded-lg text-xs font-bold w-full uppercase">
-            </div>
-            <div class="w-48">
-                <label class="text-[9px] font-black text-slate-400">Fábrica</label>
-                <select id="e_fabrica_select" class="border-2 p-2 rounded-lg text-xs font-bold bg-white w-full"></select>
-            </div>
-            <div class="w-20">
-                <label class="text-[9px] font-black text-slate-400">Qtd</label>
-                <input id="e_qtd" type="number" value="1" class="border-2 p-2 rounded-lg text-xs font-bold w-full">
-            </div>
-            <div class="w-32">
-                <label class="text-[9px] font-black text-slate-400">Situação</label>
-                <select id="e_situacao" class="border-2 p-2 rounded-lg text-xs font-bold bg-white w-full">
-                    <option value="ESTOQUE">ESTOQUE</option>
-                    <option value="VENDIDO">VENDIDO</option>
-                </select>
-            </div>
-            <button onclick="cadastrarEstoque()" class="bg-blue-600 text-white px-8 py-2.5 rounded-lg font-black text-xs uppercase shadow">Add</button>
-        </div>
-
-        <div class="card-premium p-4 mb-4 bg-slate-50 flex flex-wrap gap-4 items-center uppercase">
-            <div class="flex-1">
-                <input type="text" id="estoque-busca" onkeyup="renderEstoque()" placeholder="🔍 BUSCAR NO ESTOQUE..." class="border-2 p-2.5 rounded-xl text-xs font-bold w-full">
-            </div>
-            <select id="estoque-filtro-fabrica" onchange="renderEstoque()" class="border-2 p-2.5 rounded-xl text-xs font-bold bg-white w-48">
-                <option value="TODAS">TODAS AS FÁBRICAS</option>
-            </select>
-            <select id="estoque-filtro-situacao" onchange="renderEstoque()" class="border-2 p-2.5 rounded-xl text-xs font-bold bg-white w-40">
-                <option value="TODAS">TODAS SITUAÇÕES</option>
-                <option value="ESTOQUE">NO ESTOQUE</option>
-                <option value="VENDIDO">VENDIDO</option>
-            </select>
-        </div>
-
-        <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Móvel</th><th>Fábrica</th><th>Qtd</th><th>Situação</th><th class="text-center">Ação</th></tr></thead><tbody id="tabelaEstoque"></tbody></table></div>
     </main>
 
     <!-- ABA CATÁLOGO -->
