@@ -22,7 +22,7 @@ db.ref('dados').on('value', (s) => {
     document.getElementById('status-db').className="status-online";
     if(document.getElementById('texto-melhorias')) document.getElementById('texto-melhorias').value=notasMelhoria;
     atualizarSelectsFornecedores(); atualizarSugestoes(); renderAll();
-}, (err) => { document.getElementById('status-db').innerText="ERRO!"; });
+});
 
 function renderAll(){ renderPedidos(); renderTarefas(); renderFornecedores(); renderEstoque(); renderCatalogo(); renderAssistencias(); }
 function salvarCloud(){ db.ref('dados').set({pedidos, fornecedores, estoque, catalogo, tarefas, assistencias, proximoID, notasMelhoria}); }
@@ -52,94 +52,6 @@ async function buscarCEP(i){
     }
 }
 
-// --- LOGICA DE PEDIDOS (ABA PEDIDOS) ---
-function adicionarItemAoCesto() {
-    const prod = document.getElementById('m_produto').value.trim().toUpperCase();
-    if(!prod) return alert("INFORME O PRODUTO!");
-    
-    cestoItensTemporario.push({
-        uid: Date.now(),
-        q: document.getElementById('m_qtd').value || 1,
-        p: prod,
-        m: document.getElementById('m_medida').value || "-",
-        c: document.getElementById('m_cor').value.toUpperCase() || "-",
-        v: document.getElementById('m_custo').value || "R$ 0,00"
-    });
-    
-    document.getElementById('m_produto').value = "";
-    document.getElementById('m_medida').value = "";
-    document.getElementById('m_cor').value = "";
-    document.getElementById('m_custo').value = "";
-    renderCesto();
-}
-
-function renderCesto() {
-    const div = document.getElementById('cesto-itens');
-    div.innerHTML = cestoItensTemporario.map((item, idx) => `
-        <div class="item-cesto">
-            <span>${item.q}x</span><span>${item.p}</span>
-            <button onclick="cestoItensTemporario.splice(${idx},1); renderCesto();" class="text-red-500 font-bold ml-2">✕</button>
-        </div>
-    `).join('');
-}
-
-function cadastrarManual() {
-    const cli = document.getElementById('m_cliente').value.trim().toUpperCase();
-    const forn = document.getElementById('m_fornecedor_select').value;
-    if(!cli || cestoItensTemporario.length === 0) return alert("FALTA CLIENTE OU ITENS!");
-
-    const idDoc = "ID#" + proximoID.toString().padStart(4, '0');
-    proximoID++;
-    const dataAtual = new Date().toLocaleDateString('pt-BR');
-
-    cestoItensTemporario.forEach(i => {
-        pedidos.unshift({
-            uid: Math.random() + Date.now(),
-            idDoc, cliente: cli, dataPedido: dataAtual,
-            qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v,
-            fornecedor: forn, prazo: document.getElementById('m_prazo_select').value,
-            status: "Não enviado", whatsEnviado: false, confirmado: false
-        });
-    });
-
-    cestoItensTemporario = [];
-    document.getElementById('m_cliente').value = "";
-    renderCesto();
-    salvarCloud();
-}
-
-function renderPedidos() {
-    const tb=document.getElementById('tabelaPedidos'); if(!tb) return;
-    const b=document.getElementById('busca').value.toLowerCase();
-    let lista=pedidos.filter(x=>(x.cliente||"").toLowerCase().includes(b)||(x.produto||"").toLowerCase().includes(b)||(x.idDoc||"").toLowerCase().includes(b)||(x.fornecedor||"").toLowerCase().includes(b));
-    if(filtrandoNaoEnviados) lista=lista.filter(x=>x.status==="Não enviado");
-    document.getElementById('contador').innerText=lista.length+" PEDIDOS";
-    tb.innerHTML = lista.map(x=>{
-        const p=calcP(x.dataPedido, x.prazo); let sCls = x.status==="Não enviado" ? "bg-red-600" : (x.status.includes("loja") ? "bg-green-700" : "bg-blue-600");
-        return `<tr class="${p.classe}">
-            <td><input type="checkbox" class="ped-check" value="${x.uid}"></td>
-            <td><div class="flex flex-col gap-1 items-center"><span class="font-black text-[9px]">${p.dias}D</span><select onchange="updPed(${x.uid},'prazo',this.value)" class="select-prazo-tabela"><option value="15" ${x.prazo=='15'?'selected':''}>15C</option><option value="20" ${x.prazo=='20'?'selected':''}>20C</option><option value="30" ${x.prazo=='30'?'selected':''}>30C</option><option value="30-util" ${x.prazo=='30-util'?'selected':''}>30U</option><option value="40-util" ${x.prazo=='40-util'?'selected':''}>40U</option></select></div></td>
-            <td class="text-[10px] text-slate-400 font-black">${x.idDoc}</td>
-            <td onclick="editField(${x.uid},'cliente')" class="editable-cell uppercase">${x.cliente}</td>
-            <td onclick="editField(${x.uid},'dataPedido')" class="editable-cell">${x.dataPedido}</td>
-            <td onclick="editField(${x.uid},'qtd')" class="editable-cell text-center font-black">${x.qtd}</td>
-            <td onclick="editField(${x.uid},'produto')" class="editable-cell uppercase">${x.produto}</td>
-            <td onclick="editField(${x.uid},'medida')" class="editable-cell uppercase">${x.medida}</td>
-            <td onclick="editField(${x.uid},'cor')" class="editable-cell uppercase">${x.cor}</td>
-            <td onclick="editField(${x.uid},'custo')" class="editable-cell">${x.custo}</td>
-            <td onclick="editField(${x.uid},'fornecedor')" class="editable-cell font-black text-blue-800 uppercase text-[10px]">${x.fornecedor}</td>
-            <td><button onclick="cycleStatus(${x.uid})" class="status-badge ${sCls} text-white">${x.status}</button></td>
-            <td><button onclick="togPed(${x.uid},'whatsEnviado')" class="status-badge ${x.whatsEnviado?'btn-sim':'btn-nao'}">${x.whatsEnviado?'SIM':'NÃO'}</button></td>
-            <td><button onclick="togPed(${x.uid},'confirmado')" class="status-badge ${x.confirmado?'btn-sim':'btn-nao'}">${x.confirmado?'SIM':'NÃO'}</button></td>
-            <td class="text-center flex gap-1 justify-center">
-                <button onclick="copyText('${x.qtd}x ${x.produto} ${x.cor} (${x.idDoc})')">📋</button>
-                <button onclick="dupPed(${x.uid})">➕</button>
-                <button onclick="gerarAssistenciaRapida(${x.uid})">🛠️</button>
-                <button onclick="excluirPedido(${x.uid})" class="text-red-500 font-black">✕</button>
-            </td></tr>`;
-    }).join('');
-}
-
 // --- TAREFAS: LÓGICA DE TIRAR PEDIDO ---
 function mostrarCamposTarefa(t){
     const c=document.getElementById('container-campos-tarefa'); c.innerHTML="";
@@ -160,12 +72,14 @@ function mostrarCamposTarefa(t){
         addProdutoLinha(); addPagamentoLinha();
     } else { c.innerHTML = `<input id="t_raw" placeholder="DESCRIÇÃO..." class="border-2 p-2 rounded-lg text-xs font-bold col-span-4 uppercase">`; }
 }
+
 function addProdutoLinha(){
     const d=document.getElementById('lista-produtos-tarefa'); const r=document.createElement('div');
     r.className="flex gap-2 mb-2 items-center row-prod bg-slate-50 p-2 rounded border border-dashed";
-    r.innerHTML=`<input class="t-p-nome border-2 p-2 rounded text-xs font-bold flex-1 uppercase" placeholder="MÓVEL"><input class="t-v-orig border-2 p-2 rounded text-xs font-bold w-32" placeholder="ORIGINAL" oninput="maskMoney(this)"><input class="t-v-desc border-2 p-2 rounded text-xs font-bold w-32 text-indigo-600" placeholder="DESCONTO" oninput="maskMoney(this)"><button onclick="this.parentElement.remove(); calcTotalTirarPedido();" class="text-red-500 font-black px-2">✕</button>`;
+    r.innerHTML=`<input class="t-p-nome border-2 p-2 rounded text-xs font-bold flex-1 uppercase" placeholder="MÓVEL"><input class="t-v-orig border-2 p-2 rounded text-xs font-bold w-32" placeholder="VALOR ORIGINAL" oninput="maskMoney(this)"><input class="t-v-desc border-2 p-2 rounded text-xs font-bold w-32 text-indigo-600" placeholder="DESCONTO" oninput="maskMoney(this)"><button onclick="this.parentElement.remove(); calcTotalTirarPedido();" class="text-red-500 font-black px-2">✕</button>`;
     d.appendChild(r);
 }
+
 function addPagamentoLinha(){
     const d=document.getElementById('lista-pagamentos-tarefa');
     let total=0; document.querySelectorAll('.t-v-desc').forEach(i=>total+=parseMoney(i.value));
@@ -173,10 +87,37 @@ function addPagamentoLinha(){
     let saldo=total-pago; if(saldo<0) saldo=0;
     const r=document.createElement('div');
     r.className="flex flex-col bg-slate-50 p-2 rounded border mb-3 row-pag";
-    r.innerHTML=`<div class="flex gap-2 mb-2"><button onclick="setP(this,'PIX')" class="btn-pag-opt active">PIX</button><button onclick="setP(this,'CRÉDITO')" class="btn-pag-opt">CRÉDITO</button><input type="hidden" class="t-p-tipo" value="PIX"></div><div class="flex gap-2"><input class="t-p-val border-2 p-2 rounded text-xs font-bold w-48 text-emerald-600" placeholder="VALOR" oninput="maskMoney(this)" value="R$ ${saldo.toLocaleString('pt-BR',{minimumFractionDigits:2})}"><input class="t-p-obs border-2 p-2 rounded text-xs font-bold flex-1 uppercase" placeholder="OBS/DATA"><button onclick="this.parentElement.parentElement.remove()">✕</button></div>`;
+    r.innerHTML=`
+        <div class="flex gap-1 mb-2 flex-wrap">
+            <button onclick="setP(this,'PIX')" class="btn-pag-opt active">PIX</button>
+            <button onclick="setP(this,'CRÉDITO')" class="btn-pag-opt">CRÉDITO</button>
+            <button onclick="setP(this,'DÉBITO')" class="btn-pag-opt">DÉBITO</button>
+            <button onclick="setP(this,'CHEQUE')" class="btn-pag-opt">CHEQUE</button>
+            <input type="hidden" class="t-p-tipo" value="PIX">
+            <select class="t-p-parc hidden border-2 p-1 rounded text-[10px] font-bold bg-white">
+                ${[...Array(12).keys()].map(n => `<option value="${n+1}x">${n+1}x</option>`).join('')}
+            </select>
+        </div>
+        <div class="flex gap-1">
+            <input class="t-p-val border-2 p-1.5 rounded text-xs font-bold w-32 text-emerald-600" placeholder="VALOR" oninput="maskMoney(this)" value="R$ ${saldo.toLocaleString('pt-BR',{minimumFractionDigits:2})}">
+            <input class="t-p-obs border-2 p-1.5 rounded text-xs font-bold flex-1 uppercase" placeholder="OBS/DATA">
+            <button onclick="this.parentElement.parentElement.remove()" class="text-red-500 font-black px-2">✕</button>
+        </div>`;
     d.appendChild(r);
 }
-function setP(b,v){ b.parentElement.querySelectorAll('button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); b.parentElement.querySelector('.t-p-tipo').value=v; }
+
+function setP(b,v){ 
+    const parent = b.parentElement;
+    parent.querySelectorAll('button').forEach(x=>x.classList.remove('active')); 
+    b.classList.add('active'); 
+    parent.querySelector('.t-p-tipo').value=v; 
+    
+    // Mostra parcelas apenas se for Crédito
+    const parcSelect = parent.querySelector('.t-p-parc');
+    if(v === 'CRÉDITO') parcSelect.classList.remove('hidden');
+    else parcSelect.classList.add('hidden');
+}
+
 function calcTotalTirarPedido(){
     let t=0; document.querySelectorAll('.t-v-desc').forEach(i=>t+=parseMoney(i.value));
     document.getElementById('total-pedido-tarefa').innerText="Total: R$ "+t.toLocaleString('pt-BR',{minimumFractionDigits:2});
@@ -190,10 +131,19 @@ function cadastrarTarefa(){
         obj.descricao = "PEDIDO: " + cli.toUpperCase();
         obj.detalhes = { cliente: cli.toUpperCase(), cpf: document.getElementById('t_cpf').value, contato: document.getElementById('t_contato').value, cep: document.getElementById('t_cep').value, end: document.getElementById('t_end').value, bairro: document.getElementById('t_bairro').value, cidade: document.getElementById('t_cidade').value, num: document.getElementById('t_num').value, torre: document.getElementById('t_torre').value, obs: document.getElementById('t_obs').value, produtos: [], pagamentos: [] };
         document.querySelectorAll('.row-prod').forEach(row => { if(row.querySelector('.t-p-nome').value) obj.detalhes.produtos.push({ nome: row.querySelector('.t-p-nome').value.toUpperCase(), orig: row.querySelector('.t-v-orig').value, desc: row.querySelector('.t-v-desc').value }); });
-        document.querySelectorAll('.row-pag').forEach(row => { obj.detalhes.pagamentos.push({ tipo: row.querySelector('.t-p-tipo').value, valor: row.querySelector('.t-p-val').value, obs: row.querySelector('.t-p-obs').value.toUpperCase() }); });
+        document.querySelectorAll('.row-pag').forEach(row => { 
+            const tipo = row.querySelector('.t-p-tipo').value;
+            const parcelas = (tipo === 'CRÉDITO') ? row.querySelector('.t-p-parc').value : "";
+            obj.detalhes.pagamentos.push({ tipo: tipo + (parcelas ? " " + parcelas : ""), valor: row.querySelector('.t-p-val').value, obs: row.querySelector('.t-p-obs').value.toUpperCase() }); 
+        });
     } else { obj.descricao = (document.getElementById('t_raw')?.value || "").toUpperCase(); }
+    
     if(!obj.descricao) return alert("PREENCHA!");
-    tarefas.unshift(obj); salvarCloud(); mostrarCamposTarefa(t);
+    tarefas.unshift(obj); 
+    salvarCloud(); 
+    mostrarCamposTarefa(t); 
+    renderTarefas(); // Atualiza a lista na hora
+    alert("Cadastrado com sucesso na lista de Tarefas!");
 }
 
 function verDetalhesTarefa(uid){
@@ -202,13 +152,52 @@ function verDetalhesTarefa(uid){
     const c=document.getElementById('detalhe-corpo');
     if(!t.detalhes){ c.innerHTML=`<div class="font-black uppercase">${t.descricao}</div>`; return; }
     const d = t.detalhes;
-    let h = `<div class="grid grid-cols-2 gap-2">${l_i("CLIENTE", d.cliente)}${l_i("CPF", d.cpf)}${l_i("CELULAR", d.contato)}${l_i("CEP", d.cep)}${l_i("ENDEREÇO", d.end)}</div><div class="mt-4 font-black text-xs">MÓVEIS:</div>`;
-    d.produtos.forEach(p => h += `<div class="text-xs font-bold border-b py-1">${p.nome} - ${p.desc} <button onclick="copyText('${p.nome} - ${p.desc}')">📋</button></div>`);
+    let h = `<div class="grid grid-cols-2 gap-2">${l_i("CLIENTE", d.cliente)}${l_i("CPF", d.cpf)}${l_i("CELULAR", d.contato)}${l_i("ENDEREÇO", d.end)}</div><div class="mt-4 font-black text-xs uppercase border-b pb-1">Móveis:</div>`;
+    d.produtos.forEach(p => h += `<div class="text-xs font-bold border-b py-1 flex justify-between"><span>${p.nome} - ${p.desc}</span><button onclick="copyText('${p.nome} - ${p.desc}')">📋</button></div>`);
+    h += `<div class="mt-4 font-black text-xs uppercase border-b pb-1">Pagamento:</div>`;
+    d.pagamentos.forEach(p => h += `<div class="text-xs font-bold border-b py-1 flex justify-between"><span>${p.tipo} - ${p.valor} (${p.obs})</span><button onclick="copyText('${p.tipo} - ${p.valor}')">📋</button></div>`);
     c.innerHTML = h;
 }
 function l_i(l, v){ return `<div class="border p-2 rounded text-[10px] font-bold uppercase flex justify-between"><span>${l}: ${v}</span><button onclick="copyText('${v}')">📋</button></div>`; }
 
-// --- GESTÃO GERAL ---
+// --- GESTÃO DE PEDIDOS ---
+function adicionarItemAoCesto() {
+    const prod = document.getElementById('m_produto').value.trim().toUpperCase();
+    if(!prod) return alert("PRODUTO!");
+    cestoItensTemporario.push({ uid: Date.now(), q: document.getElementById('m_qtd').value || 1, p: prod, m: document.getElementById('m_medida').value || "-", c: document.getElementById('m_cor').value.toUpperCase() || "-", v: document.getElementById('m_custo').value || "R$ 0,00" });
+    renderCesto(); document.getElementById('m_produto').value = "";
+}
+function renderCesto() { document.getElementById('cesto-itens').innerHTML = cestoItensTemporario.map((item, idx) => `<div class="item-cesto"><span>${item.q}x</span><span>${item.p}</span><button onclick="cestoItensTemporario.splice(${idx},1); renderCesto();">✕</button></div>`).join(''); }
+function cadastrarManual() {
+    const cli = document.getElementById('m_cliente').value.trim().toUpperCase(); const forn = document.getElementById('m_fornecedor_select').value;
+    if(!cli || cestoItensTemporario.length === 0) return alert("FALTA DADOS!");
+    const idDoc = "ID#" + proximoID.toString().padStart(4, '0'); proximoID++;
+    cestoItensTemporario.forEach(i => { pedidos.unshift({ uid: Date.now()+Math.random(), idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false }); });
+    cestoItensTemporario = []; document.getElementById('m_cliente').value = ""; renderCesto(); salvarCloud();
+}
+
+function renderPedidos() {
+    const tb=document.getElementById('tabelaPedidos'); if(!tb) return;
+    const b=document.getElementById('busca').value.toLowerCase();
+    let lista=pedidos.filter(x=>(x.cliente||"").toLowerCase().includes(b)||(x.produto||"").toLowerCase().includes(b)||(x.idDoc||"").toLowerCase().includes(b)||(x.fornecedor||"").toLowerCase().includes(b));
+    if(filtrandoNaoEnviados) lista=lista.filter(x=>x.status==="Não enviado");
+    document.getElementById('contador').innerText=lista.length+" PEDIDOS";
+    tb.innerHTML = lista.map(x=>{
+        const p=calcP(x.dataPedido, x.prazo); let sCls = x.status==="Não enviado" ? "bg-red-600" : (x.status.includes("loja") ? "bg-green-700" : "bg-blue-600");
+        return `<tr class="${p.classe}"><td><input type="checkbox" class="ped-check" value="${x.uid}"></td><td><div class="flex flex-col gap-1 items-center"><span class="font-black text-[9px]">${p.dias}D</span><select onchange="updPed(${x.uid},'prazo',this.value)" class="select-prazo-tabela"><option value="15" ${x.prazo=='15'?'selected':''}>15C</option><option value="20" ${x.prazo=='20'?'selected':''}>20C</option><option value="30" ${x.prazo=='30'?'selected':''}>30C</option><option value="30-util" ${x.prazo=='30-util'?'selected':''}>30U</option><option value="40-util" ${x.prazo=='40-util'?'selected':''}>40U</option></select></div></td><td class="text-[10px] text-slate-400 font-black">${x.idDoc}</td><td onclick="editField(${x.uid},'cliente')" class="editable-cell uppercase">${x.cliente}</td><td onclick="editField(${x.uid},'dataPedido')" class="editable-cell">${x.dataPedido}</td><td onclick="editField(${x.uid},'qtd')" class="editable-cell text-center font-black">${x.qtd}</td><td onclick="editField(${x.uid},'produto')" class="editable-cell uppercase">${x.produto}</td><td onclick="editField(${x.uid},'medida')" class="editable-cell uppercase">${x.medida}</td><td onclick="editField(${x.uid},'cor')" class="editable-cell uppercase">${x.cor}</td><td onclick="editField(${x.uid},'custo')" class="editable-cell">${x.custo}</td><td onclick="editField(${x.uid},'fornecedor')" class="editable-cell font-black text-blue-800 uppercase text-[10px]">${x.fornecedor}</td><td><button onclick="cycleStatus(${x.uid})" class="status-badge ${sCls} text-white">${x.status}</button></td><td><button onclick="togPed(${x.uid},'whatsEnviado')" class="status-badge ${x.whatsEnviado?'btn-sim':'btn-nao'}">${x.whatsEnviado?'SIM':'NÃO'}</button></td><td><button onclick="togPed(${x.uid},'confirmado')" class="status-badge ${x.confirmado?'btn-sim':'btn-nao'}">${x.confirmado?'SIM':'NÃO'}</button></td><td class="text-center flex gap-1 justify-center"><button onclick="copyText('${x.qtd}x ${x.produto} ${x.cor} (${x.idDoc})')">📋</button><button onclick="dupPed(${x.uid})">➕</button><button onclick="gerarAssistenciaRapida(${x.uid})">🛠️</button><button onclick="excluirPedido(${x.uid})" class="text-red-500 font-black">✕</button></td></tr>`;
+    }).join('');
+}
+
+// --- GERAIS ---
+function renderTarefas() { const tb=document.getElementById('tabelaTarefas'); if(!tb) return; const f=document.getElementById('filtro-tarefa-status').value; let l=f==='TODAS'?tarefas:tarefas.filter(x=>x.status===f); tb.innerHTML=l.map(x=>`<tr onclick="verDetalhesTarefa(${x.uid})" class="hover:bg-slate-50 cursor-pointer border-b transition"><td>${x.data}</td><td class="font-black text-xs uppercase">${x.descricao}</td><td class="text-[10px] font-black text-slate-400 uppercase">${x.tipo}</td><td><button onclick="event.stopPropagation(); cycleTarefaStatus(${x.uid})" class="status-badge bg-slate-100">${x.status}</button></td><td class="text-center"><button onclick="event.stopPropagation(); if(confirm('Excluir?')){tarefas=tarefas.filter(y=>y.uid!=${x.uid});salvarCloud();}" class="text-red-400 hover:text-red-600 font-black text-lg">✕</button></td></tr>`).join(''); }
+function renderFornecedores() { const tb = document.getElementById('tabelaFornecedores'); if(!tb) return; tb.innerHTML = fornecedores.map((f, i) => `<tr><td class="font-bold uppercase">${f.nome}</td><td class="lowercase text-blue-600">${f.email}</td><td class="text-center"><button onclick="fornecedores.splice(${i},1); salvarCloud();" class="text-red-500 font-black">✕</button></td></tr>`).join(''); }
+function renderEstoque() { const tb=document.getElementById('tabelaEstoque'); if(!tb) return; tb.innerHTML=estoque.map(x=>`<tr><td class="uppercase">${x.produto}</td><td>${x.qtd}</td><td class="font-black">${x.situacao}</td><td><button onclick="estoque=estoque.filter(y=>y.uid!=${x.uid}); salvarCloud();">✕</button></td></tr>`).join(''); }
+function renderCatalogo() { const tb=document.getElementById('tabelaCatalogo'); if(!tb) return; tb.innerHTML=catalogo.map((c,i)=>`<tr><td class="uppercase">${c.nome}</td><td class="text-center"><button onclick="catalogo.splice(${i},1); salvarCloud();">✕</button></td></tr>`).join(''); }
+function renderAssistencias() { const tb=document.getElementById('tabelaAssistencias'); if(!tb) return; tb.innerHTML=assistencias.map(x=>`<tr><td>${x.data}</td><td class="uppercase font-bold">${x.cliente}</td><td class="uppercase">${x.produto}</td><td class="font-black text-blue-800 uppercase">${x.fabrica}</td><td><button onclick="cycleAssisStatus(${x.uid})" class="status-badge bg-slate-200">${x.status}</button></td><td><button onclick="assistencias=assistencias.filter(y=>y.uid!=${x.uid}); salvarCloud();" class="text-red-500 font-black">✕</button></td></tr>`).join(''); }
+function cadastrarFornecedor(){ const n=document.getElementById('f_nome').value.toUpperCase().trim(); const e=document.getElementById('f_email').value.toLowerCase().trim(); if(n&&e){fornecedores.push({nome:n,email:e}); salvarCloud();}}
+function cadastrarEstoque(){ const p=document.getElementById('e_produto').value.toUpperCase(), q=document.getElementById('e_qtd').value, s=document.getElementById('e_situacao').value; if(p){estoque.push({uid:Date.now(),produto:p,qtd:q,situacao:s}); salvarCloud();}}
+function cadastrarCatalogo(){ const n=document.getElementById('cat_nome').value.toUpperCase(); if(n){catalogo.push({nome:n}); salvarCloud();}}
+function cadastrarAssistencia(){ const c=document.getElementById('as_cliente').value.toUpperCase(), p=document.getElementById('as_produto').value.toUpperCase(), f=document.getElementById('as_fabrica').value; if(c&&p){ assistencias.unshift({uid:Date.now(), data:new Date().toLocaleDateString('pt-BR'), cliente:c, produto:p, fabrica:f, status:"Aguardando"}); salvarCloud(); }}
 function switchTab(t){ document.querySelectorAll('main').forEach(x=>x.classList.add('hidden')); document.getElementById('view-'+t).classList.remove('hidden'); document.querySelectorAll('nav button').forEach(x=>x.classList.remove('tab-active')); document.getElementById('tab-'+t).classList.add('tab-active'); }
 function cycleStatus(u){ const x=pedidos.find(y=>y.uid==u); const s=["Não enviado","Pedido enviado","Aguardando fábrica","Pedido na loja"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarCloud(); }
 function cycleTarefaStatus(u){ const x=tarefas.find(y=>y.uid==u); const s=["Não Iniciado","Em Andamento","Feito"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarCloud(); }
@@ -220,21 +209,9 @@ function toggleFiltroNaoEnviado(){ filtrandoNaoEnviados=!filtrandoNaoEnviados; d
 function updPed(u,c,v){ pedidos.find(x=>x.uid==u)[c]=v; salvarCloud(); }
 function togPed(u,c){ const x=pedidos.find(y=>y.uid==u); if(x) x[c]=!x[c]; salvarCloud(); }
 function excluirPedido(u){ if(confirm("EXCLUIR?")){ pedidos=pedidos.filter(x=>x.uid!=u); salvarCloud(); } }
-function editField(u,f){ const x=pedidos.find(y=>y.uid==u); let n=prompt(`ALTERAR ${f.toUpperCase()}:`,x[f]||""); if(n!==null){ if(f==='custo'){ let v=n.replace(/\D/g,""); x[f]=v?"R$ "+(v/100).toFixed(2).replace(".",",").replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1."):"R$ 0,00"; } else if(f==='qtd'){ x[f]=parseInt(n)||1; } else { x[f]=n.toUpperCase(); } salvarCloud(); }}
 function calcP(d, pr){ if(!d)return{dias:0,classe:""}; try { const pA=d.split("/"); const dt=new Date(pA[2], pA[1]-1, pA[0]); let dF=new Date(dt); if(pr.includes("util")){ let c=0; while(c<parseInt(pr)){dF.setDate(dF.getDate()+1); if(dF.getDay()!==0&&dF.getDay()!==6)c++;} } else {dF.setDate(dF.getDate()+parseInt(pr||30));} const df=Math.ceil((dF-new Date())/86400000); let c=df<0?"prazo-vencido":(df<=5?"prazo-urgente":(df<=10?"prazo-alerta":(df<=20?"prazo-atencao":""))); return {dias:df,classe:c}; } catch(e){return {dias:0,classe:""}} }
-
-function renderFornecedores() { const tb = document.getElementById('tabelaFornecedores'); if(!tb) return; tb.innerHTML = fornecedores.map((f, i) => `<tr><td class="font-bold uppercase">${f.nome}</td><td class="lowercase text-blue-600">${f.email}</td><td class="text-center"><button onclick="fornecedores.splice(${i},1); salvarCloud();" class="text-red-500 font-black">✕</button></td></tr>`).join(''); }
-function cadastrarFornecedor() { const n = document.getElementById('f_nome').value.toUpperCase().trim(); const e = document.getElementById('f_email').value.toLowerCase().trim(); if(n && e) { fornecedores.push({nome: n, email: e}); salvarCloud(); document.getElementById('f_nome').value=""; document.getElementById('f_email').value=""; } }
-function renderEstoque() { const tb=document.getElementById('tabelaEstoque'); if(!tb) return; tb.innerHTML=estoque.map(x=>`<tr><td class="uppercase">${x.produto}</td><td>${x.qtd}</td><td class="font-black">${x.situacao}</td><td><button onclick="estoque=estoque.filter(y=>y.uid!=${x.uid}); salvarCloud();">✕</button></td></tr>`).join(''); }
-function cadastrarEstoque() { const p=document.getElementById('e_produto').value.toUpperCase(), q=document.getElementById('e_qtd').value, s=document.getElementById('e_situacao').value; if(p){estoque.push({uid:Date.now(),produto:p,qtd:q,situacao:s}); salvarCloud();}}
-function renderCatalogo() { const tb=document.getElementById('tabelaCatalogo'); if(!tb) return; tb.innerHTML=catalogo.map((c,i)=>`<tr><td class="uppercase">${c.nome}</td><td class="text-center"><button onclick="catalogo.splice(${i},1); salvarCloud();">✕</button></td></tr>`).join(''); }
-function cadastrarCatalogo() { const n=document.getElementById('cat_nome').value.toUpperCase(); if(n){catalogo.push({nome:n}); salvarCloud(); document.getElementById('cat_nome').value="";}}
-function renderAssistencias() { const tb=document.getElementById('tabelaAssistencias'); if(!tb) return; tb.innerHTML=assistencias.map(x=>`<tr><td>${x.data}</td><td class="uppercase font-bold">${x.cliente}</td><td class="uppercase">${x.produto}</td><td class="font-black text-blue-800 uppercase">${x.fabrica}</td><td><button onclick="cycleAssisStatus(${x.uid})" class="status-badge bg-slate-200">${x.status}</button></td><td><button onclick="assistencias=assistencias.filter(y=>y.uid!=${x.uid}); salvarCloud();" class="text-red-500 font-black">✕</button></td></tr>`).join(''); }
-function cadastrarAssistencia(){ const c=document.getElementById('as_cliente').value.toUpperCase(), p=document.getElementById('as_produto').value.toUpperCase(), f=document.getElementById('as_fabrica').value; if(c&&p){ assistencias.unshift({uid:Date.now(), data:new Date().toLocaleDateString('pt-BR'), cliente:c, produto:p, fabrica:f, status:"Aguardando"}); salvarCloud(); document.getElementById('as_cliente').value=""; document.getElementById('as_produto').value=""; } }
 function atualizarSelectsFornecedores(){ const h = fornecedores.map(f => `<option value="${f.nome}">${f.nome}</option>`).join(''); if(document.getElementById('m_fornecedor_select')) document.getElementById('m_fornecedor_select').innerHTML = h || "<option>...</option>"; if(document.getElementById('as_fabrica')) document.getElementById('as_fabrica').innerHTML = h || "<option>...</option>";}
 function atualizarSugestoes(){ const n=[...new Set(pedidos.map(p=>p.cliente))].sort(); if(document.getElementById('listaSugestaoClientes')) document.getElementById('listaSugestaoClientes').innerHTML=n.map(x=>`<option value="${x}">`).join(''); }
-function dupPed(u){ const x=pedidos.find(y=>y.uid==u); const idDoc="ID#"+proximoID.toString().padStart(4,'0'); proximoID++; pedidos.unshift({...x, uid:Date.now()+Math.random(), idDoc}); salvarCloud(); }
-function gerarAssistenciaRapida(u){ const p=pedidos.find(x=>x.uid==u); if(p){ document.getElementById('as_cliente').value=p.cliente; document.getElementById('as_produto').value=p.produto+" (DEFEITO)"; document.getElementById('as_fabrica').value=p.fornecedor; switchTab('assistencia'); }}
 
 function gerarEmailLote() {
     const checks = document.querySelectorAll('.ped-check:checked');
