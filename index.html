@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mercier Design - Gestão Cloud v103.0</title>
+    <title>Mercier Design - Gestão Cloud v104.0</title>
     <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="style.css">
     <meta name="theme-color" content="#0f172a">
 </head>
-<body>
+<body class="bg-slate-100">
 
     <header class="glass-header text-white p-5 shadow-xl flex justify-between items-center sticky top-0 z-50">
         <h1 class="text-2xl font-black tracking-tighter uppercase italic">MERCIER <span class="text-blue-500">DESIGN</span></h1>
@@ -49,7 +49,7 @@
                     <input type="text" id="m_medida" placeholder="MEDIDA" class="border-2 p-1.5 rounded-lg text-xs font-bold w-24 uppercase">
                     <input type="text" id="m_cor" placeholder="COR/TECIDO" class="border-2 p-1.5 rounded-lg text-xs font-bold w-32 uppercase">
                     <input type="text" id="m_custo" placeholder="R$ CUSTO" class="border-2 p-1.5 rounded-lg text-xs font-bold w-24" oninput="maskMoney(this)">
-                    <button onclick="adicionarItemAoCesto()" class="bg-slate-800 text-white px-6 rounded-lg text-[10px] font-black uppercase">＋ ITEM</button>
+                    <button onclick="adicionarItemAoCesto()" class="bg-slate-800 text-white px-6 rounded-lg text-[10px] font-black uppercase hover:bg-black transition">＋ ITEM</button>
                 </div>
                 <div id="cesto-itens" class="flex flex-wrap gap-2 mb-3"></div>
                 <button onclick="cadastrarManual()" class="bg-blue-600 text-white font-black rounded-xl text-xs px-8 py-3.5 w-full uppercase shadow-lg hover:bg-blue-700 transition">Finalizar e Sincronizar Pedido</button>
@@ -65,17 +65,7 @@
                 </div>
                 <span id="contador" class="text-[10px] font-black bg-slate-900 text-white px-4 py-2 rounded-lg uppercase">0 Pedidos</span>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr>
-                            <th width="40"><input type="checkbox" onclick="marcarTodos(this.checked)"></th>
-                            <th width="65">Prazo</th><th width="70">ID</th><th>Cliente</th><th width="85">Data</th><th width="45">Qtd</th><th>Móvel</th><th width="70">Medida</th><th width="90">Cor</th><th width="95">Custo</th><th width="100">Fábrica</th><th width="120">Status</th><th width="60">Whats?</th><th width="60">Conf?</th><th class="text-center" width="100">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabelaPedidos"></tbody>
-                </table>
-            </div>
+            <div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr><th width="40"><input type="checkbox" onclick="marcarTodos(this.checked)"></th><th width="65">Prazo</th><th width="70">ID</th><th>Cliente</th><th width="85">Data</th><th width="45">Qtd</th><th>Móvel</th><th width="70">Medida</th><th width="90">Cor</th><th width="95">Custo</th><th width="100">Fábrica</th><th width="120">Status</th><th width="60">Whats?</th><th width="60">Conf?</th><th class="text-center" width="100">Ações</th></tr></thead><tbody id="tabelaPedidos"></tbody></table></div>
         </div>
     </main>
 
@@ -87,41 +77,33 @@
                     <option value="SIMPLES">Anotação Simples</option>
                     <option value="TIRAR PEDIDO">Tirar Pedido (Venda Completa)</option>
                 </select>
-                <div id="loading-cep" class="hidden text-[10px] font-black text-indigo-500 animate-pulse uppercase">Buscando CEP...</div>
+                <div id="loading-cep" class="hidden text-[10px] font-black text-indigo-500 animate-pulse uppercase">Buscando...</div>
             </div>
             <div id="container-campos-tarefa" class="grid grid-cols-1 md:grid-cols-4 gap-3"></div>
             <button onclick="cadastrarTarefa()" class="mt-6 bg-indigo-600 text-white font-black px-12 py-4 rounded-xl text-xs uppercase shadow-lg w-full transition hover:bg-indigo-700">Salvar Tarefa / Pedido</button>
         </div>
         <div class="card-premium overflow-hidden">
             <div class="p-4 bg-slate-50 border-b flex justify-between items-center">
-                <span class="text-[10px] font-black uppercase text-slate-400">Histórico de Atividades</span>
-                <select id="filtro-tarefa-status" onchange="renderTarefas()" class="border-2 p-1 rounded-lg text-[10px] font-bold bg-white">
-                    <option value="TODAS">TODAS</option>
-                    <option value="Não Iniciado">Não Iniciado</option>
-                    <option value="Em Andamento">Em Andamento</option>
-                    <option value="Feito">Feito</option>
-                </select>
+                <span class="text-[10px] font-black uppercase text-slate-400 tracking-widest text-xs">Histórico de Atividades</span>
+                <select id="filtro-tarefa-status" onchange="renderTarefas()" class="border-2 p-1 rounded-lg text-[10px] font-bold bg-white"><option value="TODAS">TODAS</option><option value="Não Iniciado">Não Iniciado</option><option value="Em Andamento">Em Andamento</option><option value="Feito">Feito</option></select>
             </div>
-            <table class="w-full text-left">
-                <thead><tr class="bg-slate-50 text-slate-500 text-[10px] uppercase"><th>Data</th><th>Descrição / Cliente</th><th>Tipo</th><th>Status</th><th class="text-center">Ação</th></tr></thead>
-                <tbody id="tabelaTarefas"></tbody>
-            </table>
+            <table class="w-full text-left"><thead><tr class="bg-slate-50 text-slate-500 text-[10px] uppercase"><th>Data</th><th>Descrição / Cliente</th><th>Tipo</th><th>Status</th><th class="text-center">Ação</th></tr></thead><tbody id="tabelaTarefas"></tbody></table>
         </div>
     </main>
 
     <!-- ABA ESTOQUE -->
     <main id="view-estoque" class="hidden p-6 max-w-[1950px] mx-auto">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-            <div class="card-premium p-4 border-l-8 border-green-500 bg-white">
-                <p class="text-[10px] font-black text-slate-400 uppercase">Disponível Agora</p>
+            <div class="card-premium p-4 border-l-8 border-green-500 bg-white shadow-sm">
+                <p class="text-[10px] font-black text-slate-400 uppercase">Itens Físicos Disponíveis</p>
                 <h3 id="resumo-estoque-total" class="text-xl font-black text-green-600">0</h3>
             </div>
-            <div class="card-premium p-4 border-l-8 border-red-500 bg-white">
-                <p class="text-[10px] font-black text-slate-400 uppercase">Total Vendido</p>
+            <div class="card-premium p-4 border-l-8 border-red-500 bg-white shadow-sm">
+                <p class="text-[10px] font-black text-slate-400 uppercase">Total Vendido (Baixas)</p>
                 <h3 id="resumo-estoque-vendidos" class="text-xl font-black text-red-600">0</h3>
             </div>
-            <div class="card-premium border-l-8 border-blue-500 bg-white flex flex-col">
-                <p class="text-[10px] font-black text-slate-400 uppercase p-2">📝 Rascunho Geral do Estoque</p>
+            <div class="card-premium border-l-8 border-blue-500 bg-white flex flex-col shadow-sm">
+                <p class="text-[10px] font-black text-slate-400 uppercase p-2">📝 Rascunho / Notas Gerais do Estoque</p>
                 <textarea id="estoque-notas-gerais" oninput="autoSalvarNotasEstoque()" class="flex-1 p-2 text-[11px] font-bold uppercase outline-none resize-none bg-slate-50" placeholder="DIGITE AQUI..."></textarea>
             </div>
         </div>
@@ -140,7 +122,7 @@
             <select id="estoque-filtro-fabrica" onchange="renderEstoque()" class="border-2 p-2.5 rounded-xl text-xs font-bold bg-white w-48"><option value="TODAS">TODAS AS FÁBRICAS</option></select>
         </div>
 
-        <div class="card-premium overflow-hidden"><table class="w-full text-left border-collapse"><thead><tr class="bg-slate-50 text-slate-500 uppercase text-[10px]"><th>Data</th><th>Móvel</th><th>Fábrica</th><th width="60">Qtd</th><th width="120">Situação</th><th class="text-center" width="100">Ação</th></tr></thead><tbody id="tabelaEstoque"></tbody></table></div>
+        <div class="card-premium overflow-hidden"><table class="w-full text-left border-collapse"><thead><tr class="bg-slate-50 text-slate-500 uppercase text-[10px]"><th>Data</th><th>Móvel</th><th>Fábrica</th><th width="60" class="text-center">Qtd</th><th width="120">Situação</th><th class="text-center" width="100">Ação</th></tr></thead><tbody id="tabelaEstoque"></tbody></table></div>
     </main>
 
     <!-- ABA ASSISTÊNCIA -->
@@ -161,8 +143,10 @@
         <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50"><th>Fábrica</th><th>E-mail</th><th class="text-center">Remover</th></tr></thead><tbody id="tabelaFornecedores"></tbody></table></div>
     </main>
 
-    <!-- MODAIS -->
+    <!-- MODAL DETALHES -->
     <div id="modal-detalhes" onclick="if(event.target==this) this.style.display='none'"><div class="card-premium w-full max-w-2xl bg-white overflow-hidden flex flex-col max-h-[90vh] shadow-2xl"><div class="bg-indigo-600 p-4 text-white font-black flex justify-between items-center uppercase text-sm"><span>📄 Resumo Detalhado</span><button onclick="document.getElementById('modal-detalhes').style.display='none'">✕</button></div><div id="detalhe-corpo" class="p-8 overflow-y-auto space-y-4 bg-white text-slate-800"></div></div></div>
+
+    <!-- BLOCO DE NOTAS MÓVEL -->
     <div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()">💡</div>
     <div id="painel-sugestoes"><div id="drag-handle" class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase cursor-move"><span>💡 Bloco de Notas</span><button onclick="togglePainelSugestoes()">✕</button></div><textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" oninput="autoSalvarNotas()"></textarea></div>
 
