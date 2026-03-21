@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mercier-v87'; // Versão alterada para forçar limpeza de cache
+const CACHE_NAME = 'mercier-v87';
 const assets = [
   './',
   './index.html',
@@ -8,7 +8,7 @@ const assets = [
 ];
 
 self.addEventListener('install', e => {
-  self.skipWaiting(); // Força a nova versão a assumir o controle na hora
+  self.skipWaiting();
   e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(assets)));
 });
 
