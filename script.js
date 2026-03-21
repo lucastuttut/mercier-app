@@ -13,6 +13,7 @@ const db = firebase.database();
 
 let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[], proximoID=255, notasMelhoria="", cestoItensTemporario=[], filtrandoNaoEnviados=false, cpfValido=true;
 
+// SINCRONIZAÇÃO TOTAL
 db.ref('dados').on('value', (s) => {
     const d = s.val() || {};
     pedidos=d.pedidos||[]; 
@@ -102,14 +103,13 @@ function renderPedidos() {
     }).join('');
 }
 
-// --- CORREÇÃO DO E-MAIL EM LOTE ---
+// --- FUNÇÃO DE E-MAIL PADRONIZADA ---
 function gerarEmailLote() {
     const checks = document.querySelectorAll('.ped-check:checked');
     if (checks.length === 0) return alert("POR FAVOR, SELECIONE AO MENOS UM PEDIDO NA TABELA!");
 
     const selecionados = Array.from(checks).map(c => pedidos.find(p => p.uid == c.value)).filter(p => p);
 
-    // Agrupar pedidos por fábrica
     const grupos = {};
     selecionados.forEach(p => {
         if (!grupos[p.fornecedor]) grupos[p.fornecedor] = [];
@@ -120,21 +120,29 @@ function gerarEmailLote() {
         const fornecedorData = fornecedores.find(f => f.nome === fab);
         const email = fornecedorData ? fornecedorData.email : "";
 
-        let corpo = `Olá, seguem pedidos da MERCIER DESIGN:%0D%0A%0D%0A`;
+        let corpo = `Olá, segue pedido para fábrica ${fab}:%0D%0A%0D%0A`;
 
-        grupos[fab].forEach(p => {
-            corpo += `ITEM: ${p.qtd}x ${p.produto}%0D%0A`;
-            corpo += `MEDIDA: ${p.medida}%0D%0A`;
+        grupos[fab].forEach((p, idx) => {
+            const qtdFormatada = String(p.qtd).padStart(2, '0');
+            corpo += `Qtde: ${qtdFormatada} - ${p.produto}%0D%0A`;
+            
+            // Só adiciona a linha de medida se ela existir e não for o traço padrão
+            if (p.medida && p.medida !== "-" && p.medida.trim() !== "") {
+                corpo += `MEDIDA: ${p.medida}%0D%0A`;
+            }
+            
             corpo += `COR/TECIDO: ${p.cor}%0D%0A`;
             corpo += `REF: ${p.idDoc}%0D%0A`;
-            corpo += `--------------------------%0D%0A`;
+
+            // Adiciona o separador se não for o último item do grupo
+            if (idx < grupos[fab].length - 1) {
+                corpo += `%0D%0A--------------------------%0D%0A`;
+            }
         });
 
-        corpo += `%0D%0AFavor confirmar o recebimento e nos enviar a previsão de entrega.%0D%0A%0D%0AAtenciosamente,%0D%0AMercier Design`;
+        corpo += `%0D%0AForma de pagamento: 30/60/90.%0D%0A%0D%0AIDs para controle interno, favor desconsiderar.%0D%0A%0D%0AFavor confirmar o recebimento e nos enviar o documento de confirmação dos itens acima para conferência.%0D%0A%0D%0AAtenciosamente,%0D%0ALucas Mercier.`;
 
         const subject = encodeURIComponent(`PEDIDO - MERCIER DESIGN - ${fab}`);
-        
-        // Abre o gerenciador de e-mail padrão
         window.open(`mailto:${email}?subject=${subject}&body=${corpo}`);
     }
 }
@@ -207,11 +215,11 @@ function mostrarCamposTarefa(t){
     } else { c.innerHTML = `<input id="t_raw" placeholder="DESCREVA A TAREFA..." class="border-2 p-2 rounded-lg text-xs font-bold col-span-4 uppercase">`; }
 }
 function addProdutoLinha(){ const d = document.getElementById('lista-produtos-tarefa'); const r = document.createElement('div'); r.className = "flex gap-2 mb-1 items-center row-prod"; r.innerHTML = `<input class="t-p-nome border-2 p-2 rounded text-xs font-bold flex-1" placeholder="MÓVEL"><input class="t-v-orig border-2 p-2 rounded text-xs font-bold w-24" placeholder="ORIGINAL" oninput="maskMoney(this)"><input class="t-v-desc border-2 p-2 rounded text-xs font-bold w-24" placeholder="DESC." oninput="maskMoney(this)"><button onclick="this.parentElement.remove();">✕</button>`; d.appendChild(r); }
-function addPagamentoLinha(){ const d = document.getElementById('lista-pagamentos-tarefa'); const r = document.createElement('div'); r.className = "flex flex-col bg-slate-50 p-2 rounded border mb-2 row-pag"; r.innerHTML = `<div class="flex gap-1 mb-1"><button onclick="setP(this,'PIX')" class="btn-pag-opt active">PIX</button><button onclick="setP(this,'CRÉDITO')" class="btn-pag-opt">CRÉDITO</button><input type="hidden" class="t-p-tipo" value="PIX"></div><div class="flex gap-1"><input class="t-p-val border-2 p-1.5 rounded text-xs font-bold w-32" placeholder="VALOR" oninput="maskMoney(this)"><input class="t-p-obs border-2 p-1.5 rounded text-xs font-bold flex-1" placeholder="DATA/OBS"><button onclick="this.parentElement.remove()">✕</button></div>`; d.appendChild(r); }
+function addPagamentoLinha(){ const d = document.getElementById('lista-pagamentos-tarefa'); const r = document.createElement('div'); r.className = "flex flex-col bg-slate-50 p-2 rounded border mb-2 row-pag"; r.innerHTML = `<div class="flex gap-1 mb-1"><button onclick="setP(this,'PIX')" class="btn-pag-opt active">PIX</button><button onclick="setP(this,'CRÉDITO')" class="btn-pag-opt">CRÉDITO</button><input type="hidden" class="t-p-tipo" value="PIX"></div><div class="flex gap-1"><input class="t-p-val border-2 p-1.5 rounded text-xs font-bold w-32" placeholder="VALOR" oninput="maskMoney(this)"><input class="t-p-obs border-2 p-1.5 rounded text-xs font-bold flex-1" placeholder="DETALHES"><button onclick="this.parentElement.remove()">✕</button></div>`; d.appendChild(r); }
 function setP(b, v){ b.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active')); b.classList.add('active'); b.parentElement.querySelector('.t-p-tipo').value = v; }
 
 function cadastrarTarefa(){
-    const t = document.getElementById('t_tipo').value; if(t==='TIRAR PEDIDO' && !cpfValido) return alert("CPF INVÁLIDO!");
+    const t = document.getElementById('t_tipo').value;
     let obj = { uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), tipo: t, status: "Não Iniciado" };
     if(t === 'TIRAR PEDIDO'){
         const cli = document.getElementById('t_nome').value; if(!cli) return alert("FALTA NOME!");
@@ -248,8 +256,4 @@ function cadastrarManual() {
     const cli = document.getElementById('m_cliente').value.trim().toUpperCase(); const forn = document.getElementById('m_fornecedor_select').value;
     if(!cli || cestoItensTemporario.length === 0) return alert("FALTA DADOS!");
     const idDoc = "ID#" + proximoID.toString().padStart(4, '0'); proximoID++;
-    cestoItensTemporario.forEach(i => { pedidos.unshift({ uid: Date.now()+Math.random(), idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false }); });
-    cestoItensTemporario = []; document.getElementById('m_cliente').value = ""; renderCesto(); salvarCloud();
-}
-
-mostrarCamposTarefa('SIMPLES');
+    cestoItensTemporario.forEach(i => { pedidos.unshift({ uid: Date.now()+Math.random(), idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: document.getElementById('m_prazo_select'
