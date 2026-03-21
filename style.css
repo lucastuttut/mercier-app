@@ -1,15 +1,22 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
 
+/* --- RESET E GERAIS --- */
 body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f1f5f9; color: #000; margin: 0; padding: 0; }
 .glass-header { background: #0f172a; border-bottom: 4px solid #3b82f6; }
-.card-premium { background: white; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; overflow: hidden;}
+.card-premium { background: white; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
 
-/* --- EFEITO DE PASSAR O MOUSE (MARCANTE) --- */
+/* --- TABELAS E ROLAGEM (v105) --- */
+.table-container { width: 100%; overflow-x: hidden; } /* Mata a barra horizontal */
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+
+th { font-size: 10px; font-weight: 900; text-transform: uppercase; color: #64748b; padding: 14px 6px; border-bottom: 2px solid #3b82f6; background: #fff; white-space: nowrap; }
+td { padding: 12px 8px !important; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9; font-size: 11px; word-wrap: break-word; overflow-wrap: break-word; }
+
+/* --- HOVER MARCANTE --- */
 tbody tr { transition: all 0.15s ease-in-out; }
 tbody tr:hover { 
     background-color: #cbd5e1 !important; 
-    box-shadow: inset 10px 0 0 #1d4ed8; 
-    transform: scale(1.002);
+    box-shadow: inset 8px 0 0 #1d4ed8; 
     cursor: pointer;
 }
 .prazo-vencido:hover, .prazo-urgente:hover, .prazo-alerta:hover, .prazo-atencao:hover {
@@ -29,20 +36,18 @@ tbody tr:hover {
 .btn-nao { background-color: #b91c1c !important; color: white !important; }
 .tab-active { border-bottom: 4px solid #3b82f6; color: #3b82f6 !important; font-weight: 800; }
 
-th { font-size: 10px; font-weight: 900; text-transform: uppercase; color: #64748b; padding: 12px 6px; border-bottom: 2px solid #3b82f6; background: #fff; }
-td { padding: 12px 8px !important; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9; font-size: 11px; }
-
-input, select, textarea { text-transform: uppercase; outline: none; transition: 0.2s; }
-.editable-cell:hover { background-color: #f1f5f9; cursor: pointer; text-decoration: underline; color: #3b82f6; }
+.editable-cell:hover { background-color: rgba(59, 130, 246, 0.1); color: #3b82f6; text-decoration: underline; }
 
 .status-online { background: #22c55e; color: white; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 900; }
 .status-offline { background: #f97316; color: white; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 900; }
 
 #btn-sugestao-flutuante { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 15px rgba(59,130,246,0.5); cursor: pointer; z-index: 100; }
 #painel-sugestoes { position: fixed; bottom: 90px; right: 24px; width: 320px; height: 450px; background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 101; display: none; flex-direction: column; border: 1px solid #e2e8f0; overflow: hidden;}
-#modal-detalhes { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
+
+.modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
 
 .item-cesto { background: #eff6ff; border: 1px solid #bfdbfe; padding: 6px 12px; border-radius: 10px; font-size: 10px; display: flex; align-items: center; gap: 6px; font-weight: 800; color: #1e40af; }
-.btn-pag-opt { background: #f1f5f9; padding: 6px 12px; border-radius: 8px; font-size: 10px; font-weight: 800; border: 2px solid transparent; cursor: pointer; }
+.btn-pag-opt { background: #f1f5f9; padding: 8px 14px; border-radius: 10px; font-size: 10px; font-weight: 800; border: 2px solid transparent; cursor: pointer; }
 .btn-pag-opt.active { background: #3b82f6; color: white; border-color: #2563eb; }
 .select-prazo-tabela { background: #000; color: #fff; font-size: 7.5px !important; font-weight: 900; border-radius: 4px; padding: 1px 2px; cursor: pointer; border: none; }
+.copy-btn-small { cursor: pointer; color: #94a3b8; font-size: 14px; transition: 0.2s; padding: 4px; }
