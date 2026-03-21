@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mercier Design - Gestão Cloud Elite v110.0</title>
+    <title>Mercier Design - Gestão Cloud v111.0</title>
     <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -12,97 +12,71 @@
     <link rel="stylesheet" href="style.css">
     <meta name="theme-color" content="#0f172a">
 </head>
-<body class="bg-[#f8fafc]">
+<body class="bg-slate-50">
 
-    <header class="glass-header text-white p-6 shadow-2xl flex justify-between items-center sticky top-0 z-50">
+    <header class="glass-header text-white p-5 shadow-xl flex justify-between items-center sticky top-0 z-50">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-black text-xl shadow-lg">M</div>
-            <h1 class="text-2xl font-extrabold tracking-tighter uppercase italic">MERCIER <span class="text-blue-500">DESIGN</span></h1>
+            <h1 class="text-2xl font-black tracking-tighter uppercase italic">MERCIER <span class="text-blue-500">DESIGN</span></h1>
         </div>
         <div id="status-db" class="status-offline">Conectando...</div>
     </header>
 
-    <nav class="bg-slate-900/95 backdrop-blur-md text-slate-400 px-8 flex gap-8 shadow-xl overflow-x-auto sticky top-[88px] z-40 border-b border-white/5">
-        <button onclick="switchTab('pedidos')" id="tab-pedidos" class="nav-link tab-active">📋 PEDIDOS</button>
-        <button onclick="switchTab('tarefas')" id="tab-tarefas" class="nav-link">📝 TAREFAS / VENDAS</button>
-        <button onclick="switchTab('assistencia')" id="tab-assistencia" class="nav-link">🛠️ ASSISTÊNCIAS</button>
-        <button onclick="switchTab('estoque')" id="tab-estoque" class="nav-link">📦 ESTOQUE</button>
-        <button onclick="switchTab('catalogo')" id="tab-catalogo" class="nav-link">📜 CATÁLOGO</button>
-        <button onclick="switchTab('fornecedores')" id="tab-fornecedores" class="nav-link">🏭 FÁBRICAS</button>
+    <nav class="bg-slate-900 text-slate-400 px-8 flex gap-8 shadow-md overflow-x-auto sticky top-[80px] z-40">
+        <button onclick="switchTab('pedidos')" id="tab-pedidos" class="nav-btn tab-active">📋 PEDIDOS</button>
+        <button onclick="switchTab('tarefas')" id="tab-tarefas" class="nav-btn">📝 TAREFAS</button>
+        <button onclick="switchTab('assistencia')" id="tab-assistencia" class="nav-btn">🛠️ ASSISTÊNCIAS</button>
+        <button onclick="switchTab('estoque')" id="tab-estoque" class="nav-btn">📦 ESTOQUE</button>
+        <button onclick="switchTab('catalogo')" id="tab-catalogo" class="nav-btn">📜 CATÁLOGO</button>
+        <button onclick="switchTab('fornecedores')" id="tab-fornecedores" class="nav-btn">🏭 FÁBRICAS</button>
     </nav>
 
     <!-- ABA PEDIDOS -->
-    <main id="view-pedidos" class="max-w-[1950px] mx-auto p-6">
+    <main id="view-pedidos" class="tab-content max-w-[1950px] mx-auto p-4 md:p-6">
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-            <div class="card-premium p-6 flex flex-col justify-center items-center bg-white border-2 border-dashed border-slate-200 hover:border-blue-400 transition-colors cursor-pointer group">
-                <div class="text-3xl mb-2 group-hover:scale-110 transition-transform">📄</div>
-                <label class="text-[10px] font-black text-slate-400 uppercase cursor-pointer">Importar PDF Fábrica</label>
+            <div onclick="document.getElementById('pdfInput').click()" class="card-premium p-6 flex flex-col justify-center items-center bg-white border-2 border-dashed border-slate-300 hover:border-blue-500 cursor-pointer transition-all">
+                <span class="text-3xl mb-2">📄</span>
+                <label class="text-[10px] font-black text-slate-500 uppercase">Importar PDF</label>
                 <input type="file" id="pdfInput" accept="application/pdf" class="hidden">
             </div>
             
-            <div class="lg:col-span-3 card-premium p-6 border-l-[12px] border-blue-600 bg-white">
-                <div class="flex flex-wrap gap-4 mb-6">
-                    <div class="flex-1 min-w-[280px]">
-                        <label class="label-mini">Nome do Cliente</label>
-                        <input list="listaSugestaoClientes" id="m_cliente" placeholder="PESQUISAR OU DIGITAR..." class="input-modern">
-                    </div>
-                    <div class="w-40">
-                        <label class="label-mini">Prazo de Entrega</label>
-                        <select id="m_prazo_select" class="input-modern bg-white">
-                            <option value="15">15 Dias</option><option value="20">20 Dias</option><option value="30" selected>30 Dias</option>
-                            <option value="30-util">30 Úteis</option><option value="40-util">40 Úteis</option>
-                        </select>
-                    </div>
-                    <div class="w-56">
-                        <label class="label-mini">Fábrica Fornecedora</label>
-                        <select id="m_fornecedor_select" class="input-modern bg-white"></select>
-                    </div>
+            <div class="lg:col-span-3 card-premium p-6 border-l-[10px] border-blue-600 bg-white">
+                <div class="flex flex-wrap gap-4 mb-4">
+                    <input list="listaSugestaoClientes" id="m_cliente" placeholder="NOME DO CLIENTE" class="input-modern flex-1 uppercase">
+                    <select id="m_prazo_select" class="input-modern w-40 bg-white">
+                        <option value="15">15 Dias</option><option value="20">20 Dias</option><option value="30" selected>30 Dias</option>
+                        <option value="30-util">30 Úteis</option><option value="40-util">40 Úteis</option>
+                    </select>
+                    <select id="m_fornecedor_select" class="input-modern w-56 bg-white"></select>
                 </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-6 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 mb-4">
-                    <input type="number" id="m_qtd" value="1" class="input-modern md:col-span-1" placeholder="QTD">
-                    <input list="listaSugestaoProdutos" id="m_produto" placeholder="PRODUTO" class="input-modern md:col-span-2">
-                    <input type="text" id="m_medida" placeholder="MEDIDA" class="input-modern md:col-span-1">
-                    <input type="text" id="m_cor" placeholder="COR/TECIDO" class="input-modern md:col-span-1">
-                    <input type="text" id="m_custo" placeholder="CUSTO R$" class="input-modern md:col-span-1" oninput="maskMoney(this)">
-                    <button onclick="adicionarItemAoCesto()" class="btn-primary md:col-span-6">+ ADICIONAR ITEM AO PEDIDO</button>
+                <div class="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100 mb-4">
+                    <input type="number" id="m_qtd" value="1" class="input-modern w-20" placeholder="QTD">
+                    <input list="listaSugestaoProdutos" id="m_produto" placeholder="PRODUTO" class="input-modern flex-1 uppercase">
+                    <input type="text" id="m_medida" placeholder="MEDIDA" class="input-modern w-32 uppercase">
+                    <input type="text" id="m_cor" placeholder="COR/TECIDO" class="input-modern w-40 uppercase">
+                    <input type="text" id="m_custo" placeholder="CUSTO R$" class="input-modern w-32" oninput="maskMoney(this)">
+                    <button onclick="adicionarItemAoCesto()" class="btn-dark px-6">+ ITEM</button>
                 </div>
-                <div id="cesto-itens" class="flex flex-wrap gap-2 mb-4 min-h-[40px]"></div>
-                <button onclick="cadastrarManual()" class="btn-success w-full py-4 text-sm">FINALIZAR E SINCRONIZAR PEDIDO COM A NUVEM</button>
+                <div id="cesto-itens" class="flex flex-wrap gap-2 mb-4"></div>
+                <button onclick="cadastrarManual()" class="btn-blue w-full py-4 text-sm font-black uppercase tracking-widest shadow-lg">🚀 Finalizar e Sincronizar Pedido</button>
             </div>
         </div>
 
-        <div class="card-premium bg-white shadow-2xl">
-            <div class="p-6 border-b flex flex-col md:flex-row justify-between items-center gap-6">
-                <div class="relative w-full md:w-auto">
-                    <span class="absolute left-4 top-3 text-slate-400">🔍</span>
-                    <input type="text" id="busca" onkeyup="renderPedidos()" placeholder="BUSCAR POR CLIENTE, MÓVEL OU ID..." class="input-modern pl-10 w-full md:w-[500px]">
-                </div>
-                <div class="flex gap-3">
-                    <button id="btnFiltroNaoEnviado" onclick="toggleFiltroNaoEnviado()" class="btn-outline-red">NÃO ENVIADOS</button>
-                    <button onclick="gerarEmailLote()" class="btn-email">📧 ENVIAR POR E-MAIL</button>
-                    <span id="contador" class="badge-count">0 PEDIDOS</span>
+        <div class="card-premium bg-white shadow-xl overflow-hidden">
+            <div class="p-5 border-b bg-white flex flex-col md:flex-row justify-between items-center gap-4">
+                <input type="text" id="busca" onkeyup="renderPedidos()" placeholder="🔍 BUSCAR PEDIDOS..." class="input-modern w-full md:w-[450px] uppercase">
+                <div class="flex gap-2">
+                    <button id="btnFiltroNaoEnviado" onclick="toggleFiltroNaoEnviado()" class="btn-outline-red text-[10px]">NÃO ENVIADOS</button>
+                    <button onclick="gerarEmailLote()" class="btn-green text-[10px]">📧 ENVIAR SELECIONADOS</button>
+                    <span id="contador" class="badge-dark">0 PEDIDOS</span>
                 </div>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead class="bg-slate-50/80">
-                        <tr>
-                            <th width="50" class="pl-6"><input type="checkbox" onclick="marcarTodos(this.checked)" class="w-4 h-4"></th>
-                            <th width="80">PRAZO</th>
-                            <th width="100">ID REF</th>
-                            <th width="250">CLIENTE</th>
-                            <th width="110">DATA</th>
-                            <th width="60" class="text-center">QTD</th>
-                            <th width="200">MÓVEL</th>
-                            <th width="120">MEDIDA</th>
-                            <th width="120">COR</th>
-                            <th width="120">CUSTO</th>
-                            <th width="150">FÁBRICA</th>
-                            <th width="140">STATUS</th>
-                            <th width="80">WPP</th>
-                            <th width="80">CONF</th>
-                            <th class="text-center pr-6" width="150">AÇÕES</th>
+            <div class="w-full">
+                <table class="w-full text-left border-collapse table-fixed">
+                    <thead>
+                        <tr class="bg-slate-50">
+                            <th width="45" class="pl-5"><input type="checkbox" onclick="marcarTodos(this.checked)"></th>
+                            <th width="70">PRAZO</th><th width="90">ID REF</th><th width="220">CLIENTE</th><th width="100">DATA</th><th width="50">QTD</th><th>MÓVEL</th><th width="90">MEDIDA</th><th width="100">COR</th><th width="100">CUSTO</th><th width="120">FÁBRICA</th><th width="130">STATUS</th><th width="60">WPP</th><th width="60">CONF</th><th class="text-center" width="120">AÇÕES</th>
                         </tr>
                     </thead>
                     <tbody id="tabelaPedidos"></tbody>
@@ -111,119 +85,96 @@
         </div>
     </main>
 
-    <!-- ABAS TAREFAS, ESTOQUE, ETC... -->
-    <main id="view-tarefas" class="hidden p-6 max-w-[1950px] mx-auto">
+    <!-- ABA TAREFAS -->
+    <main id="view-tarefas" class="hidden tab-content max-w-[1950px] mx-auto p-4 md:p-6">
         <div class="card-premium p-8 border-l-8 border-indigo-600 mb-8 bg-white shadow-xl">
             <div class="flex items-center gap-4 mb-8">
                 <select id="t_tipo" onchange="mostrarCamposTarefa(this.value)" class="input-modern w-full md:w-96 text-lg">
                     <option value="SIMPLES">📝 ANOTAÇÃO SIMPLES</option>
                     <option value="TIRAR PEDIDO">💰 GERAR NOVA VENDA (COMPLETA)</option>
                 </select>
-                <div id="loading-cep" class="hidden text-indigo-600 animate-bounce font-black">⌛ BUSCANDO ENDEREÇO...</div>
+                <div id="loading-cep" class="hidden text-indigo-600 animate-pulse font-black uppercase text-xs">Buscando...</div>
             </div>
-            <div id="container-campos-tarefa" class="grid grid-cols-1 md:grid-cols-4 gap-6"></div>
-            <button onclick="cadastrarTarefa()" class="btn-indigo w-full mt-8 py-5 text-base">SALVAR REGISTRO NO HISTÓRICO</button>
+            <div id="container-campos-tarefa" class="grid grid-cols-1 md:grid-cols-4 gap-4"></div>
+            <button onclick="cadastrarTarefa()" class="btn-indigo w-full mt-8 py-5 text-sm uppercase font-black tracking-widest shadow-xl">Salvar na Lista de Tarefas</button>
         </div>
-        
         <div class="card-premium bg-white overflow-hidden">
             <div class="p-4 bg-slate-50 border-b flex justify-between items-center">
-                <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest">Registros Recentes</h3>
-                <select id="filtro-tarefa-status" onchange="renderTarefas()" class="input-modern !p-1 !text-[10px] w-32">
-                    <option value="TODAS">TODAS</option>
-                    <option value="Não Iniciado">PENDENTES</option>
-                    <option value="Em Andamento">EM CURSO</option>
-                    <option value="Feito">FEITAS</option>
-                </select>
+                <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest">Histórico</h3>
+                <select id="filtro-tarefa-status" onchange="renderTarefas()" class="input-modern !p-1 !text-[10px] w-32"><option value="TODAS">TODAS</option><option value="Não Iniciado">PENDENTES</option><option value="Em Andamento">EM CURSO</option><option value="Feito">FEITAS</option></select>
             </div>
-            <table class="w-full text-left">
-                <thead><tr class="bg-white border-b"><th>DATA</th><th>DESCRIÇÃO / CLIENTE</th><th>CATEGORIA</th><th>STATUS</th><th class="text-center">AÇÕES</th></tr></thead>
+            <table class="w-full text-left border-collapse">
+                <thead><tr class="bg-white border-b text-[10px] text-slate-400 uppercase"><th>DATA</th><th>DESCRIÇÃO / CLIENTE</th><th>CATEGORIA</th><th>STATUS</th><th class="text-center">AÇÕES</th></tr></thead>
                 <tbody id="tabelaTarefas"></tbody>
             </table>
         </div>
     </main>
 
-    <main id="view-estoque" class="hidden p-6 max-w-[1950px] mx-auto">
+    <!-- ABA ESTOQUE -->
+    <main id="view-estoque" class="hidden tab-content p-6 max-w-[1950px] mx-auto">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <div class="card-premium p-6 border-l-8 border-green-500 bg-white shadow-md">
-                <p class="text-xs font-black text-slate-400 uppercase">Estoque Disponível</p>
-                <h3 id="resumo-estoque-total" class="text-3xl font-black text-green-600">0</h3>
-            </div>
-            <div class="card-premium p-6 border-l-8 border-red-500 bg-white shadow-md">
-                <p class="text-xs font-black text-slate-400 uppercase">Itens Saídos / Vendidos</p>
-                <h3 id="resumo-estoque-vendidos" class="text-3xl font-black text-red-600">0</h3>
-            </div>
+            <div class="card-premium p-6 border-l-8 border-green-500 bg-white shadow-md"><p class="text-[10px] font-black text-slate-400 uppercase">Disponível</p><h3 id="resumo-estoque-total" class="text-3xl font-black text-green-600">0</h3></div>
+            <div class="card-premium p-6 border-l-8 border-red-500 bg-white shadow-md"><p class="text-[10px] font-black text-slate-400 uppercase">Total Vendido</p><h3 id="resumo-estoque-vendidos" class="text-3xl font-black text-red-600">0</h3></div>
             <div class="card-premium border-l-8 border-blue-500 bg-white flex flex-col shadow-md">
-                <p class="text-[10px] font-black text-slate-400 uppercase p-3 border-b">📝 Bloco de Rascunho Geral</p>
-                <textarea id="estoque-notas-gerais" oninput="autoSalvarNotasEstoque()" class="flex-1 p-4 text-xs font-bold uppercase outline-none resize-none bg-slate-50 min-h-[100px]" placeholder="ANOTE AQUI..."></textarea>
+                <p class="text-[10px] font-black text-slate-400 uppercase p-3 border-b">📝 Rascunho Geral do Estoque</p>
+                <textarea id="estoque-notas-gerais" oninput="autoSalvarNotasEstoque()" class="flex-1 p-4 text-xs font-bold uppercase outline-none resize-none bg-slate-50 min-h-[100px]" placeholder="DIGITE AQUI..."></textarea>
             </div>
         </div>
 
         <div class="card-premium p-8 border-l-8 border-blue-600 mb-8 bg-white shadow-lg">
             <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-                <div class="md:col-span-2"><label class="label-mini">Produto</label><input id="e_produto" placeholder="NOME DO ITEM" class="input-modern"></div>
-                <div><label class="label-mini">Fábrica</label><select id="e_fabrica_select" class="input-modern"></select></div>
+                <div class="md:col-span-2"><label class="label-mini">Produto</label><input id="e_produto" placeholder="NOME DO ITEM" class="input-modern uppercase"></div>
+                <div><label class="label-mini">Fábrica</label><select id="e_fabrica_select" class="input-modern uppercase"></select></div>
                 <div><label class="label-mini">Qtd</label><input id="e_qtd" type="number" value="1" class="input-modern"></div>
-                <div><label class="label-mini">Situação</label><select id="e_situacao" class="input-modern"><option value="ESTOQUE">ESTOQUE</option><option value="VENDIDO">VENDIDO</option></select></div>
-                <button onclick="cadastrarEstoque()" class="btn-primary py-3">ADICIONAR</button>
+                <div><label class="label-mini">Situação</label><select id="e_situacao" class="input-modern uppercase"><option value="ESTOQUE">ESTOQUE</option><option value="VENDIDO">VENDIDO</option></select></div>
+                <button onclick="cadastrarEstoque()" class="btn-blue py-3 font-black">ADICIONAR</button>
             </div>
         </div>
 
-        <div class="card-premium bg-white">
-            <div class="p-4 bg-slate-50 border-b flex flex-wrap gap-4 items-center">
-                <input type="text" id="estoque-busca" onkeyup="renderEstoque()" placeholder="BUSCAR NO INVENTÁRIO..." class="input-modern flex-1">
-                <button id="btnFiltroVendidos" onclick="toggleFiltroVendidos()" class="btn-outline-red !rounded-xl">VER VENDIDOS</button>
-                <select id="estoque-filtro-fabrica" onchange="renderEstoque()" class="input-modern w-64"><option value="TODAS">TODAS AS FÁBRICAS</option></select>
+        <div class="card-premium bg-white overflow-hidden">
+            <div class="p-4 bg-slate-50 border-b flex flex-wrap gap-4 items-center uppercase">
+                <input type="text" id="estoque-busca" onkeyup="renderEstoque()" placeholder="🔍 BUSCAR NO ESTOQUE..." class="input-modern flex-1 uppercase">
+                <button id="btnFiltroVendidos" onclick="toggleFiltroVendidos()" class="btn-outline-red text-[10px]">VER VENDIDOS</button>
+                <select id="estoque-filtro-fabrica" onchange="renderEstoque()" class="input-modern w-64 uppercase"><option value="TODAS">TODAS AS FÁBRICAS</option></select>
             </div>
-            <table class="w-full text-left border-collapse">
+            <table class="w-full text-left border-collapse table-fixed">
                 <thead><tr class="bg-white border-b text-[10px] text-slate-400 uppercase"><th>ENTRADA</th><th>MÓVEL</th><th>FÁBRICA</th><th class="text-center">QTD</th><th>SITUAÇÃO</th><th class="text-center">AÇÕES</th></tr></thead>
                 <tbody id="tabelaEstoque"></tbody>
             </table>
         </div>
     </main>
 
-    <main id="view-catalogo" class="hidden p-6 max-w-[1200px] mx-auto">
-        <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 bg-white flex gap-4 items-center">
-            <input id="cat_nome" placeholder="NOME DO MÓVEL" class="input-modern flex-1">
-            <button onclick="cadastrarCatalogo()" class="btn-indigo px-10">SALVAR ITEM</button>
-        </div>
-        <div class="card-premium bg-white"><table class="w-full text-left"><thead><tr class="bg-slate-50 text-[10px]"><th>NOME DO PRODUTO NO CATÁLOGO</th><th class="text-center" width="100">REMOVER</th></tr></thead><tbody id="tabelaCatalogo"></tbody></table></div>
+    <!-- ABAS COMPLEMENTARES -->
+    <main id="view-assistencia" class="hidden tab-content p-6 max-w-[1950px] mx-auto">
+        <div class="card-premium p-6 border-l-8 border-orange-500 flex gap-4 mb-6 uppercase bg-white shadow-lg"><input list="listaSugestaoClientes" id="as_cliente" placeholder="CLIENTE" class="input-modern flex-1"><input id="as_produto" placeholder="PRODUTO / DEFEITO" class="input-modern flex-1"><select id="as_fabrica" class="input-modern w-48"></select><button onclick="cadastrarAssistencia()" class="btn-primary uppercase">+ ADD</button></div>
+        <div class="card-premium bg-white overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50 text-[10px] uppercase"><th>DATA</th><th>CLIENTE</th><th>PRODUTO</th><th>FÁBRICA</th><th>STATUS</th><th class="text-center">AÇÃO</th></tr></thead><tbody id="tabelaAssistencias"></tbody></table></div>
     </main>
 
-    <main id="view-fornecedores" class="hidden p-6 max-w-4xl mx-auto">
-        <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 bg-white flex gap-4 items-center">
-            <input id="f_nome" placeholder="FÁBRICA" class="input-modern flex-1">
-            <input id="f_email" placeholder="EMAIL DE PEDIDOS" class="input-modern flex-1 lowercase">
-            <button onclick="cadastrarFornecedor()" class="btn-indigo px-10">SALVAR</button>
-        </div>
-        <div class="card-premium bg-white"><table class="w-full text-left"><thead><tr class="bg-slate-50 text-[10px]"><th>FÁBRICA</th><th>CONTATO E-MAIL</th><th class="text-center" width="100">REMOVER</th></tr></thead><tbody id="tabelaFornecedores"></tbody></table></div>
+    <main id="view-catalogo" class="hidden tab-content p-6 max-w-[1200px] mx-auto">
+        <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 bg-white flex gap-3 shadow-lg"><input id="cat_nome" placeholder="NOME DO MÓVEL" class="input-modern flex-1"><button onclick="cadastrarCatalogo()" class="btn-blue px-10 font-black">SALVAR</button></div>
+        <div class="card-premium bg-white overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50 text-[10px]"><th>NOME DO ITEM NO CATÁLOGO</th><th class="text-center" width="100">REMOVER</th></tr></thead><tbody id="tabelaCatalogo"></tbody></table></div>
     </main>
 
-    <!-- MODAL DE RESUMO DETALHADO (VISUAL PREMIUM) -->
+    <main id="view-fornecedores" class="hidden tab-content p-6 max-w-4xl mx-auto">
+        <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 bg-white flex gap-3 shadow-lg"><input id="f_nome" placeholder="FÁBRICA" class="input-modern flex-1"><input id="f_email" placeholder="EMAIL" class="input-modern flex-1 lowercase"><button onclick="cadastrarFornecedor()" class="btn-blue px-10 font-black">SALVAR</button></div>
+        <div class="card-premium bg-white overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50 text-[10px]"><th>FÁBRICA</th><th>E-MAIL</th><th class="text-center" width="100">REMOVER</th></tr></thead><tbody id="tabelaFornecedores"></tbody></table></div>
+    </main>
+
+    <!-- MODAL DE RESUMO DETALHADO -->
     <div id="modal-detalhes" class="modal-overlay" onclick="if(event.target==this) fecharModal()">
-        <div class="modal-content card-premium max-w-4xl w-full bg-white flex flex-col shadow-2xl overflow-hidden scale-in">
+        <div class="modal-content card-premium max-w-4xl w-full bg-white flex flex-col shadow-2xl">
             <div class="bg-slate-900 p-6 text-white flex justify-between items-center border-b-4 border-blue-500">
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-2xl">📄</div>
-                    <div>
-                        <h2 class="text-xl font-black uppercase tracking-tight leading-none">Resumo do Pedido</h2>
-                        <p id="modal-ref-id" class="text-[10px] text-blue-400 font-bold mt-1 opacity-80 uppercase tracking-widest"></p>
-                    </div>
-                </div>
-                <button onclick="fecharModal()" class="w-10 h-10 rounded-full hover:bg-white/10 transition-colors text-2xl font-light">✕</button>
+                <h2 class="text-xl font-black uppercase">Ficha Detalhada</h2>
+                <button onclick="fecharModal()" class="text-2xl font-light">✕</button>
             </div>
             <div id="detalhe-corpo" class="p-8 overflow-y-auto bg-slate-50/50"></div>
-            <div class="p-4 bg-white border-t flex justify-end">
-                <button onclick="fecharModal()" class="btn-indigo px-8 py-2">FECHAR VISUALIZAÇÃO</button>
-            </div>
         </div>
     </div>
 
+    <!-- BLOCO DE NOTAS -->
     <div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()" class="shadow-2xl">💡</div>
     <div id="painel-sugestoes">
-        <div id="drag-handle" class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase cursor-move">
-            <span>💡 Notas e Lembretes</span>
-            <button onclick="togglePainelSugestoes()">✕</button>
-        </div>
+        <div id="drag-handle" class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase cursor-move"><span>💡 Bloco de Notas</span><button onclick="togglePainelSugestoes()">✕</button></div>
         <textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none bg-slate-50" placeholder="Digite aqui..."></textarea>
     </div>
 
