@@ -35,9 +35,9 @@ db.ref('dados').on('value', (s) => {
     const d = s.val() || {};
     pedidos = d.pedidos ||[];
     fornecedores = d.fornecedores ||[];
-    estoque = d.estoque || [];
+    estoque = d.estoque ||[];
     catalogo = d.catalogo ||[];
-    tarefas = d.tarefas || [];
+    tarefas = d.tarefas ||[];
     assistencias = d.assistencias ||[];
     proximoID = d.proximoID || 255;
     notasMelhoria = d.notasMelhoria || "";
@@ -63,7 +63,6 @@ db.ref('dados').on('value', (s) => {
 function salvarColecao(colecao, dados) { db.ref('dados/' + colecao).set(dados); }
 
 async function getProximoID() {
-    // Usa Transaction para evitar que 2 pessoas salvem o mesmo ID ao mesmo tempo
     const ref = db.ref('dados/proximoID');
     const res = await ref.transaction(curr => (curr || 255) + 1);
     return res.snapshot.val();
@@ -110,16 +109,10 @@ async function buscarCEP(i){ let cep=i.value.replace(/\D/g,""); if(cep.length===
 // --- PEDIDOS ---
 function renderPedidos() {
     const tb=document.getElementById('tabelaPedidos'); if(!tb) return;
-    
     const b = removeAcentos(document.getElementById('busca').value.toLowerCase());
-    
     let lista = pedidos.filter(x => 
-        removeAcentos((x.cliente||"").toLowerCase()).includes(b) ||
-        removeAcentos((x.produto||"").toLowerCase()).includes(b) ||
-        removeAcentos((x.idDoc||"").toLowerCase()).includes(b) ||
-        removeAcentos((x.fornecedor||"").toLowerCase()).includes(b)
+        removeAcentos((x.cliente||"").toLowerCase()).includes(b) || removeAcentos((x.produto||"").toLowerCase()).includes(b) || removeAcentos((x.idDoc||"").toLowerCase()).includes(b) || removeAcentos((x.fornecedor||"").toLowerCase()).includes(b)
     );
-    
     if(filtrandoNaoEnviados) lista=lista.filter(x=>x.status==="Não enviado");
     document.getElementById('contador').innerText=lista.length+" PEDIDOS";
     tb.innerHTML = lista.map(x=>{
@@ -155,132 +148,145 @@ function adicionarItemAoCesto() {
     renderCesto(); document.getElementById('m_produto').value = "";
 }
 
-function renderCesto() {
-    document.getElementById('cesto-itens').innerHTML = cestoItensTemporario.map((item, idx) => `<div class="item-cesto"><span>${item.q}x</span><span>${esc(item.p)}</span><button onclick="cestoItensTemporario.splice(${idx},1); renderCesto();" class="text-red-500 font-bold ml-2">✕</button></div>`).join('');
-}
+function renderCesto() { document.getElementById('cesto-itens').innerHTML = cestoItensTemporario.map((item, idx) => `<div class="item-cesto"><span>${item.q}x</span><span>${esc(item.p)}</span><button onclick="cestoItensTemporario.splice(${idx},1); renderCesto();" class="text-red-500 font-bold ml-2">✕</button></div>`).join(''); }
 
 async function cadastrarManual() {
     const cli = document.getElementById('m_cliente').value.trim().toUpperCase(); const forn = document.getElementById('m_fornecedor_select').value;
     if(!cli || cestoItensTemporario.length === 0) return alert("FALTA DADOS!");
-    
-    const nId = await getProximoID();
-    const idDoc = "ID#" + nId.toString().padStart(4, '0');
-    
+    const nId = await getProximoID(); const idDoc = "ID#" + nId.toString().padStart(4, '0');
     cestoItensTemporario.forEach(i => { pedidos.unshift({ uid: Date.now()+Math.random(), idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false }); });
-    cestoItensTemporario =[]; document.getElementById('m_cliente').value = ""; renderCesto(); 
-    salvarColecao('pedidos', pedidos);
+    cestoItensTemporario =[]; document.getElementById('m_cliente').value = ""; renderCesto(); salvarColecao('pedidos', pedidos);
 }
 
 // --- ESTOQUE ---
 function autoSalvarNotasEstoque() { notasEstoque = document.getElementById('estoque-notas-gerais').value; db.ref('dados/notasEstoque').set(notasEstoque); }
 function renderEstoque() {
     const tb = document.getElementById('tabelaEstoque'); if(!tb) return;
-    
     const b = removeAcentos(document.getElementById('estoque-busca').value.toLowerCase());
-    
     const fFab = document.getElementById('estoque-filtro-fabrica').value, fSit = document.getElementById('estoque-filtro-situacao') ? document.getElementById('estoque-filtro-situacao').value : "TODAS";
     let totEst = 0, totVen = 0;
-    
     let lista = estoque.filter(x => {
-        const prod = removeAcentos((x.produto||"").toLowerCase());
-        const fab = removeAcentos((x.fabrica||"").toLowerCase());
-        const sit = x.situacao||"ESTOQUE";
-        
+        const prod = removeAcentos((x.produto||"").toLowerCase()), fab = removeAcentos((x.fabrica||"").toLowerCase()), sit = x.situacao||"ESTOQUE";
         if(sit === 'ESTOQUE') totEst += parseInt(x.qtd || 0);
         if(sit === 'VENDIDO') totVen += parseInt(x.qtd || 0);
-        
-        const matBusca = prod.includes(b) || fab.includes(b);
-        const matFab = fFab === "TODAS" || x.fabrica === fFab;
-        const matSit = fSit === "TODAS" || sit === fSit;
-        
-        return matBusca && matFab && matSit && (!filtrandoVendidos || sit === 'VENDIDO');
+        return (prod.includes(b) || fab.includes(b)) && (fFab === "TODAS" || x.fabrica === fFab) && (fSit === "TODAS" || sit === fSit) && (!filtrandoVendidos || sit === 'VENDIDO');
     });
-    
     if(document.getElementById('resumo-estoque-total')) document.getElementById('resumo-estoque-total').innerText = totEst;
     if(document.getElementById('resumo-estoque-vendidos')) document.getElementById('resumo-estoque-vendidos').innerText = totVen;
-    
-    tb.innerHTML = lista.map(x => `<tr>
-        <td class="text-[10px] text-slate-400 font-bold">${esc(x.data) || '-'}</td>
-        <td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'estoque')" class="editable-cell uppercase font-bold">${esc(x.produto)}</td>
-        <td onclick="activeInlineEdit(this, ${x.uid}, 'fabrica', 'estoque')" class="editable-cell text-blue-600 text-[10px] font-black uppercase">${esc(x.fabrica) || "-"}</td>
-        <td onclick="activeInlineEdit(this, ${x.uid}, 'qtd', 'estoque')" class="editable-cell text-center">${esc(x.qtd)}</td>
-        <td>
-            <button onclick="cycleEstoqueStatus(${x.uid})" class="px-2 py-1 rounded text-[9px] font-black w-full text-center transition ${x.situacao === 'VENDIDO' ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}">${esc(x.situacao)}</button>
-        </td>
-        <td class="text-center flex gap-1 justify-center">
-            ${x.situacao === 'ESTOQUE' ? `<button onclick="darBaixaEstoque(${x.uid})" title="Dar Baixa (Parcial/Total)">📉</button>` : ''}
-            <button onclick="if(confirm('EXCLUIR?')){estoque=estoque.filter(y=>y.uid!=${x.uid}); salvarColecao('estoque', estoque);}" class="text-red-500 font-black px-2">✕</button>
-        </td>
-    </tr>`).join('');
+    tb.innerHTML = lista.map(x => `<tr><td class="text-[10px] text-slate-400 font-bold">${esc(x.data) || '-'}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'estoque')" class="editable-cell uppercase font-bold">${esc(x.produto)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'fabrica', 'estoque')" class="editable-cell text-blue-600 text-[10px] font-black uppercase">${esc(x.fabrica) || "-"}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'qtd', 'estoque')" class="editable-cell text-center">${esc(x.qtd)}</td><td><button onclick="cycleEstoqueStatus(${x.uid})" class="px-2 py-1 rounded text-[9px] font-black w-full text-center transition ${x.situacao === 'VENDIDO' ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}">${esc(x.situacao)}</button></td><td class="text-center flex gap-1 justify-center">${x.situacao === 'ESTOQUE' ? `<button onclick="darBaixaEstoque(${x.uid})" title="Dar Baixa">📉</button>` : ''}<button onclick="if(confirm('EXCLUIR?')){estoque=estoque.filter(y=>y.uid!=${x.uid}); salvarColecao('estoque', estoque);}" class="text-red-500 font-black px-2">✕</button></td></tr>`).join('');
 }
+function cycleEstoqueStatus(u){ const x = estoque.find(y => y.uid == u); if(x) { x.situacao = x.situacao === 'ESTOQUE' ? 'VENDIDO' : 'ESTOQUE'; salvarColecao('estoque', estoque); } }
+function darBaixaEstoque(u) { const it = estoque.find(x => x.uid == u); if (!it) return; let qS = prompt(`SAÍDA DE "${it.produto}". QTD?`, "1"); if (!qS) return; qS = parseInt(qS); if (isNaN(qS) || qS <= 0 || qS > it.qtd) return alert("QTD INVÁLIDA!"); if (qS == it.qtd) { it.situacao = "VENDIDO"; it.data = new Date().toLocaleDateString('pt-BR'); } else { it.qtd -= qS; estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: it.produto, fabrica: it.fabrica, qtd: qS, situacao: "VENDIDO" }); } salvarColecao('estoque', estoque); }
+function cadastrarEstoque() { const p = document.getElementById('e_produto').value.toUpperCase().trim(), f = document.getElementById('e_fabrica_select').value, q = document.getElementById('e_qtd').value, s = document.getElementById('e_situacao').value; if (p) { estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: p, fabrica: f, qtd: parseInt(q), situacao: s }); salvarColecao('estoque', estoque); document.getElementById('e_produto').value = ""; } }
+function toggleFiltroVendidos(){ filtrandoVendidos=!filtrandoVendidos; document.getElementById('btnFiltroVendidos').classList.toggle('bg-red-600'); document.getElementById('btnFiltroVendidos').classList.toggle('text-white'); renderEstoque(); }
 
-function cycleEstoqueStatus(u){ 
-    const x = estoque.find(y => y.uid == u); 
-    if(x) {
-        x.situacao = x.situacao === 'ESTOQUE' ? 'VENDIDO' : 'ESTOQUE';
-        salvarColecao('estoque', estoque); 
+// --- TAREFAS / TIRAR PEDIDO (COM CAIXA MÁGICA) ---
+function processarFichaWhatsApp(texto) {
+    if(!texto) return;
+    
+    // Expressões regulares flexíveis para pescar as informações
+    const mNome = texto.match(/Nome(?: Completo)?\s*[:\-]?\s*(.+)/i);
+    const mCpf = texto.match(/CPF\s*[:\-]?\s*([\d\.\-]+)/i);
+    const mCep = texto.match(/CEP\s*[:\-]?\s*([\d\.\-]+)/i);
+    const mEnd = texto.match(/Endere[çc]o\s*[:\-]?\s*(.+)/i);
+    const mContato = texto.match(/Contato\s*[:\-]?\s*(.+)/i);
+    // Expressão para pegar TUDO que vier depois de "OBS:" ou "Observação:"
+    const mObs = texto.match(/(?:OBS|OBSERVA[CÇ][AÃ]O)(?:ES)?\s*[:\-]?\s*([\s\S]+)/i);
+
+    if (mNome) document.getElementById('t_nome').value = mNome[1].trim().toUpperCase();
+    if (mEnd) document.getElementById('t_end').value = mEnd[1].trim().toUpperCase();
+    if (mContato) document.getElementById('t_contato').value = mContato[1].trim().toUpperCase();
+    if (mObs) document.getElementById('t_obs').value = mObs[1].trim().toUpperCase();
+    
+    if (mCpf) {
+        let cpfInput = document.getElementById('t_cpf');
+        cpfInput.value = mCpf[1].trim();
+        maskCPF(cpfInput); 
+    }
+
+    if (mCep) {
+        let cepInput = document.getElementById('t_cep');
+        cepInput.value = mCep[1].trim();
+        buscarCEP(cepInput); 
     }
 }
 
-function darBaixaEstoque(u) {
-    const it = estoque.find(x => x.uid == u); if (!it) return;
-    let qS = prompt(`SAÍDA DE "${it.produto}". QTD?`, "1");
-    if (!qS) return; qS = parseInt(qS);
-    if (isNaN(qS) || qS <= 0 || qS > it.qtd) return alert("QTD INVÁLIDA!");
-    if (qS == it.qtd) { it.situacao = "VENDIDO"; it.data = new Date().toLocaleDateString('pt-BR'); }
-    else { it.qtd -= qS; estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: it.produto, fabrica: it.fabrica, qtd: qS, situacao: "VENDIDO" }); }
-    salvarColecao('estoque', estoque);
-}
-
-function cadastrarEstoque() {
-    const p = document.getElementById('e_produto').value.toUpperCase().trim(), f = document.getElementById('e_fabrica_select').value, q = document.getElementById('e_qtd').value, s = document.getElementById('e_situacao').value;
-    if (p) { estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: p, fabrica: f, qtd: parseInt(q), situacao: s }); salvarColecao('estoque', estoque); document.getElementById('e_produto').value = ""; }
-}
-function toggleFiltroVendidos(){ filtrandoVendidos=!filtrandoVendidos; document.getElementById('btnFiltroVendidos').classList.toggle('bg-red-600'); document.getElementById('btnFiltroVendidos').classList.toggle('text-white'); renderEstoque(); }
-
-// --- TAREFAS ---
 function mostrarCamposTarefa(t){
     const c=document.getElementById('container-campos-tarefa'); c.innerHTML="";
     if(t==='TIRAR PEDIDO'){
-        c.innerHTML=`<input id="t_nome" placeholder="CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold col-span-2 uppercase"><input id="t_cpf" placeholder="CPF" class="border-2 p-2 rounded-lg text-xs font-bold" oninput="maskCPF(this)"><input id="t_contato" placeholder="CONTATO" class="border-2 p-2 rounded-lg text-xs font-bold"><input id="t_cep" placeholder="CEP" class="border-2 p-2 rounded-lg text-xs font-bold" oninput="buscarCEP(this)"><input id="t_end" placeholder="RUA" class="border-2 p-2 rounded-lg text-xs font-bold col-span-2 uppercase"><input id="t_bairro" placeholder="BAIRRO" class="border-2 p-2 rounded-lg text-xs font-bold uppercase"><input id="t_cidade" placeholder="CIDADE" class="border-2 p-2 rounded-lg text-xs font-bold uppercase"><input id="t_num" placeholder="NÚMERO" class="border-2 p-2 rounded-lg text-xs font-bold"><input id="t_torre" placeholder="TORRE" class="border-2 p-2 rounded-lg text-xs font-bold uppercase"><div class="col-span-4 border-t mt-4 pt-4"><div id="lista-produtos-tarefa"></div><button onclick="addProdutoLinha()" class="text-[10px] font-black text-blue-600 mt-2 uppercase">+ MÓVEL</button><div id="total-pedido-tarefa" class="text-right text-indigo-600 font-black text-xs mt-1 uppercase italic">Total: R$ 0,00</div></div><div class="col-span-4 border-t mt-4 pt-4"><div id="lista-pagamentos-tarefa"></div><button onclick="addPagamentoLinha()" class="text-[10px] font-black text-emerald-600 mt-2 uppercase">+ PAGAMENTO</button></div><textarea id="t_obs" placeholder="OBS" class="col-span-4 border-2 p-2 rounded-lg text-xs font-bold h-16 uppercase"></textarea>`;
+        c.innerHTML=`
+            <!-- BLOCO 1: A CAIXA MÁGICA -->
+            <div class="col-span-1 md:col-span-4 mb-2 bg-indigo-50 p-4 rounded-xl border-2 border-dashed border-indigo-300">
+                <label class="text-[10px] font-black text-indigo-800 uppercase mb-2 block flex items-center gap-2">✨ Cole a ficha do WhatsApp aqui:</label>
+                <textarea id="t_magic_box" oninput="processarFichaWhatsApp(this.value)" placeholder="Ficha de Cadastro&#10;Nome Completo:&#10;CPF:&#10;CEP:&#10;Endereço:&#10;Contato:&#10;OBS:" class="w-full border p-3 rounded-lg text-xs font-bold outline-indigo-500 h-24 resize-none shadow-inner"></textarea>
+                <p class="text-[9px] font-bold text-indigo-400 mt-1 uppercase">O sistema tentará preencher os dados abaixo sozinho.</p>
+            </div>
+
+            <!-- BLOCO 2: DADOS DO CLIENTE -->
+            <input id="t_nome" placeholder="CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold col-span-2 uppercase">
+            <input id="t_cpf" placeholder="CPF" class="border-2 p-2 rounded-lg text-xs font-bold" oninput="maskCPF(this)">
+            <input id="t_contato" placeholder="CONTATO" class="border-2 p-2 rounded-lg text-xs font-bold">
+            <input id="t_cep" placeholder="CEP" class="border-2 p-2 rounded-lg text-xs font-bold" oninput="buscarCEP(this)">
+            <input id="t_end" placeholder="RUA" class="border-2 p-2 rounded-lg text-xs font-bold col-span-2 uppercase">
+            <input id="t_bairro" placeholder="BAIRRO" class="border-2 p-2 rounded-lg text-xs font-bold uppercase">
+            <input id="t_cidade" placeholder="CIDADE" class="border-2 p-2 rounded-lg text-xs font-bold uppercase">
+            <input id="t_num" placeholder="NÚMERO" class="border-2 p-2 rounded-lg text-xs font-bold">
+            <input id="t_torre" placeholder="TORRE" class="border-2 p-2 rounded-lg text-xs font-bold uppercase">
+
+            <!-- BLOCO 3: PRODUTOS -->
+            <div class="col-span-1 md:col-span-4 border-t mt-4 pt-4">
+                <div id="lista-produtos-tarefa"></div>
+                <button onclick="addProdutoLinha()" class="text-[10px] font-black text-blue-600 mt-2 uppercase hover:underline">+ MÓVEL</button>
+                <div id="total-pedido-tarefa" class="text-right text-indigo-600 font-black text-xs mt-1 uppercase italic">Total: R$ 0,00</div>
+            </div>
+
+            <!-- BLOCO 4: PAGAMENTOS -->
+            <div class="col-span-1 md:col-span-4 border-t mt-4 pt-4">
+                <div id="lista-pagamentos-tarefa"></div>
+                <button onclick="addPagamentoLinha()" class="text-[10px] font-black text-emerald-600 mt-2 uppercase hover:underline">+ PAGAMENTO</button>
+            </div>
+
+            <!-- BLOCO 5: OBSERVAÇÕES (O campo sempre esteve aqui!) -->
+            <textarea id="t_obs" placeholder="OBSERVAÇÕES DO PEDIDO..." class="col-span-1 md:col-span-4 border-2 p-2 rounded-lg text-xs font-bold h-16 uppercase mt-2"></textarea>
+        `;
         addProdutoLinha(); addPagamentoLinha();
     } else { c.innerHTML = `<input id="t_raw" placeholder="DESCRICAO..." class="border-2 p-2 rounded-lg text-xs font-bold col-span-4 uppercase">`; }
 }
-function addProdutoLinha(){ const d = document.getElementById('lista-produtos-tarefa'); const r = document.createElement('div'); r.className = "flex gap-2 mb-1 items-center row-prod bg-slate-50 p-2 rounded border border-dashed"; r.innerHTML = `<input class="t-p-nome border-2 p-2 rounded text-xs font-bold flex-1 uppercase" placeholder="MÓVEL"><input class="t-v-orig border-2 p-2 rounded text-xs font-bold w-32" placeholder="ORIGINAL" oninput="maskMoney(this)"><input class="t-v-desc border-2 p-2 rounded text-xs font-bold w-32 text-indigo-600" placeholder="DESCONTO" oninput="maskMoney(this)"><button onclick="this.parentElement.remove(); calcTotalTirarPedido();" class="text-red-500 font-black px-2">✕</button>`; d.appendChild(r); }
+function addProdutoLinha(){ const d = document.getElementById('lista-produtos-tarefa'); const r = document.createElement('div'); r.className = "flex gap-2 mb-1 items-center row-prod bg-slate-50 p-2 rounded border border-dashed"; r.innerHTML = `<input class="t-p-nome border-2 p-2 rounded text-xs font-bold flex-1 uppercase" placeholder="MÓVEL"><input class="t-v-orig border-2 p-2 rounded text-xs font-bold w-32" placeholder="ORIGINAL" oninput="maskMoney(this)"><input class="t-v-desc border-2 p-2 rounded text-xs font-bold w-32 text-indigo-600" placeholder="DESCONTO" oninput="maskMoney(this)"><button onclick="this.parentElement.remove(); calcTotalTirarPedido();" class="text-red-500 font-black px-2 hover:text-red-700">✕</button>`; d.appendChild(r); }
 function addPagamentoLinha(){
     const d=document.getElementById('lista-pagamentos-tarefa'); let total=0; document.querySelectorAll('.t-v-desc').forEach(i=>total+=parseMoney(i.value)); let pago=0; document.querySelectorAll('.t-p-val').forEach(i=>pago+=parseMoney(i.value)); let saldo=total-pago; if(saldo<0) saldo=0;
     const r=document.createElement('div'); r.className="flex flex-col bg-slate-50 p-2 rounded border mb-3 row-pag";
-    r.innerHTML=`<div class="flex gap-1 mb-2 flex-wrap"><button onclick="setP(this,'PIX')" class="btn-pag-opt active">PIX</button><button onclick="setP(this,'CRÉDITO')" class="btn-pag-opt">CRÉDITO</button><button onclick="setP(this,'DÉBITO')" class="btn-pag-opt">DÉBITO</button><button onclick="setP(this,'CHEQUE')" class="btn-pag-opt">CHEQUE</button><input type="hidden" class="t-p-tipo" value="PIX"><select class="t-p-parc hidden border-2 p-1 rounded text-[10px] font-bold bg-white">${[...Array(12).keys()].map(n => `<option value="${n+1}x">${n+1}x</option>`).join('')}</select></div><div class="flex gap-1"><input class="t-p-val border-2 p-2 rounded-lg text-xs font-bold w-48 text-emerald-600" placeholder="VALOR" oninput="maskMoney(this)" value="R$ ${saldo.toLocaleString('pt-BR',{minimumFractionDigits:2})}"><input class="t-p-obs border-2 p-2 rounded-lg text-xs font-bold flex-1 uppercase" placeholder="OBS/DATA"><button onclick="this.parentElement.parentElement.remove()" class="text-red-500 font-black px-2">✕</button></div>`;
+    r.innerHTML=`<div class="flex gap-1 mb-2 flex-wrap"><button onclick="setP(this,'PIX')" class="btn-pag-opt active">PIX</button><button onclick="setP(this,'CRÉDITO')" class="btn-pag-opt">CRÉDITO</button><button onclick="setP(this,'DÉBITO')" class="btn-pag-opt">DÉBITO</button><button onclick="setP(this,'CHEQUE')" class="btn-pag-opt">CHEQUE</button><input type="hidden" class="t-p-tipo" value="PIX"><select class="t-p-parc hidden border-2 p-1 rounded text-[10px] font-bold bg-white">${[...Array(12).keys()].map(n => `<option value="${n+1}x">${n+1}x</option>`).join('')}</select></div><div class="flex gap-1"><input class="t-p-val border-2 p-2 rounded-lg text-xs font-bold w-48 text-emerald-600" placeholder="VALOR" oninput="maskMoney(this)" value="R$ ${saldo.toLocaleString('pt-BR',{minimumFractionDigits:2})}"><input class="t-p-obs border-2 p-2 rounded-lg text-xs font-bold flex-1 uppercase" placeholder="OBS/DATA"><button onclick="this.parentElement.parentElement.remove()" class="text-red-500 font-black px-2 hover:text-red-700">✕</button></div>`;
     d.appendChild(r);
 }
-function setP(b,v){ 
-    const p = b.parentElement; p.querySelectorAll('button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); p.querySelector('.t-p-tipo').value=v; 
-    const s = p.querySelector('.t-p-parc'); if(v === 'CRÉDITO') s.classList.remove('hidden'); else s.classList.add('hidden');
-}
+function setP(b,v){ const p = b.parentElement; p.querySelectorAll('button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); p.querySelector('.t-p-tipo').value=v; const s = p.querySelector('.t-p-parc'); if(v === 'CRÉDITO') s.classList.remove('hidden'); else s.classList.add('hidden'); }
 function calcTotalTirarPedido(){ let t=0; document.querySelectorAll('.t-v-desc').forEach(i=>t+=parseMoney(i.value)); document.getElementById('total-pedido-tarefa').innerText="Total: R$ "+t.toLocaleString('pt-BR',{minimumFractionDigits:2}); }
 function cadastrarTarefa(){
     const t = document.getElementById('t_tipo').value; let obj = { uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), tipo: t, status: "Não Iniciado" };
-    if(t === 'TIRAR PEDIDO'){ const cli = document.getElementById('t_nome').value; if(!cli) return alert("FALTA NOME!"); let total=0; document.querySelectorAll('.t-v-desc').forEach(i=>total+=parseMoney(i.value)); obj.descricao = "PEDIDO: " + cli.toUpperCase(); obj.detalhes = { cliente: cli.toUpperCase(), cpf: document.getElementById('t_cpf').value, contato: document.getElementById('t_contato').value, cep: document.getElementById('t_cep').value, end: document.getElementById('t_end').value, bairro: document.getElementById('t_bairro').value, cidade: document.getElementById('t_cidade').value, num: document.getElementById('t_num').value, torre: document.getElementById('t_torre').value, obs: document.getElementById('t_obs').value, totalDesc:"R$ "+total.toLocaleString('pt-BR',{minimumFractionDigits:2}), produtos:[], pagamentos:[] }; document.querySelectorAll('.row-prod').forEach(row => { if(row.querySelector('.t-p-nome').value) obj.detalhes.produtos.push({ n: row.querySelector('.t-p-nome').value.toUpperCase(), o: row.querySelector('.t-v-orig').value, d: row.querySelector('.t-v-desc').value }); }); document.querySelectorAll('.row-pag').forEach(row => { const tipo = row.querySelector('.t-p-tipo').value; const parcelas = (tipo === 'CRÉDITO') ? row.querySelector('.t-p-parc').value : ""; obj.detalhes.pagamentos.push({ t: tipo + (parcelas ? " " + parcelas : ""), v: row.querySelector('.t-p-val').value, o: row.querySelector('.t-p-obs').value.toUpperCase() }); }); }
+    if(t === 'TIRAR PEDIDO'){ const cli = document.getElementById('t_nome').value; if(!cli) return alert("FALTA NOME DO CLIENTE!"); let total=0; document.querySelectorAll('.t-v-desc').forEach(i=>total+=parseMoney(i.value)); obj.descricao = "PEDIDO: " + cli.toUpperCase(); obj.detalhes = { cliente: cli.toUpperCase(), cpf: document.getElementById('t_cpf').value, contato: document.getElementById('t_contato').value, cep: document.getElementById('t_cep').value, end: document.getElementById('t_end').value, bairro: document.getElementById('t_bairro').value, cidade: document.getElementById('t_cidade').value, num: document.getElementById('t_num').value, torre: document.getElementById('t_torre').value, obs: document.getElementById('t_obs').value, totalDesc:"R$ "+total.toLocaleString('pt-BR',{minimumFractionDigits:2}), produtos:[], pagamentos:[] }; document.querySelectorAll('.row-prod').forEach(row => { if(row.querySelector('.t-p-nome').value) obj.detalhes.produtos.push({ n: row.querySelector('.t-p-nome').value.toUpperCase(), o: row.querySelector('.t-v-orig').value, d: row.querySelector('.t-v-desc').value }); }); document.querySelectorAll('.row-pag').forEach(row => { const tipo = row.querySelector('.t-p-tipo').value; const parcelas = (tipo === 'CRÉDITO') ? row.querySelector('.t-p-parc').value : ""; obj.detalhes.pagamentos.push({ t: tipo + (parcelas ? " " + parcelas : ""), v: row.querySelector('.t-p-val').value, o: row.querySelector('.t-p-obs').value.toUpperCase() }); }); }
     else { obj.descricao = (document.getElementById('t_raw')?.value || "").toUpperCase(); }
     if(!obj.descricao) return; tarefas.unshift(obj); salvarColecao('tarefas', tarefas); mostrarCamposTarefa(t); renderTarefas();
 }
 function renderTarefas() { const tb=document.getElementById('tabelaTarefas'); if(!tb) return; const f=document.getElementById('filtro-tarefa-status').value; let lista=f==='TODAS'?tarefas:tarefas.filter(x=>x.status===f); tb.innerHTML=lista.map(x=>`<tr onclick="verDetalhesTarefa(${x.uid})" class="hover:bg-slate-50 cursor-pointer border-b transition"><td>${esc(x.data)}</td><td class="font-black text-xs uppercase">${esc(x.descricao)}</td><td class="text-[10px] uppercase">${esc(x.tipo)}</td><td><button onclick="event.stopPropagation(); cycleTarefaStatus(${x.uid})" class="status-badge bg-slate-100">${esc(x.status)}</button></td><td class="text-center"><button onclick="event.stopPropagation(); if(confirm('Excluir?')){tarefas=tarefas.filter(y=>y.uid!=${x.uid});salvarColecao('tarefas', tarefas);}" class="text-red-400 hover:text-red-600 font-black text-lg">✕</button></td></tr>`).join(''); }
 
-// ALTERAÇÃO DO RESUMO DETALHADO (MOSTRAR PREÇO ORIGINAL)
+// ALTERAÇÃO: MOSTRAR OBSERVAÇÕES NO RESUMO DETALHADO
 function verDetalhesTarefa(uid){
     const t=tarefas.find(x=>x.uid==uid); if(!t) return; document.getElementById('modal-detalhes').style.display='flex'; const c=document.getElementById('detalhe-corpo');
     if(!t.detalhes){ c.innerHTML=`<div class="font-black uppercase">${esc(t.descricao)}</div>`; return; }
     const d = t.detalhes; 
     let h = `<div class="grid grid-cols-2 gap-2">${l_i("CLIENTE", d.cliente)}${l_i("CPF", d.cpf)}${l_i("CELULAR", d.contato)}${l_i("CEP", d.cep)}${l_i("ENDEREÇO", d.end)}</div><div class="mt-4 font-black text-xs uppercase border-b text-blue-600">Móveis:</div>`;
-    
-    // Adicionando o preço original (p.o) riscado e o desconto (p.d)
     d.produtos.forEach(p => h += `<div class="text-xs font-bold border-b py-1 flex justify-between items-center"><span>${esc(p.n)} <span class="text-slate-400 line-through text-[10px] ml-1">${esc(p.o)}</span> <span class="text-indigo-600 ml-1">${esc(p.d)}</span></span><button onclick="copyText('${esc(p.n)} - De: ${esc(p.o)} Por: ${esc(p.d)}', this)">📋</button></div>`);
-    
     h += `<div class="mt-4 font-black text-xs uppercase border-b text-emerald-600">Pagamento:</div>`;
     d.pagamentos.forEach(p => h += `<div class="text-xs font-bold border-b py-1 flex justify-between"><span>${esc(p.t)}: ${esc(p.v)} (${esc(p.o)})</span><button onclick="copyText('${esc(p.t)}: ${esc(p.v)}', this)">📋</button></div>`);
+    
+    // Mostrando a Observação no final do Modal
+    if(d.obs && d.obs !== "") {
+        h += `<div class="mt-4 font-black text-xs uppercase border-b text-orange-600">Observações:</div>`;
+        h += `<div class="text-xs font-bold py-2 bg-slate-50 p-2 rounded mt-1">${esc(d.obs)}</div>`;
+    }
+    
     c.innerHTML = h;
 }
-
 function l_i(l, v){ return `<div class="border p-2 rounded text-[10px] font-bold uppercase flex justify-between"><span>${l}: ${esc(v)}</span><button onclick="copyText('${esc(v)}', this)">📋</button></div>`; }
 
 // --- OUTRAS ABAS ---
