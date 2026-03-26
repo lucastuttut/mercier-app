@@ -33,7 +33,7 @@ db.ref('.info/connected').on('value', (snap) => {
 // SINCRONIZAÇÃO DE DADOS
 db.ref('dados').on('value', (s) => {
     const d = s.val() || {};
-    pedidos = d.pedidos || [];
+    pedidos = d.pedidos ||[];
     fornecedores = d.fornecedores ||[];
     estoque = d.estoque || [];
     catalogo = d.catalogo ||[];
@@ -199,8 +199,29 @@ function renderEstoque() {
     if(document.getElementById('resumo-estoque-total')) document.getElementById('resumo-estoque-total').innerText = totEst;
     if(document.getElementById('resumo-estoque-vendidos')) document.getElementById('resumo-estoque-vendidos').innerText = totVen;
     
-    tb.innerHTML = lista.map(x => `<tr><td class="text-[10px] text-slate-400 font-bold">${esc(x.data) || '-'}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'estoque')" class="editable-cell uppercase font-bold">${esc(x.produto)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'fabrica', 'estoque')" class="editable-cell text-blue-600 text-[10px] font-black uppercase">${esc(x.fabrica) || "-"}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'qtd', 'estoque')" class="editable-cell text-center">${esc(x.qtd)}</td><td><span class="px-2 py-1 rounded text-[9px] font-black ${x.situacao === 'VENDIDO' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}">${esc(x.situacao)}</span></td><td class="text-center flex gap-1 justify-center">${x.situacao === 'ESTOQUE' ? `<button onclick="darBaixaEstoque(${x.uid})" title="Dar Baixa">📉</button>` : ''}<button onclick="if(confirm('EXCLUIR?')){estoque=estoque.filter(y=>y.uid!=${x.uid}); salvarColecao('estoque', estoque);}" class="text-red-500 font-black px-2">✕</button></td></tr>`).join('');
+    tb.innerHTML = lista.map(x => `<tr>
+        <td class="text-[10px] text-slate-400 font-bold">${esc(x.data) || '-'}</td>
+        <td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'estoque')" class="editable-cell uppercase font-bold">${esc(x.produto)}</td>
+        <td onclick="activeInlineEdit(this, ${x.uid}, 'fabrica', 'estoque')" class="editable-cell text-blue-600 text-[10px] font-black uppercase">${esc(x.fabrica) || "-"}</td>
+        <td onclick="activeInlineEdit(this, ${x.uid}, 'qtd', 'estoque')" class="editable-cell text-center">${esc(x.qtd)}</td>
+        <td>
+            <button onclick="cycleEstoqueStatus(${x.uid})" class="px-2 py-1 rounded text-[9px] font-black w-full text-center transition ${x.situacao === 'VENDIDO' ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}">${esc(x.situacao)}</button>
+        </td>
+        <td class="text-center flex gap-1 justify-center">
+            ${x.situacao === 'ESTOQUE' ? `<button onclick="darBaixaEstoque(${x.uid})" title="Dar Baixa (Parcial/Total)">📉</button>` : ''}
+            <button onclick="if(confirm('EXCLUIR?')){estoque=estoque.filter(y=>y.uid!=${x.uid}); salvarColecao('estoque', estoque);}" class="text-red-500 font-black px-2">✕</button>
+        </td>
+    </tr>`).join('');
 }
+
+function cycleEstoqueStatus(u){ 
+    const x = estoque.find(y => y.uid == u); 
+    if(x) {
+        x.situacao = x.situacao === 'ESTOQUE' ? 'VENDIDO' : 'ESTOQUE';
+        salvarColecao('estoque', estoque); 
+    }
+}
+
 function darBaixaEstoque(u) {
     const it = estoque.find(x => x.uid == u); if (!it) return;
     let qS = prompt(`SAÍDA DE "${it.produto}". QTD?`, "1");
@@ -210,6 +231,7 @@ function darBaixaEstoque(u) {
     else { it.qtd -= qS; estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: it.produto, fabrica: it.fabrica, qtd: qS, situacao: "VENDIDO" }); }
     salvarColecao('estoque', estoque);
 }
+
 function cadastrarEstoque() {
     const p = document.getElementById('e_produto').value.toUpperCase().trim(), f = document.getElementById('e_fabrica_select').value, q = document.getElementById('e_qtd').value, s = document.getElementById('e_situacao').value;
     if (p) { estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: p, fabrica: f, qtd: parseInt(q), situacao: s }); salvarColecao('estoque', estoque); document.getElementById('e_produto').value = ""; }
