@@ -20,6 +20,9 @@ let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistenci
 // Função de Proteção contra XSS (Impede injeção de código malicioso)
 const esc = str => (str || "").toString().replace(/[&<>'"]/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag] || tag));
 
+// Função para remover acentos durante as pesquisas
+const removeAcentos = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
 // MONITOR DE CONEXÃO FÍSICO
 const statusEl = document.getElementById('status-db');
 db.ref('.info/connected').on('value', (snap) => {
@@ -53,7 +56,7 @@ db.ref('dados').on('value', (s) => {
     renderAll();
 }, (error) => {
     if(statusEl) { statusEl.innerText = "ERRO DE ACESSO"; statusEl.className = "status-offline"; }
-    alert("ERRO: Verifique se as REGRAS do Database estão como TRUE.");
+    console.error("ERRO FIREBASE:", error);
 });
 
 // --- FUNÇÕES DE BANCO DE DADOS SEGURAS ---
@@ -107,8 +110,16 @@ async function buscarCEP(i){ let cep=i.value.replace(/\D/g,""); if(cep.length===
 // --- PEDIDOS ---
 function renderPedidos() {
     const tb=document.getElementById('tabelaPedidos'); if(!tb) return;
-    const b=document.getElementById('busca').value.toLowerCase();
-    let lista=pedidos.filter(x=>(x.cliente||"").toLowerCase().includes(b)||(x.produto||"").toLowerCase().includes(b)||(x.idDoc||"").toLowerCase().includes(b)||(x.fornecedor||"").toLowerCase().includes(b));
+    
+    const b = removeAcentos(document.getElementById('busca').value.toLowerCase());
+    
+    let lista = pedidos.filter(x => 
+        removeAcentos((x.cliente||"").toLowerCase()).includes(b) ||
+        removeAcentos((x.produto||"").toLowerCase()).includes(b) ||
+        removeAcentos((x.idDoc||"").toLowerCase()).includes(b) ||
+        removeAcentos((x.fornecedor||"").toLowerCase()).includes(b)
+    );
+    
     if(filtrandoNaoEnviados) lista=lista.filter(x=>x.status==="Não enviado");
     document.getElementById('contador').innerText=lista.length+" PEDIDOS";
     tb.innerHTML = lista.map(x=>{
@@ -164,18 +175,30 @@ async function cadastrarManual() {
 function autoSalvarNotasEstoque() { notasEstoque = document.getElementById('estoque-notas-gerais').value; db.ref('dados/notasEstoque').set(notasEstoque); }
 function renderEstoque() {
     const tb = document.getElementById('tabelaEstoque'); if(!tb) return;
-    const b = document.getElementById('estoque-busca').value.toLowerCase();
+    
+    const b = removeAcentos(document.getElementById('estoque-busca').value.toLowerCase());
+    
     const fFab = document.getElementById('estoque-filtro-fabrica').value, fSit = document.getElementById('estoque-filtro-situacao') ? document.getElementById('estoque-filtro-situacao').value : "TODAS";
     let totEst = 0, totVen = 0;
+    
     let lista = estoque.filter(x => {
-        const prod = (x.produto||"").toLowerCase(), fab = (x.fabrica||"").toLowerCase(), sit = x.situacao||"ESTOQUE";
+        const prod = removeAcentos((x.produto||"").toLowerCase());
+        const fab = removeAcentos((x.fabrica||"").toLowerCase());
+        const sit = x.situacao||"ESTOQUE";
+        
         if(sit === 'ESTOQUE') totEst += parseInt(x.qtd || 0);
         if(sit === 'VENDIDO') totVen += parseInt(x.qtd || 0);
-        const matBusca = prod.includes(b) || fab.includes(b), matFab = fFab === "TODAS" || x.fabrica === fFab, matSit = fSit === "TODAS" || sit === fSit;
+        
+        const matBusca = prod.includes(b) || fab.includes(b);
+        const matFab = fFab === "TODAS" || x.fabrica === fFab;
+        const matSit = fSit === "TODAS" || sit === fSit;
+        
         return matBusca && matFab && matSit && (!filtrandoVendidos || sit === 'VENDIDO');
     });
+    
     if(document.getElementById('resumo-estoque-total')) document.getElementById('resumo-estoque-total').innerText = totEst;
     if(document.getElementById('resumo-estoque-vendidos')) document.getElementById('resumo-estoque-vendidos').innerText = totVen;
+    
     tb.innerHTML = lista.map(x => `<tr><td class="text-[10px] text-slate-400 font-bold">${esc(x.data) || '-'}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'estoque')" class="editable-cell uppercase font-bold">${esc(x.produto)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'fabrica', 'estoque')" class="editable-cell text-blue-600 text-[10px] font-black uppercase">${esc(x.fabrica) || "-"}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'qtd', 'estoque')" class="editable-cell text-center">${esc(x.qtd)}</td><td><span class="px-2 py-1 rounded text-[9px] font-black ${x.situacao === 'VENDIDO' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}">${esc(x.situacao)}</span></td><td class="text-center flex gap-1 justify-center">${x.situacao === 'ESTOQUE' ? `<button onclick="darBaixaEstoque(${x.uid})" title="Dar Baixa">📉</button>` : ''}<button onclick="if(confirm('EXCLUIR?')){estoque=estoque.filter(y=>y.uid!=${x.uid}); salvarColecao('estoque', estoque);}" class="text-red-500 font-black px-2">✕</button></td></tr>`).join('');
 }
 function darBaixaEstoque(u) {
