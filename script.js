@@ -17,29 +17,25 @@ const db = firebase.database();
 
 let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[], tarefasEquipe=[], proximoID=255, notasMelhoria="", notasEstoque="", cestoItensTemporario=[], filtrandoNaoEnviados=false, filtrandoVendidos=false, cpfValido=true;
 
-// --- SISTEMA DE LOGIN LOCAL ---
-let usuarioAtual = localStorage.getItem('mercier_user') || null;
+// --- SISTEMA DE LOGIN DISCRETO (DROPDOWN NO HEADER) ---
+let usuarioAtual = localStorage.getItem('mercier_user') || "";
 
-function verificarLogin() {
-    const modalLogin = document.getElementById('modal-login');
-    const userDisplay = document.getElementById('user-display');
-    if(!usuarioAtual) {
-        modalLogin.style.display = 'flex';
-    } else {
-        modalLogin.style.display = 'none';
-        userDisplay.innerHTML = `👤 LOGADO COMO: ${usuarioAtual}`;
+window.onload = () => {
+    // Quando carregar, se o usuário já estiver salvo, a caixinha preenche o nome dele
+    const selectEl = document.getElementById('user-select');
+    if(selectEl && usuarioAtual) {
+        selectEl.value = usuarioAtual;
     }
-}
+};
 
 function setUsuario(nome) {
     usuarioAtual = nome;
-    localStorage.setItem('mercier_user', nome);
-    document.getElementById('modal-login').style.display = 'none';
-    document.getElementById('user-display').innerHTML = `👤 LOGADO COMO: ${nome}`;
+    if(nome) {
+        localStorage.setItem('mercier_user', nome);
+    } else {
+        localStorage.removeItem('mercier_user');
+    }
 }
-
-// Inicia verificação de login assim que a página carrega
-window.onload = verificarLogin;
 
 
 // Função de Proteção contra XSS
@@ -79,9 +75,9 @@ db.ref('dados').on('value', (s) => {
     atualizarSugestoes();
     renderAll();
     
-    // Se o modal de comentários estiver aberto, atualiza em tempo real
+    // Atualiza chat aberto
     const modalComent = document.getElementById('modal-comentarios');
-    if(modalComent.style.display === 'flex') {
+    if(modalComent && modalComent.style.display === 'flex') {
         const uidAtivo = document.getElementById('comentario-tarefa-uid').value;
         if(uidAtivo) renderComentarios(uidAtivo);
     }
@@ -232,7 +228,7 @@ function adicionarTarefaEquipe() {
         descricao: desc,
         responsavel: resp,
         coluna: "TODO",
-        comentarios:[] // Novo array para os comentários
+        comentarios:[] // Array para os comentários
     });
     salvarColecao('tarefasEquipe', tarefasEquipe);
     document.getElementById('eq_desc').value = "";
@@ -270,7 +266,6 @@ function renderComentarios(uid) {
     
     lista.innerHTML = t.comentarios.map(c => {
         const corTag = coresEquipe[c.autor] || "bg-slate-200 text-slate-700";
-        // Pega só a classe de texto e fundo da tag
         const estiloAutor = corTag.split(' ').slice(0,2).join(' ');
         
         return `
@@ -283,15 +278,12 @@ function renderComentarios(uid) {
         </div>`;
     }).join('');
     
-    // Rola para o final automático
     lista.scrollTop = lista.scrollHeight;
 }
 
 function adicionarComentario() {
     if(!usuarioAtual) {
-        alert("IDENTIFIQUE-SE PRIMEIRO!\nClique no botão '👤 IDENTIFICAR' no topo da tela.");
-        document.getElementById('modal-comentarios').style.display = 'none';
-        document.getElementById('modal-login').style.display = 'flex';
+        alert("Por favor, selecione quem você é na caixinha do canto superior direito da tela antes de comentar!");
         return;
     }
     
@@ -318,12 +310,10 @@ function adicionarComentario() {
     salvarColecao('tarefasEquipe', tarefasEquipe);
     input.value = "";
     
-    // Atualiza a visualização sem fechar a janela
     renderComentarios(uid);
     renderQuadroEquipe();
 }
 
-// Renderização do Kanban
 function renderQuadroEquipe() {
     const colTodo = document.getElementById('col-todo');
     const colDoing = document.getElementById('col-doing');
@@ -476,4 +466,23 @@ function cadastrarFornecedor(){ const n=document.getElementById('f_nome').value.
 function renderCatalogo() { const tb=document.getElementById('tabelaCatalogo'); if(!tb) return; tb.innerHTML=catalogo.map((c,i)=>`<tr><td class="uppercase">${esc(c.nome)}</td><td class="text-center"><button onclick="catalogo.splice(${i},1); salvarColecao('catalogo', catalogo);">✕</button></td></tr>`).join(''); }
 function cadastrarCatalogo(){ const n=document.getElementById('cat_nome').value.toUpperCase(); if(n){catalogo.push({nome:n}); salvarColecao('catalogo', catalogo); document.getElementById('cat_nome').value="";}}
 function renderAssistencias() { const tb=document.getElementById('tabelaAssistencias'); if(!tb) return; tb.innerHTML=assistencias.map(x=>`<tr><td>${esc(x.data)}</td><td class="uppercase font-bold">${esc(x.cliente)}</td><td class="uppercase">${esc(x.produto)}</td><td class="font-black text-blue-800 uppercase">${esc(x.fabrica)}</td><td><button onclick="cycleAssisStatus(${x.uid})" class="status-badge bg-slate-200">${esc(x.status)}</button></td><td><button onclick="assistencias=assistencias.filter(y=>y.uid!=${x.uid}); salvarColecao('assistencias', assistencias);" class="text-red-500 font-black">✕</button></td></tr>`).join(''); }
-function cadastrarAssistencia(){ const c=document.getElementById('as_cliente').value.toUpperCase(), p=document.getElementById('as_produto').value
+function cadastrarAssistencia(){ const c=document.getElementById('as_cliente').value.toUpperCase(), p=document.getElementById('as_produto').value.toUpperCase(), f=document.getElementById('as_fabrica').value; if(c&&p){ assistencias.unshift({uid:Date.now(), data:new Date().toLocaleDateString('pt-BR'), cliente:c, produto:p, fabrica:f, status:"Aguardando"}); salvarColecao('assistencias', assistencias); document.getElementById('as_cliente').value=""; document.getElementById('as_produto').value=""; } }
+
+// --- GERAIS ---
+function switchTab(t){ window.scrollTo(0,0); document.querySelectorAll('main').forEach(x=>x.classList.add('hidden')); document.getElementById('view-'+t).classList.remove('hidden'); document.querySelectorAll('nav button').forEach(x=>x.classList.remove('tab-active')); document.getElementById('tab-'+t).classList.add('tab-active'); }
+function cycleStatus(u){ const x=pedidos.find(y=>y.uid==u); const s=["Não enviado","Pedido enviado","Aguardando fábrica","Pedido na loja"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('pedidos', pedidos); }
+function cycleTarefaStatus(u){ const x=tarefas.find(y=>y.uid==u); const s=["Não Iniciado","Em Andamento","Feito"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('tarefas', tarefas); }
+function cycleAssisStatus(u){ const x=assistencias.find(y=>y.uid==u); const s=["Aguardando","Peça Solicitada","Concluído"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('assistencias', assistencias); }
+function togglePainelSugestoes(){ const p=document.getElementById('painel-sugestoes'); p.style.display=p.style.display==='flex'?'none':'flex'; }
+function autoSalvarNotas(){ notasMelhoria=document.getElementById('texto-melhorias').value; db.ref('dados/notasMelhoria').set(notasMelhoria); }
+function marcarTodos(v){ document.querySelectorAll('.ped-check').forEach(c=>c.checked=v); }
+function toggleFiltroNaoEnviado(){ filtrandoNaoEnviados=!filtrandoNaoEnviados; document.getElementById('btnFiltroNaoEnviado').classList.toggle('bg-red-600'); document.getElementById('btnFiltroNaoEnviado').classList.toggle('text-white'); renderPedidos(); }
+function updPed(u,c,v){ pedidos.find(x=>x.uid==u)[c]=v; salvarColecao('pedidos', pedidos); }
+function togPed(u,c){ const x=pedidos.find(y=>y.uid==u); if(x) x[c]=!x[c]; salvarColecao('pedidos', pedidos); }
+function excluirPedido(u){ if(confirm("EXCLUIR?")){ pedidos=pedidos.filter(x=>x.uid!=u); salvarColecao('pedidos', pedidos); } }
+function calcP(d, pr){ if(!d)return{dias:0,classe:""}; try { const pA=d.split("/"); const dt=new Date(pA[2], pA[1]-1, pA[0]); let dF=new Date(dt); if(pr.includes("util")){ let c=0; while(c<parseInt(pr)){dF.setDate(dF.getDate()+1); if(dF.getDay()!==0&&dF.getDay()!==6)c++;} } else {dF.setDate(dF.getDate()+parseInt(pr||30));} const df=Math.ceil((dF-new Date())/86400000); let c=df<0?"prazo-vencido":(df<=5?"prazo-urgente":(df<=10?"prazo-alerta":(df<=20?"prazo-atencao":""))); return {dias:df,classe:c}; } catch(e){return {dias:0,classe:""}} }
+function atualizarSelectsFornecedores(){ 
+    const h = fornecedores.map(f => `<option value="${esc(f.nome)}">${esc(f.nome)}</option>`).join(''); 
+    if(document.getElementById('m_fornecedor_select')) document.getElementById('m_fornecedor_select').innerHTML = h || "<option>...</option>"; 
+    if(document.getElementById('as_fabrica')) document.getElementById('as_fabrica').innerHTML = h || "<option>...</option>";
+    if(document.getElementById('e_fabrica_select')) document.getElementById('e_fabri
