@@ -17,15 +17,14 @@
     <header class="glass-header text-white p-5 shadow-xl flex justify-between items-center sticky top-0 z-50">
         <h1 class="text-2xl font-black tracking-tighter uppercase italic hidden sm:block">MERCIER <span class="text-blue-500">DESIGN</span></h1>
         
-        <!-- NOVO: SELEÇÃO DE USUÁRIO DISCRETA NO CANTO -->
         <div class="flex items-center gap-4 ml-auto">
             <select id="user-select" onchange="setUsuario(this.value)" class="bg-slate-800 border border-slate-600 px-3 py-2 rounded-xl text-[10px] font-black text-slate-300 outline-none cursor-pointer uppercase shadow-inner hover:bg-slate-700 transition">
                 <option value="">👤 IDENTIFICAR-SE</option>
-                <option value="LUCAS">🔵 LUCAS</option>
+                <option value="LUCAS">🟢 LUCAS</option>
                 <option value="ANGÉLICA">🟣 ANGÉLICA</option>
-                <option value="GUILHERME">🟢 GUILHERME</option>
-                <option value="CAROL">🟡 CAROL</option>
-                <option value="ISABELLA">🟠 ISABELLA</option>
+                <option value="GUILHERME">🔵 GUILHERME</option>
+                <option value="CAROL">🟠 CAROL</option>
+                <option value="ISABELLA">🟡 ISABELLA</option>
             </select>
             <div id="status-db" class="status-offline hidden md:block">Conectando...</div>
         </div>
@@ -128,11 +127,11 @@
                 <div class="w-48">
                     <label class="text-[9px] font-black text-slate-400 uppercase">Responsável</label>
                     <select id="eq_resp" class="border-2 p-2.5 rounded-lg text-xs font-bold bg-white w-full outline-purple-500 uppercase cursor-pointer">
-                        <option value="LUCAS">🔵 LUCAS</option>
+                        <option value="LUCAS">🟢 LUCAS</option>
                         <option value="ANGÉLICA">🟣 ANGÉLICA</option>
-                        <option value="GUILHERME">🟢 GUILHERME</option>
-                        <option value="CAROL">🟡 CAROL</option>
-                        <option value="ISABELLA">🟠 ISABELLA</option>
+                        <option value="GUILHERME">🔵 GUILHERME</option>
+                        <option value="CAROL">🟠 CAROL</option>
+                        <option value="ISABELLA">🟡 ISABELLA</option>
                     </select>
                 </div>
                 <button onclick="adicionarTarefaEquipe()" class="bg-purple-600 text-white px-8 py-3 rounded-lg font-black text-xs uppercase shadow hover:bg-purple-700 transition">＋ Adicionar</button>
