@@ -15,8 +15,13 @@
 <body class="bg-slate-100">
 
     <header class="glass-header text-white p-5 shadow-xl flex justify-between items-center sticky top-0 z-50">
-        <h1 class="text-2xl font-black tracking-tighter uppercase italic">MERCIER <span class="text-blue-500">DESIGN</span></h1>
-        <div id="status-db" class="status-offline">Conectando...</div>
+        <h1 class="text-2xl font-black tracking-tighter uppercase italic hidden sm:block">MERCIER <span class="text-blue-500">DESIGN</span></h1>
+        
+        <!-- NOVO: MOSTRADOR DE USUÁRIO -->
+        <div class="flex items-center gap-4 ml-auto">
+            <button onclick="document.getElementById('modal-login').style.display='flex'" id="user-display" class="bg-slate-800 border border-slate-600 px-4 py-2 rounded-xl text-[10px] font-black text-slate-300 hover:text-white hover:bg-slate-700 transition uppercase shadow-inner">👤 IDENTIFICAR</button>
+            <div id="status-db" class="status-offline hidden md:block">Conectando...</div>
+        </div>
     </header>
 
     <nav class="bg-slate-900 text-slate-400 px-8 flex gap-8 shadow-md overflow-x-auto sticky top-[72px] z-40">
@@ -105,7 +110,7 @@
         </div>
     </main>
 
-    <!-- NOVA ABA EQUIPE (KANBAN) -->
+    <!-- ABA EQUIPE (KANBAN) -->
     <main id="view-equipe" class="hidden p-4 md:p-6 max-w-[1950px] mx-auto">
         <div class="card-premium p-6 border-l-8 border-purple-600 mb-6 shadow-lg bg-white">
             <div class="flex flex-wrap gap-3 items-end">
@@ -128,30 +133,16 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- A FAZER -->
             <div class="bg-slate-200/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-slate-200 shadow-inner">
-                <h3 class="font-black text-sm uppercase text-slate-600 mb-4 flex justify-between items-center">
-                    <span>🟥 A Fazer</span>
-                    <span id="count-todo" class="bg-slate-300 text-slate-700 py-1 px-3 rounded-full text-[10px]">0</span>
-                </h3>
+                <h3 class="font-black text-sm uppercase text-slate-600 mb-4 flex justify-between items-center"><span>🟥 A Fazer</span><span id="count-todo" class="bg-slate-300 text-slate-700 py-1 px-3 rounded-full text-[10px]">0</span></h3>
                 <div id="col-todo" class="flex flex-col gap-3 flex-1"></div>
             </div>
-
-            <!-- EM ANDAMENTO -->
             <div class="bg-blue-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-blue-200 shadow-inner">
-                <h3 class="font-black text-sm uppercase text-blue-600 mb-4 flex justify-between items-center">
-                    <span>🟨 Em Andamento</span>
-                    <span id="count-doing" class="bg-blue-200 text-blue-700 py-1 px-3 rounded-full text-[10px]">0</span>
-                </h3>
+                <h3 class="font-black text-sm uppercase text-blue-600 mb-4 flex justify-between items-center"><span>🟨 Em Andamento</span><span id="count-doing" class="bg-blue-200 text-blue-700 py-1 px-3 rounded-full text-[10px]">0</span></h3>
                 <div id="col-doing" class="flex flex-col gap-3 flex-1"></div>
             </div>
-
-            <!-- CONCLUÍDO -->
             <div class="bg-green-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-green-200 shadow-inner">
-                <h3 class="font-black text-sm uppercase text-green-600 mb-4 flex justify-between items-center">
-                    <span>🟩 Concluído</span>
-                    <span id="count-done" class="bg-green-200 text-green-700 py-1 px-3 rounded-full text-[10px]">0</span>
-                </h3>
+                <h3 class="font-black text-sm uppercase text-green-600 mb-4 flex justify-between items-center"><span>🟩 Concluído</span><span id="count-done" class="bg-green-200 text-green-700 py-1 px-3 rounded-full text-[10px]">0</span></h3>
                 <div id="col-done" class="flex flex-col gap-3 flex-1"></div>
             </div>
         </div>
@@ -209,9 +200,41 @@
         <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50 text-[10px] uppercase"><th>Fábrica</th><th>E-mail</th><th class="text-center" width="100">Remover</th></tr></thead><tbody id="tabelaFornecedores"></tbody></table></div>
     </main>
 
-    <!-- MODAIS E BLOCO DE NOTAS -->
+    <!-- MODAL DETALHES PEDIDO -->
     <div id="modal-detalhes" class="modal-overlay" onclick="if(event.target==this) this.style.display='none'"><div class="card-premium w-full max-w-2xl bg-white overflow-hidden flex flex-col max-h-[90vh] shadow-2xl"><div class="bg-indigo-600 p-5 text-white font-black flex justify-between items-center uppercase text-sm tracking-widest"><span>📄 Resumo Detalhado</span><button onclick="document.getElementById('modal-detalhes').style.display='none'" class="text-xl">✕</button></div><div id="detalhe-corpo" class="p-8 overflow-y-auto space-y-4 bg-white text-slate-800"></div></div></div>
     
+    <!-- NOVO: MODAL LOGIN (IDENTIFICAÇÃO) -->
+    <div id="modal-login" class="modal-overlay z-[9999] flex" style="background: rgba(15, 23, 42, 0.95);">
+        <div class="bg-white p-8 rounded-2xl w-full max-w-md text-center shadow-2xl">
+            <h2 class="text-2xl font-black uppercase text-slate-800 mb-2">Quem está usando?</h2>
+            <p class="text-xs font-bold text-slate-500 mb-6">Identifique-se para registrar suas ações e comentários.</p>
+            <div class="flex flex-col gap-3">
+                <button onclick="setUsuario('LUCAS')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-black py-4 rounded-xl transition uppercase shadow-sm">🔵 LUCAS</button>
+                <button onclick="setUsuario('ANGÉLICA')" class="bg-purple-100 hover:bg-purple-200 text-purple-700 font-black py-4 rounded-xl transition uppercase shadow-sm">🟣 ANGÉLICA</button>
+                <button onclick="setUsuario('GUILHERME')" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-black py-4 rounded-xl transition uppercase shadow-sm">🟢 GUILHERME</button>
+                <button onclick="setUsuario('CAROL')" class="bg-amber-100 hover:bg-amber-200 text-amber-700 font-black py-4 rounded-xl transition uppercase shadow-sm">🟡 CAROL</button>
+                <button onclick="setUsuario('ISABELLA')" class="bg-orange-100 hover:bg-orange-200 text-orange-700 font-black py-4 rounded-xl transition uppercase shadow-sm">🟠 ISABELLA</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOVO: MODAL COMENTÁRIOS DA TAREFA -->
+    <div id="modal-comentarios" class="modal-overlay z-[9000]" onclick="if(event.target==this) this.style.display='none'">
+        <div class="bg-white rounded-2xl w-full max-w-md flex flex-col max-h-[85vh] overflow-hidden shadow-2xl">
+            <div class="bg-slate-800 p-4 text-white font-black flex justify-between items-center uppercase text-sm">
+                <span>💬 Histórico da Tarefa</span>
+                <button onclick="document.getElementById('modal-comentarios').style.display='none'" class="text-xl">✕</button>
+            </div>
+            <div id="lista-comentarios" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 bg-slate-100 min-h-[300px]"></div>
+            <div class="p-4 bg-white border-t flex flex-col gap-2">
+                <textarea id="input-comentario" placeholder="Escreva seu comentário..." class="w-full border-2 p-3 rounded-lg text-xs font-bold outline-blue-500 uppercase resize-none h-16"></textarea>
+                <button onclick="adicionarComentario()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-black text-xs uppercase shadow transition w-full">➤ Enviar Comentário</button>
+            </div>
+            <input type="hidden" id="comentario-tarefa-uid">
+        </div>
+    </div>
+
+    <!-- BLOCO DE NOTAS -->
     <div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()">💡</div>
     <div id="painel-sugestoes"><div id="drag-handle" class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase cursor-move"><span>💡 Bloco de Notas</span><button onclick="togglePainelSugestoes()">✕</button></div><textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" oninput="autoSalvarNotas()"></textarea></div>
 
