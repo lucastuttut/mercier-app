@@ -21,6 +21,7 @@ try { usuarioAtual = localStorage.getItem('mercier_user') || ""; } catch(e) {}
 window.onload = () => {
     const selectEl = document.getElementById('user-select');
     if(selectEl && usuarioAtual) selectEl.value = usuarioAtual;
+    renderFiltrosEquipe();
 };
 
 function setUsuario(nome) {
@@ -35,7 +36,7 @@ function setUsuario(nome) {
 const esc = str => (str || "").toString().replace(/[&<>'"]/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag] || tag));
 const removeAcentos = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-// FUNÇÃO ARMADURA: Evita o crash se o Firebase transformar uma Lista em Objeto
+// FUNÇÃO ARMADURA
 const safeArray = (data) => Array.isArray(data) ? data : Object.values(data || {});
 
 const statusEl = document.getElementById('status-db');
@@ -48,7 +49,6 @@ db.ref('.info/connected').on('value', (snap) => {
 db.ref('dados').on('value', (s) => {
     const d = s.val() || {};
     
-    // A armadura safeArray entra aqui para blindar o sistema de travamentos!
     pedidos = safeArray(d.pedidos);
     fornecedores = safeArray(d.fornecedores);
     estoque = safeArray(d.estoque);
@@ -61,23 +61,13 @@ db.ref('dados').on('value', (s) => {
     notasMelhoria = d.notasMelhoria || "";
     notasEstoque = d.notasEstoque || "";
 
-    if(statusEl) {
-        statusEl.innerText = "ONLINE";
-        statusEl.className = "status-online";
-    }
-
+    if(statusEl) { statusEl.innerText = "ONLINE"; statusEl.className = "status-online"; }
     if(document.getElementById('texto-melhorias')) document.getElementById('texto-melhorias').value = notasMelhoria;
     if(document.getElementById('estoque-notas-gerais')) document.getElementById('estoque-notas-gerais').value = notasEstoque;
 
     atualizarSelectsFornecedores();
     atualizarSugestoes();
     renderAll();
-    
-    const modalComent = document.getElementById('modal-comentarios');
-    if(modalComent && modalComent.style.display === 'flex') {
-        const uidAtivo = document.getElementById('comentario-tarefa-uid').value;
-        if(uidAtivo) renderComentarios(uidAtivo);
-    }
 }, (error) => {
     if(statusEl) { statusEl.innerText = "ERRO DE ACESSO"; statusEl.className = "status-offline"; }
 });
@@ -95,6 +85,7 @@ function renderAll(){
     renderEstoque(); renderCatalogo(); renderAssistencias(); renderQuadroEquipe();
 }
 
+// --- FUNÇÕES PADRÕES DO SISTEMA (EDIÇÃO, DINHEIRO, MASCARAS) ---
 function activeInlineEdit(element, uid, field, listType) {
     const originalValue = element.innerText;
     const input = document.createElement('input');
@@ -107,16 +98,10 @@ function activeInlineEdit(element, uid, field, listType) {
         if (newValue === "") newValue = "-";
         const list = listType === 'estoque' ? estoque : pedidos;
         const item = list.find(x => x.uid == uid);
-        if (item) {
-            if(field === 'qtd') item[field] = parseInt(newValue) || 1;
-            else item[field] = newValue;
-            salvarColecao(listType, list);
-        } else { element.innerText = originalValue; }
+        if (item) { if(field === 'qtd') item[field] = parseInt(newValue) || 1; else item[field] = newValue; salvarColecao(listType, list); } else { element.innerText = originalValue; }
     };
-    input.onblur = save;
-    input.onkeydown = (e) => { if(e.key === 'Enter') save(); if(e.key === 'Escape') { input.onblur = null; element.innerText = originalValue; } };
+    input.onblur = save; input.onkeydown = (e) => { if(e.key === 'Enter') save(); if(e.key === 'Escape') { input.onblur = null; element.innerText = originalValue; } };
 }
-
 function maskMoney(i){ let v=i.value.replace(/\D/g,""); v=(v/100).toFixed(2).replace(".",","); v=v.replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1."); i.value="R$ "+v; if(i.classList.contains('t-v-desc')) calcTotalTirarPedido(); }
 function parseMoney(v){ return parseFloat((v||"").replace("R$ ","").replace(/\./g,"").replace(",",".")) || 0; }
 function maskCPF(i){ let v=i.value.replace(/\D/g,""); if(v.length>11)v=v.slice(0,11); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d{1,2})$/,"$1-$2"); i.value=v; if(v.length===14) verifCPF(i); }
@@ -125,12 +110,11 @@ function validarCPF(c){ c=c.replace(/[^\d]+/g,''); if(c.length!==11||!!c.match(/
 function copyText(v, el){ if(!v || v==="-") return; navigator.clipboard.writeText(v.toUpperCase()); if(el) { el.style.color="#22c55e"; setTimeout(()=>el.style.color="#94a3b8", 1000); } }
 async function buscarCEP(i){ let cep=i.value.replace(/\D/g,""); if(cep.length===8){ document.getElementById('loading-cep').classList.remove('hidden'); try{ let r=await fetch(`https://viacep.com.br/ws/${cep}/json/`); let d=await r.json(); if(!d.erro){ document.getElementById('t_end').value=d.logradouro.toUpperCase(); document.getElementById('t_bairro').value=d.bairro.toUpperCase(); document.getElementById('t_cidade').value=d.localidade.toUpperCase(); document.getElementById('t_num').focus(); } }catch(e){} finally { document.getElementById('loading-cep').classList.add('hidden'); }}}
 
+// --- PEDIDOS ---
 function renderPedidos() {
     const tb=document.getElementById('tabelaPedidos'); if(!tb) return;
     const b = removeAcentos(document.getElementById('busca').value.toLowerCase());
-    let lista = pedidos.filter(x => 
-        removeAcentos((x.cliente||"").toLowerCase()).includes(b) || removeAcentos((x.produto||"").toLowerCase()).includes(b) || removeAcentos((x.idDoc||"").toLowerCase()).includes(b) || removeAcentos((x.fornecedor||"").toLowerCase()).includes(b)
-    );
+    let lista = pedidos.filter(x => removeAcentos((x.cliente||"").toLowerCase()).includes(b) || removeAcentos((x.produto||"").toLowerCase()).includes(b) || removeAcentos((x.idDoc||"").toLowerCase()).includes(b) || removeAcentos((x.fornecedor||"").toLowerCase()).includes(b));
     if(filtrandoNaoEnviados) lista=lista.filter(x=>x.status==="Não enviado");
     document.getElementById('contador').innerText=lista.length+" PEDIDOS";
     tb.innerHTML = lista.map(x=>{
@@ -150,32 +134,15 @@ function renderPedidos() {
             <td><button onclick="cycleStatus(${x.uid})" class="status-badge ${sCls} text-white">${esc(x.status)}</button></td>
             <td><button onclick="togPed(${x.uid},'whatsEnviado')" class="status-badge ${x.whatsEnviado?'btn-sim':'btn-nao'}">${x.whatsEnviado?'SIM':'NÃO'}</button></td>
             <td><button onclick="togPed(${x.uid},'confirmado')" class="status-badge ${x.confirmado?'btn-sim':'btn-nao'}">${x.confirmado?'SIM':'NÃO'}</button></td>
-            <td class="text-center flex gap-1 justify-center">
-                <button onclick="copyText('${x.qtd}x ${esc(x.produto)} ${esc(x.cor)} (${esc(x.idDoc)})', this)">📋</button>
-                <button onclick="dupPed(${x.uid})">➕</button>
-                <button onclick="gerarAssistenciaRapida(${x.uid})">🛠️</button>
-                <button onclick="excluirPedido(${x.uid})" class="text-red-500 font-black">✕</button>
-            </td></tr>`;
+            <td class="text-center flex gap-1 justify-center"><button onclick="copyText('${x.qtd}x ${esc(x.produto)} ${esc(x.cor)} (${esc(x.idDoc)})', this)">📋</button><button onclick="dupPed(${x.uid})">➕</button><button onclick="gerarAssistenciaRapida(${x.uid})">🛠️</button><button onclick="excluirPedido(${x.uid})" class="text-red-500 font-black">✕</button></td>
+        </tr>`;
     }).join('');
 }
-
-function adicionarItemAoCesto() {
-    const p = document.getElementById('m_produto').value.trim().toUpperCase();
-    if(!p) return alert("INFORME O PRODUTO!");
-    cestoItensTemporario.push({ uid: Date.now(), q: document.getElementById('m_qtd').value || 1, p, m: document.getElementById('m_medida').value || "-", c: document.getElementById('m_cor').value.toUpperCase() || "-", v: document.getElementById('m_custo').value || "R$ 0,00" });
-    renderCesto(); document.getElementById('m_produto').value = "";
-}
-
+function adicionarItemAoCesto() { const p = document.getElementById('m_produto').value.trim().toUpperCase(); if(!p) return alert("INFORME O PRODUTO!"); cestoItensTemporario.push({ uid: Date.now(), q: document.getElementById('m_qtd').value || 1, p, m: document.getElementById('m_medida').value || "-", c: document.getElementById('m_cor').value.toUpperCase() || "-", v: document.getElementById('m_custo').value || "R$ 0,00" }); renderCesto(); document.getElementById('m_produto').value = ""; }
 function renderCesto() { document.getElementById('cesto-itens').innerHTML = cestoItensTemporario.map((item, idx) => `<div class="item-cesto"><span>${item.q}x</span><span>${esc(item.p)}</span><button onclick="cestoItensTemporario.splice(${idx},1); renderCesto();" class="text-red-500 font-bold ml-2">✕</button></div>`).join(''); }
+async function cadastrarManual() { const cli = document.getElementById('m_cliente').value.trim().toUpperCase(); const forn = document.getElementById('m_fornecedor_select').value; if(!cli || cestoItensTemporario.length === 0) return alert("FALTA DADOS!"); const nId = await getProximoID(); const idDoc = "ID#" + nId.toString().padStart(4, '0'); cestoItensTemporario.forEach(i => { pedidos.unshift({ uid: Date.now()+Math.random(), idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false }); }); cestoItensTemporario =[]; document.getElementById('m_cliente').value = ""; renderCesto(); salvarColecao('pedidos', pedidos); }
 
-async function cadastrarManual() {
-    const cli = document.getElementById('m_cliente').value.trim().toUpperCase(); const forn = document.getElementById('m_fornecedor_select').value;
-    if(!cli || cestoItensTemporario.length === 0) return alert("FALTA DADOS!");
-    const nId = await getProximoID(); const idDoc = "ID#" + nId.toString().padStart(4, '0');
-    cestoItensTemporario.forEach(i => { pedidos.unshift({ uid: Date.now()+Math.random(), idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false }); });
-    cestoItensTemporario =[]; document.getElementById('m_cliente').value = ""; renderCesto(); salvarColecao('pedidos', pedidos);
-}
-
+// --- ESTOQUE ---
 function autoSalvarNotasEstoque() { notasEstoque = document.getElementById('estoque-notas-gerais').value; db.ref('dados/notasEstoque').set(notasEstoque); }
 function renderEstoque() {
     const tb = document.getElementById('tabelaEstoque'); if(!tb) return;
@@ -197,21 +164,61 @@ function darBaixaEstoque(u) { const it = estoque.find(x => x.uid == u); if (!it)
 function cadastrarEstoque() { const p = document.getElementById('e_produto').value.toUpperCase().trim(), f = document.getElementById('e_fabrica_select').value, q = document.getElementById('e_qtd').value, s = document.getElementById('e_situacao').value; if (p) { estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: p, fabrica: f, qtd: parseInt(q), situacao: s }); salvarColecao('estoque', estoque); document.getElementById('e_produto').value = ""; } }
 function toggleFiltroVendidos(){ filtrandoVendidos=!filtrandoVendidos; document.getElementById('btnFiltroVendidos').classList.toggle('bg-red-600'); document.getElementById('btnFiltroVendidos').classList.toggle('text-white'); renderEstoque(); }
 
-
-// --- ABA EQUIPE KANBAN E COMENTÁRIOS (CORES ATUALIZADAS) ---
+// --- ABA EQUIPE KANBAN E COMENTÁRIOS ---
 const coresEquipe = {
-    "LUCAS": "bg-emerald-100 text-emerald-700 border-emerald-300",
-    "GUILHERME": "bg-blue-100 text-blue-700 border-blue-300",
-    "CAROL": "bg-orange-100 text-orange-700 border-orange-300",
-    "ISABELLA": "bg-amber-100 text-amber-700 border-amber-300",
-    "ANGÉLICA": "bg-purple-100 text-purple-700 border-purple-300"
+    "LUCAS": "bg-emerald-100 text-emerald-700 border-emerald-400",
+    "GUILHERME": "bg-blue-100 text-blue-700 border-blue-400",
+    "CAROL": "bg-orange-100 text-orange-700 border-orange-400",
+    "ISABELLA": "bg-amber-100 text-amber-700 border-amber-400",
+    "ANGÉLICA": "bg-purple-100 text-purple-700 border-purple-400"
 };
+
+// NOVO: Lógica de Filtros Múltiplos
+let filtrosEquipeAtivos =[];
+
+function toggleFiltroEquipe(nome) {
+    if(nome === 'TODOS') {
+        filtrosEquipeAtivos =[];
+    } else {
+        if(filtrosEquipeAtivos.includes(nome)) {
+            filtrosEquipeAtivos = filtrosEquipeAtivos.filter(x => x !== nome); // Remove se já tem
+        } else {
+            filtrosEquipeAtivos.push(nome); // Adiciona
+        }
+    }
+    renderFiltrosEquipe();
+    renderQuadroEquipe();
+}
+
+function renderFiltrosEquipe() {
+    const div = document.getElementById('filtros-equipe');
+    if(!div) return;
+    
+    // Botão de "Todos" (Fica ativo se o array de filtros estiver vazio)
+    let html = `<button onclick="toggleFiltroEquipe('TODOS')" class="px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition border-2 ${filtrosEquipeAtivos.length === 0 ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'}">🌟 TODOS</button>`;
+    
+    // Gera botões para cada membro
+    Object.keys(coresEquipe).forEach(nome => {
+        const corBase = coresEquipe[nome].split(' ')[0]; // Pega a classe bg-cor-100
+        const corAtiva = coresEquipe[nome].split(' ')[1]; // Pega text-cor-700
+        const isAtivo = filtrosEquipeAtivos.includes(nome);
+        
+        // Se estiver ativo, fica pintado. Se não, fica branquinho com borda da cor
+        const style = isAtivo 
+            ? `${coresEquipe[nome]} border-2 border-transparent shadow-sm` 
+            : `bg-white ${corAtiva} border-2 border-slate-200 hover:border-slate-300`;
+            
+        html += `<button onclick="toggleFiltroEquipe('${nome}')" class="px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition ${style}">${nome}</button>`;
+    });
+    
+    div.innerHTML = html;
+}
 
 function adicionarTarefaEquipe() {
     const desc = document.getElementById('eq_desc').value.trim().toUpperCase();
     const resp = document.getElementById('eq_resp').value;
     if(!desc) return alert("DIGITE A DESCRIÇÃO DA TAREFA!");
-    tarefasEquipe.push({
+    tarefasEquipe.unshift({ // unshift para cair no topo
         uid: Date.now(),
         data: new Date().toLocaleDateString('pt-BR'),
         descricao: desc,
@@ -238,60 +245,19 @@ function excluirTarefaEquipe(uid) {
     }
 }
 
-function abrirComentarios(uid) {
-    document.getElementById('comentario-tarefa-uid').value = uid;
-    document.getElementById('modal-comentarios').style.display = 'flex';
-    renderComentarios(uid);
-}
-
-function renderComentarios(uid) {
-    const t = tarefasEquipe.find(x => x.uid == uid);
-    const lista = document.getElementById('lista-comentarios');
+// NOVA FUNÇÃO: Adicionar comentário direto do cartão (Inline)
+function adicionarComentarioInline(uid, inputElement) {
+    if(!usuarioAtual) return alert("Por favor, selecione quem você é no topo da tela antes de comentar!");
     
-    // A armadura safeArray também ajuda aqui!
-    const comentariosArray = t && t.comentarios ? safeArray(t.comentarios) :[];
-    
-    if(comentariosArray.length === 0) {
-        lista.innerHTML = '<span class="text-slate-400 text-[10px] font-bold text-center uppercase block mt-10 border-2 border-dashed p-4 rounded-xl">Nenhum comentário ainda.<br>Escreva o primeiro abaixo!</span>';
-        return;
-    }
-    
-    lista.innerHTML = comentariosArray.map(c => {
-        const corTag = coresEquipe[c.autor] || "bg-slate-200 text-slate-700";
-        const estiloAutor = corTag.split(' ').slice(0,2).join(' ');
-        
-        return `
-        <div class="bg-white p-3 rounded-xl border shadow-sm flex flex-col">
-            <div class="flex justify-between items-center mb-2">
-                <span class="${estiloAutor} px-2 py-0.5 rounded text-[9px] font-black uppercase">${esc(c.autor)}</span>
-                <span class="text-[9px] font-bold text-slate-400">${esc(c.dataHora)}</span>
-            </div>
-            <span class="text-[11px] font-bold text-slate-800 uppercase">${esc(c.texto)}</span>
-        </div>`;
-    }).join('');
-    
-    lista.scrollTop = lista.scrollHeight;
-}
-
-function adicionarComentario() {
-    if(!usuarioAtual) {
-        alert("Por favor, selecione quem você é na caixinha do canto superior direito da tela antes de comentar!");
-        return;
-    }
-    
-    const input = document.getElementById('input-comentario');
-    const txt = input.value.trim().toUpperCase();
+    const txt = inputElement.value.trim().toUpperCase();
     if(!txt) return;
 
-    const uid = document.getElementById('comentario-tarefa-uid').value;
     const t = tarefasEquipe.find(x => x.uid == uid);
     if(!t) return;
 
-    // Garante que é array
     t.comentarios = safeArray(t.comentarios);
-
     const agora = new Date();
-    const strData = agora.toLocaleDateString('pt-BR') + ' às ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+    const strData = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
 
     t.comentarios.push({
         id: Date.now(),
@@ -301,12 +267,16 @@ function adicionarComentario() {
     });
 
     salvarColecao('tarefasEquipe', tarefasEquipe);
-    input.value = "";
+    inputElement.value = ""; 
     
-    renderComentarios(uid);
-    renderQuadroEquipe();
+    // Dica de UI: a gente precisa fazer um pequeno truque para rolar o chat novo pro final após renderizar
+    setTimeout(() => {
+        const chatBox = document.getElementById(`chat-${uid}`);
+        if(chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+    }, 100);
 }
 
+// NOVO: Render do Quadro com Comentários Abertos
 function renderQuadroEquipe() {
     const colTodo = document.getElementById('col-todo');
     const colDoing = document.getElementById('col-doing');
@@ -317,37 +287,55 @@ function renderQuadroEquipe() {
     let htmlTodo = "", htmlDoing = "", htmlDone = "";
 
     tarefasEquipe.forEach(t => {
+        // Se houver filtro ativo e o responsável não estiver nele, esconde.
+        if(filtrosEquipeAtivos.length > 0 && !filtrosEquipeAtivos.includes(t.responsavel)) return;
+
         const cor = coresEquipe[t.responsavel] || "bg-slate-100 text-slate-700 border-slate-300";
-        const corBorda = cor.split(' ')[2]; 
-        const qtdComent = t.comentarios ? safeArray(t.comentarios).length : 0;
+        const corBorda = cor.split(' ')[2]; // a classe de borda
         
+        // Gerando o HTML interno dos comentários
+        const arrComent = safeArray(t.comentarios);
+        let comentariosHtml = "";
+        
+        if (arrComent.length > 0) {
+            comentariosHtml = arrComent.map(c => {
+                // Para os comentários ficarem bem sutis no cartão
+                const cCor = coresEquipe[c.autor] ? coresEquipe[c.autor].split(' ')[1] : "text-slate-600"; // Só a cor do texto
+                return `
+                <div class="mb-1 leading-tight">
+                    <span class="${cCor} font-black text-[9px] uppercase tracking-tighter">${esc(c.autor)}:</span> 
+                    <span class="text-[10px] font-bold text-slate-700">${esc(c.texto)}</span>
+                </div>`;
+            }).join('');
+        }
+
         const card = `
-            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 ${corBorda} flex flex-col gap-2 transition hover:shadow-md">
-                <div class="flex justify-between items-start gap-2">
-                    <span class="text-[11px] font-black uppercase text-slate-700 leading-tight">${esc(t.descricao)}</span>
-                    <button onclick="excluirTarefaEquipe(${t.uid})" class="text-slate-300 hover:text-red-500 text-sm font-black transition">✕</button>
-                </div>
+            <div class="bg-white p-3.5 rounded-2xl shadow-sm border-t-4 ${corBorda} flex flex-col gap-2 transition hover:shadow-md">
                 
-                <div class="flex justify-between items-end mt-2">
-                    <div class="flex flex-col gap-1">
-                        <span class="${cor} px-2 py-1 rounded text-[9px] font-black uppercase w-fit tracking-wider">${esc(t.responsavel)}</span>
-                        <div class="flex items-center gap-2 mt-1">
-                            <span class="text-[9px] font-black text-slate-400">${t.data}</span>
-                            <button onclick="abrirComentarios(${t.uid})" class="bg-slate-100 hover:bg-slate-200 text-slate-500 px-2 py-0.5 rounded text-[9px] font-black transition flex items-center gap-1">
-                                💬 ${qtdComent}
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="flex gap-1.5">
-                        ${t.coluna === 'TODO' ? `<button onclick="moverTarefaEquipe(${t.uid}, 'DOING')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 p-2 rounded-lg text-[10px] font-black transition" title="Mover para Em Andamento">➡️</button>` : ''}
-                        ${t.coluna === 'DOING' ? `
-                            <button onclick="moverTarefaEquipe(${t.uid}, 'TODO')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 p-2 rounded-lg text-[10px] font-black transition" title="Voltar para A Fazer">⬅️</button>
-                            <button onclick="moverTarefaEquipe(${t.uid}, 'DONE')" class="bg-green-100 hover:bg-green-200 text-green-700 p-2 rounded-lg text-[10px] font-black transition" title="Concluir">✅</button>
-                        ` : ''}
-                        ${t.coluna === 'DONE' ? `<button onclick="moverTarefaEquipe(${t.uid}, 'DOING')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 p-2 rounded-lg text-[10px] font-black transition" title="Voltar para Em Andamento">⬅️</button>` : ''}
+                <!-- TOPO: Nome e Botões -->
+                <div class="flex justify-between items-start">
+                    <span class="${cor} px-2 py-0.5 rounded text-[8px] font-black uppercase w-fit tracking-wider">${esc(t.responsavel)}</span>
+                    <div class="flex gap-1">
+                        ${t.coluna === 'TODO' ? `<button onclick="moverTarefaEquipe(${t.uid}, 'DOING')" class="text-slate-300 hover:text-blue-500 font-black text-xs" title="Mover">➡️</button>` : ''}
+                        ${t.coluna === 'DOING' ? `<button onclick="moverTarefaEquipe(${t.uid}, 'TODO')" class="text-slate-300 hover:text-slate-500 font-black text-xs" title="Voltar">⬅️</button> <button onclick="moverTarefaEquipe(${t.uid}, 'DONE')" class="text-slate-300 hover:text-green-500 font-black text-xs ml-1" title="Concluir">✅</button>` : ''}
+                        ${t.coluna === 'DONE' ? `<button onclick="moverTarefaEquipe(${t.uid}, 'DOING')" class="text-slate-300 hover:text-slate-500 font-black text-xs" title="Voltar">⬅️</button>` : ''}
+                        <button onclick="excluirTarefaEquipe(${t.uid})" class="text-slate-200 hover:text-red-500 font-black text-xs ml-2" title="Excluir">✕</button>
                     </div>
                 </div>
+
+                <!-- MEIO: Descrição da Tarefa -->
+                <span class="text-[11px] font-black uppercase text-slate-800 leading-snug mt-1">${esc(t.descricao)}</span>
+                <span class="text-[8px] font-black text-slate-300 border-b border-slate-100 pb-2">${t.data}</span>
+
+                <!-- FUNDO: Chat e Input -->
+                <div class="mt-1 flex flex-col gap-1.5">
+                    ${arrComent.length > 0 ? `<div id="chat-${t.uid}" class="bg-slate-50 p-2 rounded-lg max-h-24 overflow-y-auto shadow-inner custom-scrollbar">${comentariosHtml}</div>` : ''}
+                    <div class="flex gap-1">
+                        <input type="text" placeholder="Responder..." onkeydown="if(event.key==='Enter') { adicionarComentarioInline(${t.uid}, this); }" class="flex-1 bg-white border border-slate-200 p-1.5 text-[9px] font-bold rounded-lg outline-blue-500 uppercase placeholder:text-slate-300 shadow-sm">
+                        <button onclick="adicionarComentarioInline(${t.uid}, this.previousElementSibling)" class="bg-slate-100 hover:bg-slate-200 text-slate-500 px-2 rounded-lg font-black text-[10px] transition">➤</button>
+                    </div>
+                </div>
+
             </div>
         `;
 
@@ -363,8 +351,16 @@ function renderQuadroEquipe() {
     document.getElementById('count-todo').innerText = cTodo;
     document.getElementById('count-doing').innerText = cDoing;
     document.getElementById('count-done').innerText = cDone;
+    
+    // Tenta rolar todos os chats abertos pro final toda vez que renderiza
+    tarefasEquipe.forEach(t => {
+        const chatBox = document.getElementById(`chat-${t.uid}`);
+        if(chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+    });
 }
 
+
+// --- TAREFAS / TIRAR PEDIDO (CAIXA MÁGICA) ---
 function processarFichaWhatsApp(texto) {
     if(!texto) return;
     const mNome = texto.match(/Nome(?: Completo)?\s*[:\-]?\s*(.+)/i);
@@ -443,14 +439,11 @@ function verDetalhesTarefa(uid){
     const d = t.detalhes; 
     let enderecoCompleto = `${d.end || ''}${d.num ? ', ' + d.num : ''}${d.torre ? ' - ' + d.torre : ''}${d.bairro ? ' - ' + d.bairro : ''}${d.cidade ? ' - ' + d.cidade : ''}`;
     let h = `<div class="grid grid-cols-2 gap-2">${l_i("CLIENTE", d.cliente)}${l_i("CPF", d.cpf)}${l_i("CONTATO 1", d.contato)}${l_i("CONTATO 2", d.contato2 || "-")}${l_i("CEP", d.cep)}${l_i("ENDEREÇO", enderecoCompleto)}</div><div class="mt-4 font-black text-xs uppercase border-b text-blue-600">Móveis:</div>`;
-    
     const prods = safeArray(d.produtos);
     prods.forEach(p => h += `<div class="text-xs font-bold border-b py-1 flex justify-between items-center"><span>${esc(p.n)} <span class="text-slate-400 line-through text-[10px] ml-1">${esc(p.o)}</span> <span class="text-indigo-600 ml-1">${esc(p.d)}</span></span><button onclick="copyText('${esc(p.n)} - De: ${esc(p.o)} Por: ${esc(p.d)}', this)">📋</button></div>`);
-    
     h += `<div class="mt-4 font-black text-xs uppercase border-b text-emerald-600">Pagamento:</div>`;
     const pags = safeArray(d.pagamentos);
     pags.forEach(p => h += `<div class="text-xs font-bold border-b py-1 flex justify-between"><span>${esc(p.t)}: ${esc(p.v)} (${esc(p.o)})</span><button onclick="copyText('${esc(p.t)}: ${esc(p.v)}', this)">📋</button></div>`);
-    
     if(d.obs && d.obs !== "") { h += `<div class="mt-4 font-black text-xs uppercase border-b text-orange-600">Observações:</div><div class="text-xs font-bold py-2 bg-slate-50 p-2 rounded mt-1">${esc(d.obs)}</div>`; }
     c.innerHTML = h;
 }
@@ -522,3 +515,13 @@ document.addEventListener('mousemove', (e) => {
 document.addEventListener('mouseup', () => { isDragging = false; });
 
 mostrarCamposTarefa('SIMPLES');
+
+// DICA VISUAL CSS: Adiciona barra de rolagem customizada para o chat não ficar feio
+const style = document.createElement('style');
+style.innerHTML = `
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+`;
+document.head.appendChild(style);
