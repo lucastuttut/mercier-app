@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mercier Design - Gestão Cloud v105.0</title>
+    <title>Mercier Design - Gestão Cloud</title>
     <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -22,6 +22,7 @@
     <nav class="bg-slate-900 text-slate-400 px-8 flex gap-8 shadow-md overflow-x-auto sticky top-[72px] z-40">
         <button onclick="switchTab('pedidos')" id="tab-pedidos" class="py-4 text-xs font-black uppercase tab-active whitespace-nowrap">📋 Pedidos</button>
         <button onclick="switchTab('tarefas')" id="tab-tarefas" class="py-4 text-xs font-black uppercase whitespace-nowrap">📝 Tarefas / Venda</button>
+        <button onclick="switchTab('equipe')" id="tab-equipe" class="py-4 text-xs font-black uppercase whitespace-nowrap text-purple-400">👥 Equipe</button>
         <button onclick="switchTab('assistencia')" id="tab-assistencia" class="py-4 text-xs font-black uppercase whitespace-nowrap">🛠️ Assistências</button>
         <button onclick="switchTab('estoque')" id="tab-estoque" class="py-4 text-xs font-black uppercase whitespace-nowrap">📦 Estoque</button>
         <button onclick="switchTab('catalogo')" id="tab-catalogo" class="py-4 text-xs font-black uppercase whitespace-nowrap">📜 Catálogo</button>
@@ -79,7 +80,7 @@
         </div>
     </main>
 
-    <!-- ABA TAREFAS -->
+    <!-- ABA TAREFAS / VENDAS -->
     <main id="view-tarefas" class="hidden p-4 md:p-6 max-w-[1950px] mx-auto">
         <div class="card-premium p-6 border-l-8 border-indigo-600 mb-6 shadow-2xl">
             <div class="flex justify-between items-center mb-6">
@@ -101,6 +102,58 @@
                 <thead><tr class="bg-slate-50 text-slate-500 text-[10px] uppercase"><th>Data</th><th>Descrição / Cliente</th><th>Tipo</th><th>Status</th><th class="text-center">Ação</th></tr></thead>
                 <tbody id="tabelaTarefas"></tbody>
             </table>
+        </div>
+    </main>
+
+    <!-- NOVA ABA EQUIPE (KANBAN) -->
+    <main id="view-equipe" class="hidden p-4 md:p-6 max-w-[1950px] mx-auto">
+        <div class="card-premium p-6 border-l-8 border-purple-600 mb-6 shadow-lg bg-white">
+            <div class="flex flex-wrap gap-3 items-end">
+                <div class="flex-1 min-w-[250px]">
+                    <label class="text-[9px] font-black text-slate-400 uppercase">O que precisa ser feito?</label>
+                    <input id="eq_desc" placeholder="DESCREVA A TAREFA RAPIDAMENTE..." class="border-2 p-2.5 rounded-lg text-xs font-bold w-full uppercase outline-purple-500">
+                </div>
+                <div class="w-48">
+                    <label class="text-[9px] font-black text-slate-400 uppercase">Responsável</label>
+                    <select id="eq_resp" class="border-2 p-2.5 rounded-lg text-xs font-bold bg-white w-full outline-purple-500 uppercase cursor-pointer">
+                        <option value="LUCAS">🔵 LUCAS</option>
+                        <option value="ANGÉLICA">🟣 ANGÉLICA</option>
+                        <option value="GUILHERME">🟢 GUILHERME</option>
+                        <option value="CAROL">🟡 CAROL</option>
+                        <option value="ISABELLA">🟠 ISABELLA</option>
+                    </select>
+                </div>
+                <button onclick="adicionarTarefaEquipe()" class="bg-purple-600 text-white px-8 py-3 rounded-lg font-black text-xs uppercase shadow hover:bg-purple-700 transition">＋ Adicionar</button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- A FAZER -->
+            <div class="bg-slate-200/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-slate-200 shadow-inner">
+                <h3 class="font-black text-sm uppercase text-slate-600 mb-4 flex justify-between items-center">
+                    <span>🟥 A Fazer</span>
+                    <span id="count-todo" class="bg-slate-300 text-slate-700 py-1 px-3 rounded-full text-[10px]">0</span>
+                </h3>
+                <div id="col-todo" class="flex flex-col gap-3 flex-1"></div>
+            </div>
+
+            <!-- EM ANDAMENTO -->
+            <div class="bg-blue-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-blue-200 shadow-inner">
+                <h3 class="font-black text-sm uppercase text-blue-600 mb-4 flex justify-between items-center">
+                    <span>🟨 Em Andamento</span>
+                    <span id="count-doing" class="bg-blue-200 text-blue-700 py-1 px-3 rounded-full text-[10px]">0</span>
+                </h3>
+                <div id="col-doing" class="flex flex-col gap-3 flex-1"></div>
+            </div>
+
+            <!-- CONCLUÍDO -->
+            <div class="bg-green-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-green-200 shadow-inner">
+                <h3 class="font-black text-sm uppercase text-green-600 mb-4 flex justify-between items-center">
+                    <span>🟩 Concluído</span>
+                    <span id="count-done" class="bg-green-200 text-green-700 py-1 px-3 rounded-full text-[10px]">0</span>
+                </h3>
+                <div id="col-done" class="flex flex-col gap-3 flex-1"></div>
+            </div>
         </div>
     </main>
 
@@ -156,8 +209,9 @@
         <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50 text-[10px] uppercase"><th>Fábrica</th><th>E-mail</th><th class="text-center" width="100">Remover</th></tr></thead><tbody id="tabelaFornecedores"></tbody></table></div>
     </main>
 
-    <!-- MODAIS -->
+    <!-- MODAIS E BLOCO DE NOTAS -->
     <div id="modal-detalhes" class="modal-overlay" onclick="if(event.target==this) this.style.display='none'"><div class="card-premium w-full max-w-2xl bg-white overflow-hidden flex flex-col max-h-[90vh] shadow-2xl"><div class="bg-indigo-600 p-5 text-white font-black flex justify-between items-center uppercase text-sm tracking-widest"><span>📄 Resumo Detalhado</span><button onclick="document.getElementById('modal-detalhes').style.display='none'" class="text-xl">✕</button></div><div id="detalhe-corpo" class="p-8 overflow-y-auto space-y-4 bg-white text-slate-800"></div></div></div>
+    
     <div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()">💡</div>
     <div id="painel-sugestoes"><div id="drag-handle" class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase cursor-move"><span>💡 Bloco de Notas</span><button onclick="togglePainelSugestoes()">✕</button></div><textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" oninput="autoSalvarNotas()"></textarea></div>
 
