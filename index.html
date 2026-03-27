@@ -118,11 +118,11 @@
 
     <!-- ABA EQUIPE (KANBAN) -->
     <main id="view-equipe" class="hidden p-4 md:p-6 max-w-[1950px] mx-auto">
-        <div class="card-premium p-6 border-l-8 border-purple-600 mb-6 shadow-lg bg-white">
+        <div class="card-premium p-6 border-l-8 border-purple-600 mb-4 shadow-lg bg-white">
             <div class="flex flex-wrap gap-3 items-end">
                 <div class="flex-1 min-w-[250px]">
                     <label class="text-[9px] font-black text-slate-400 uppercase">O que precisa ser feito?</label>
-                    <input id="eq_desc" placeholder="DESCREVA A TAREFA RAPIDAMENTE..." class="border-2 p-2.5 rounded-lg text-xs font-bold w-full uppercase outline-purple-500">
+                    <input id="eq_desc" placeholder="DESCREVA A TAREFA RAPIDAMENTE..." class="border-2 p-2.5 rounded-lg text-xs font-bold w-full uppercase outline-purple-500" onkeydown="if(event.key==='Enter') adicionarTarefaEquipe()">
                 </div>
                 <div class="w-48">
                     <label class="text-[9px] font-black text-slate-400 uppercase">Responsável</label>
@@ -136,20 +136,28 @@
                 </div>
                 <button onclick="adicionarTarefaEquipe()" class="bg-purple-600 text-white px-8 py-3 rounded-lg font-black text-xs uppercase shadow hover:bg-purple-700 transition">＋ Adicionar</button>
             </div>
+            
+            <!-- NOVO: FILTROS DE USUÁRIO -->
+            <div class="mt-5 pt-4 border-t border-slate-100 flex flex-col gap-2">
+                <span class="text-[9px] font-black text-slate-400 uppercase">Filtre por Responsável:</span>
+                <div id="filtros-equipe" class="flex flex-wrap gap-2">
+                    <!-- Botões gerados via JS -->
+                </div>
+            </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
             <div class="bg-slate-200/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-slate-200 shadow-inner">
-                <h3 class="font-black text-sm uppercase text-slate-600 mb-4 flex justify-between items-center"><span>🟥 A Fazer</span><span id="count-todo" class="bg-slate-300 text-slate-700 py-1 px-3 rounded-full text-[10px]">0</span></h3>
-                <div id="col-todo" class="flex flex-col gap-3 flex-1"></div>
+                <h3 class="font-black text-sm uppercase text-slate-600 mb-4 flex justify-between items-center sticky top-0"><span>🟥 A Fazer</span><span id="count-todo" class="bg-slate-300 text-slate-700 py-1 px-3 rounded-full text-[10px]">0</span></h3>
+                <div id="col-todo" class="flex flex-col gap-3 flex-1 pb-4"></div>
             </div>
             <div class="bg-blue-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-blue-200 shadow-inner">
-                <h3 class="font-black text-sm uppercase text-blue-600 mb-4 flex justify-between items-center"><span>🟨 Em Andamento</span><span id="count-doing" class="bg-blue-200 text-blue-700 py-1 px-3 rounded-full text-[10px]">0</span></h3>
-                <div id="col-doing" class="flex flex-col gap-3 flex-1"></div>
+                <h3 class="font-black text-sm uppercase text-blue-600 mb-4 flex justify-between items-center sticky top-0"><span>🟨 Em Andamento</span><span id="count-doing" class="bg-blue-200 text-blue-700 py-1 px-3 rounded-full text-[10px]">0</span></h3>
+                <div id="col-doing" class="flex flex-col gap-3 flex-1 pb-4"></div>
             </div>
             <div class="bg-green-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-green-200 shadow-inner">
-                <h3 class="font-black text-sm uppercase text-green-600 mb-4 flex justify-between items-center"><span>🟩 Concluído</span><span id="count-done" class="bg-green-200 text-green-700 py-1 px-3 rounded-full text-[10px]">0</span></h3>
-                <div id="col-done" class="flex flex-col gap-3 flex-1"></div>
+                <h3 class="font-black text-sm uppercase text-green-600 mb-4 flex justify-between items-center sticky top-0"><span>🟩 Concluído</span><span id="count-done" class="bg-green-200 text-green-700 py-1 px-3 rounded-full text-[10px]">0</span></h3>
+                <div id="col-done" class="flex flex-col gap-3 flex-1 pb-4"></div>
             </div>
         </div>
     </main>
@@ -209,22 +217,6 @@
     <!-- MODAL DETALHES PEDIDO -->
     <div id="modal-detalhes" class="modal-overlay" onclick="if(event.target==this) this.style.display='none'"><div class="card-premium w-full max-w-2xl bg-white overflow-hidden flex flex-col max-h-[90vh] shadow-2xl"><div class="bg-indigo-600 p-5 text-white font-black flex justify-between items-center uppercase text-sm tracking-widest"><span>📄 Resumo Detalhado</span><button onclick="document.getElementById('modal-detalhes').style.display='none'" class="text-xl">✕</button></div><div id="detalhe-corpo" class="p-8 overflow-y-auto space-y-4 bg-white text-slate-800"></div></div></div>
     
-    <!-- MODAL COMENTÁRIOS DA TAREFA -->
-    <div id="modal-comentarios" class="modal-overlay z-[9000]" onclick="if(event.target==this) this.style.display='none'">
-        <div class="bg-white rounded-2xl w-full max-w-md flex flex-col max-h-[85vh] overflow-hidden shadow-2xl">
-            <div class="bg-slate-800 p-4 text-white font-black flex justify-between items-center uppercase text-sm">
-                <span>💬 Histórico da Tarefa</span>
-                <button onclick="document.getElementById('modal-comentarios').style.display='none'" class="text-xl">✕</button>
-            </div>
-            <div id="lista-comentarios" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 bg-slate-100 min-h-[300px]"></div>
-            <div class="p-4 bg-white border-t flex flex-col gap-2">
-                <textarea id="input-comentario" placeholder="Escreva seu comentário..." class="w-full border-2 p-3 rounded-lg text-xs font-bold outline-blue-500 uppercase resize-none h-16"></textarea>
-                <button onclick="adicionarComentario()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-black text-xs uppercase shadow transition w-full">➤ Enviar Comentário</button>
-            </div>
-            <input type="hidden" id="comentario-tarefa-uid">
-        </div>
-    </div>
-
     <!-- BLOCO DE NOTAS -->
     <div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()">💡</div>
     <div id="painel-sugestoes"><div id="drag-handle" class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase cursor-move"><span>💡 Bloco de Notas</span><button onclick="togglePainelSugestoes()">✕</button></div><textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" oninput="autoSalvarNotas()"></textarea></div>
