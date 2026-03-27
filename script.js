@@ -9,56 +9,54 @@ const firebaseConfig = {
     databaseURL: "https://mercier-design-default-rtdb.firebaseio.com/"
 };
 
-// Inicialização segura
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[], tarefasEquipe=[], proximoID=255, notasMelhoria="", notasEstoque="", cestoItensTemporario=[], filtrandoNaoEnviados=false, filtrandoVendidos=false, cpfValido=true;
 
-// --- SISTEMA DE LOGIN DISCRETO (DROPDOWN NO HEADER) ---
-let usuarioAtual = localStorage.getItem('mercier_user') || "";
+// --- SISTEMA DE LOGIN DISCRETO ---
+let usuarioAtual = "";
+try { usuarioAtual = localStorage.getItem('mercier_user') || ""; } catch(e) {}
 
 window.onload = () => {
-    // Quando carregar, se o usuário já estiver salvo, a caixinha preenche o nome dele
     const selectEl = document.getElementById('user-select');
-    if(selectEl && usuarioAtual) {
-        selectEl.value = usuarioAtual;
-    }
+    if(selectEl && usuarioAtual) selectEl.value = usuarioAtual;
 };
 
 function setUsuario(nome) {
     usuarioAtual = nome;
     if(nome) {
-        localStorage.setItem('mercier_user', nome);
+        try { localStorage.setItem('mercier_user', nome); } catch(e) {}
     } else {
-        localStorage.removeItem('mercier_user');
+        try { localStorage.removeItem('mercier_user'); } catch(e) {}
     }
 }
 
-
-// Função de Proteção contra XSS
 const esc = str => (str || "").toString().replace(/[&<>'"]/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag] || tag));
 const removeAcentos = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-// MONITOR DE CONEXÃO FÍSICO
+// FUNÇÃO ARMADURA: Evita o crash se o Firebase transformar uma Lista em Objeto
+const safeArray = (data) => Array.isArray(data) ? data : Object.values(data || {});
+
 const statusEl = document.getElementById('status-db');
 db.ref('.info/connected').on('value', (snap) => {
-    if (snap.val() === true) console.log("Conectado ao Firebase!");
-    else console.log("Tentando conectar...");
+    if (snap.val() === true) console.log("Conectado!");
+    else console.log("Tentando...");
 });
 
 // SINCRONIZAÇÃO DE DADOS
 db.ref('dados').on('value', (s) => {
     const d = s.val() || {};
-    pedidos = d.pedidos ||[];
-    fornecedores = d.fornecedores ||[];
-    estoque = d.estoque ||[];
-    catalogo = d.catalogo ||[];
-    tarefas = d.tarefas ||[];
-    assistencias = d.assistencias ||[];
-    tarefasEquipe = d.tarefasEquipe ||[];
+    
+    // A armadura safeArray entra aqui para blindar o sistema de travamentos!
+    pedidos = safeArray(d.pedidos);
+    fornecedores = safeArray(d.fornecedores);
+    estoque = safeArray(d.estoque);
+    catalogo = safeArray(d.catalogo);
+    tarefas = safeArray(d.tarefas);
+    assistencias = safeArray(d.assistencias);
+    tarefasEquipe = safeArray(d.tarefasEquipe);
+    
     proximoID = d.proximoID || 255;
     notasMelhoria = d.notasMelhoria || "";
     notasEstoque = d.notasEstoque || "";
@@ -75,19 +73,15 @@ db.ref('dados').on('value', (s) => {
     atualizarSugestoes();
     renderAll();
     
-    // Atualiza chat aberto
     const modalComent = document.getElementById('modal-comentarios');
     if(modalComent && modalComent.style.display === 'flex') {
         const uidAtivo = document.getElementById('comentario-tarefa-uid').value;
         if(uidAtivo) renderComentarios(uidAtivo);
     }
-
 }, (error) => {
     if(statusEl) { statusEl.innerText = "ERRO DE ACESSO"; statusEl.className = "status-offline"; }
-    console.error("ERRO FIREBASE:", error);
 });
 
-// --- FUNÇÕES DE BANCO DE DADOS SEGURAS ---
 function salvarColecao(colecao, dados) { db.ref('dados/' + colecao).set(dados); }
 
 async function getProximoID() {
@@ -96,13 +90,11 @@ async function getProximoID() {
     return res.snapshot.val();
 }
 
-// --- FUNÇÕES DE RENDERIZAÇÃO ---
 function renderAll(){ 
     renderPedidos(); renderTarefas(); renderFornecedores(); 
     renderEstoque(); renderCatalogo(); renderAssistencias(); renderQuadroEquipe();
 }
 
-// --- EDIÇÃO INLINE ---
 function activeInlineEdit(element, uid, field, listType) {
     const originalValue = element.innerText;
     const input = document.createElement('input');
@@ -125,7 +117,6 @@ function activeInlineEdit(element, uid, field, listType) {
     input.onkeydown = (e) => { if(e.key === 'Enter') save(); if(e.key === 'Escape') { input.onblur = null; element.innerText = originalValue; } };
 }
 
-// --- UTILITÁRIOS ---
 function maskMoney(i){ let v=i.value.replace(/\D/g,""); v=(v/100).toFixed(2).replace(".",","); v=v.replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1."); i.value="R$ "+v; if(i.classList.contains('t-v-desc')) calcTotalTirarPedido(); }
 function parseMoney(v){ return parseFloat((v||"").replace("R$ ","").replace(/\./g,"").replace(",",".")) || 0; }
 function maskCPF(i){ let v=i.value.replace(/\D/g,""); if(v.length>11)v=v.slice(0,11); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d{1,2})$/,"$1-$2"); i.value=v; if(v.length===14) verifCPF(i); }
@@ -134,7 +125,6 @@ function validarCPF(c){ c=c.replace(/[^\d]+/g,''); if(c.length!==11||!!c.match(/
 function copyText(v, el){ if(!v || v==="-") return; navigator.clipboard.writeText(v.toUpperCase()); if(el) { el.style.color="#22c55e"; setTimeout(()=>el.style.color="#94a3b8", 1000); } }
 async function buscarCEP(i){ let cep=i.value.replace(/\D/g,""); if(cep.length===8){ document.getElementById('loading-cep').classList.remove('hidden'); try{ let r=await fetch(`https://viacep.com.br/ws/${cep}/json/`); let d=await r.json(); if(!d.erro){ document.getElementById('t_end').value=d.logradouro.toUpperCase(); document.getElementById('t_bairro').value=d.bairro.toUpperCase(); document.getElementById('t_cidade').value=d.localidade.toUpperCase(); document.getElementById('t_num').focus(); } }catch(e){} finally { document.getElementById('loading-cep').classList.add('hidden'); }}}
 
-// --- PEDIDOS ---
 function renderPedidos() {
     const tb=document.getElementById('tabelaPedidos'); if(!tb) return;
     const b = removeAcentos(document.getElementById('busca').value.toLowerCase());
@@ -186,7 +176,6 @@ async function cadastrarManual() {
     cestoItensTemporario =[]; document.getElementById('m_cliente').value = ""; renderCesto(); salvarColecao('pedidos', pedidos);
 }
 
-// --- ESTOQUE ---
 function autoSalvarNotasEstoque() { notasEstoque = document.getElementById('estoque-notas-gerais').value; db.ref('dados/notasEstoque').set(notasEstoque); }
 function renderEstoque() {
     const tb = document.getElementById('tabelaEstoque'); if(!tb) return;
@@ -209,13 +198,13 @@ function cadastrarEstoque() { const p = document.getElementById('e_produto').val
 function toggleFiltroVendidos(){ filtrandoVendidos=!filtrandoVendidos; document.getElementById('btnFiltroVendidos').classList.toggle('bg-red-600'); document.getElementById('btnFiltroVendidos').classList.toggle('text-white'); renderEstoque(); }
 
 
-// --- ABA EQUIPE KANBAN E COMENTÁRIOS ---
+// --- ABA EQUIPE KANBAN E COMENTÁRIOS (CORES ATUALIZADAS) ---
 const coresEquipe = {
-    "LUCAS": "bg-blue-100 text-blue-700 border-blue-300",
-    "ANGÉLICA": "bg-purple-100 text-purple-700 border-purple-300",
-    "GUILHERME": "bg-emerald-100 text-emerald-700 border-emerald-300",
-    "CAROL": "bg-amber-100 text-amber-700 border-amber-300",
-    "ISABELLA": "bg-orange-100 text-orange-700 border-orange-300"
+    "LUCAS": "bg-emerald-100 text-emerald-700 border-emerald-300",
+    "GUILHERME": "bg-blue-100 text-blue-700 border-blue-300",
+    "CAROL": "bg-orange-100 text-orange-700 border-orange-300",
+    "ISABELLA": "bg-amber-100 text-amber-700 border-amber-300",
+    "ANGÉLICA": "bg-purple-100 text-purple-700 border-purple-300"
 };
 
 function adicionarTarefaEquipe() {
@@ -228,7 +217,7 @@ function adicionarTarefaEquipe() {
         descricao: desc,
         responsavel: resp,
         coluna: "TODO",
-        comentarios:[] // Array para os comentários
+        comentarios:[]
     });
     salvarColecao('tarefasEquipe', tarefasEquipe);
     document.getElementById('eq_desc').value = "";
@@ -249,7 +238,6 @@ function excluirTarefaEquipe(uid) {
     }
 }
 
-// LÓGICA DO CHAT/COMENTÁRIOS
 function abrirComentarios(uid) {
     document.getElementById('comentario-tarefa-uid').value = uid;
     document.getElementById('modal-comentarios').style.display = 'flex';
@@ -259,12 +247,16 @@ function abrirComentarios(uid) {
 function renderComentarios(uid) {
     const t = tarefasEquipe.find(x => x.uid == uid);
     const lista = document.getElementById('lista-comentarios');
-    if(!t || !t.comentarios || t.comentarios.length === 0) {
+    
+    // A armadura safeArray também ajuda aqui!
+    const comentariosArray = t && t.comentarios ? safeArray(t.comentarios) :[];
+    
+    if(comentariosArray.length === 0) {
         lista.innerHTML = '<span class="text-slate-400 text-[10px] font-bold text-center uppercase block mt-10 border-2 border-dashed p-4 rounded-xl">Nenhum comentário ainda.<br>Escreva o primeiro abaixo!</span>';
         return;
     }
     
-    lista.innerHTML = t.comentarios.map(c => {
+    lista.innerHTML = comentariosArray.map(c => {
         const corTag = coresEquipe[c.autor] || "bg-slate-200 text-slate-700";
         const estiloAutor = corTag.split(' ').slice(0,2).join(' ');
         
@@ -295,7 +287,8 @@ function adicionarComentario() {
     const t = tarefasEquipe.find(x => x.uid == uid);
     if(!t) return;
 
-    if(!t.comentarios) t.comentarios =[];
+    // Garante que é array
+    t.comentarios = safeArray(t.comentarios);
 
     const agora = new Date();
     const strData = agora.toLocaleDateString('pt-BR') + ' às ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
@@ -326,7 +319,7 @@ function renderQuadroEquipe() {
     tarefasEquipe.forEach(t => {
         const cor = coresEquipe[t.responsavel] || "bg-slate-100 text-slate-700 border-slate-300";
         const corBorda = cor.split(' ')[2]; 
-        const qtdComent = t.comentarios ? t.comentarios.length : 0;
+        const qtdComent = t.comentarios ? safeArray(t.comentarios).length : 0;
         
         const card = `
             <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 ${corBorda} flex flex-col gap-2 transition hover:shadow-md">
@@ -372,8 +365,6 @@ function renderQuadroEquipe() {
     document.getElementById('count-done').innerText = cDone;
 }
 
-
-// --- TAREFAS / TIRAR PEDIDO (COM CAIXA MÁGICA) ---
 function processarFichaWhatsApp(texto) {
     if(!texto) return;
     const mNome = texto.match(/Nome(?: Completo)?\s*[:\-]?\s*(.+)/i);
@@ -452,9 +443,14 @@ function verDetalhesTarefa(uid){
     const d = t.detalhes; 
     let enderecoCompleto = `${d.end || ''}${d.num ? ', ' + d.num : ''}${d.torre ? ' - ' + d.torre : ''}${d.bairro ? ' - ' + d.bairro : ''}${d.cidade ? ' - ' + d.cidade : ''}`;
     let h = `<div class="grid grid-cols-2 gap-2">${l_i("CLIENTE", d.cliente)}${l_i("CPF", d.cpf)}${l_i("CONTATO 1", d.contato)}${l_i("CONTATO 2", d.contato2 || "-")}${l_i("CEP", d.cep)}${l_i("ENDEREÇO", enderecoCompleto)}</div><div class="mt-4 font-black text-xs uppercase border-b text-blue-600">Móveis:</div>`;
-    d.produtos.forEach(p => h += `<div class="text-xs font-bold border-b py-1 flex justify-between items-center"><span>${esc(p.n)} <span class="text-slate-400 line-through text-[10px] ml-1">${esc(p.o)}</span> <span class="text-indigo-600 ml-1">${esc(p.d)}</span></span><button onclick="copyText('${esc(p.n)} - De: ${esc(p.o)} Por: ${esc(p.d)}', this)">📋</button></div>`);
+    
+    const prods = safeArray(d.produtos);
+    prods.forEach(p => h += `<div class="text-xs font-bold border-b py-1 flex justify-between items-center"><span>${esc(p.n)} <span class="text-slate-400 line-through text-[10px] ml-1">${esc(p.o)}</span> <span class="text-indigo-600 ml-1">${esc(p.d)}</span></span><button onclick="copyText('${esc(p.n)} - De: ${esc(p.o)} Por: ${esc(p.d)}', this)">📋</button></div>`);
+    
     h += `<div class="mt-4 font-black text-xs uppercase border-b text-emerald-600">Pagamento:</div>`;
-    d.pagamentos.forEach(p => h += `<div class="text-xs font-bold border-b py-1 flex justify-between"><span>${esc(p.t)}: ${esc(p.v)} (${esc(p.o)})</span><button onclick="copyText('${esc(p.t)}: ${esc(p.v)}', this)">📋</button></div>`);
+    const pags = safeArray(d.pagamentos);
+    pags.forEach(p => h += `<div class="text-xs font-bold border-b py-1 flex justify-between"><span>${esc(p.t)}: ${esc(p.v)} (${esc(p.o)})</span><button onclick="copyText('${esc(p.t)}: ${esc(p.v)}', this)">📋</button></div>`);
+    
     if(d.obs && d.obs !== "") { h += `<div class="mt-4 font-black text-xs uppercase border-b text-orange-600">Observações:</div><div class="text-xs font-bold py-2 bg-slate-50 p-2 rounded mt-1">${esc(d.obs)}</div>`; }
     c.innerHTML = h;
 }
@@ -485,4 +481,44 @@ function atualizarSelectsFornecedores(){
     const h = fornecedores.map(f => `<option value="${esc(f.nome)}">${esc(f.nome)}</option>`).join(''); 
     if(document.getElementById('m_fornecedor_select')) document.getElementById('m_fornecedor_select').innerHTML = h || "<option>...</option>"; 
     if(document.getElementById('as_fabrica')) document.getElementById('as_fabrica').innerHTML = h || "<option>...</option>";
-    if(document.getElementById('e_fabrica_select')) document.getElementById('e_fabri
+    if(document.getElementById('e_fabrica_select')) document.getElementById('e_fabrica_select').innerHTML = h || "<option>...</option>";
+    if(document.getElementById('estoque-filtro-fabrica')) document.getElementById('estoque-filtro-fabrica').innerHTML = '<option value="TODAS">TODAS AS FÁBRICAS</option>' + h;
+}
+function atualizarSugestoes(){ const n=[...new Set(pedidos.map(p=>p.cliente))].sort(); if(document.getElementById('listaSugestaoClientes')) document.getElementById('listaSugestaoClientes').innerHTML=n.map(x=>`<option value="${esc(x)}">`).join(''); }
+async function dupPed(u){ const x=pedidos.find(y=>y.uid==u); const nId=await getProximoID(); const idDoc="ID#"+nId.toString().padStart(4,'0'); pedidos.unshift({...x, uid:Date.now()+Math.random(), idDoc}); salvarColecao('pedidos', pedidos); }
+function gerarAssistenciaRapida(u){ const p=pedidos.find(x=>x.uid==u); if(p){ document.getElementById('as_cliente').value=p.cliente; document.getElementById('as_produto').value=p.produto+" (DEFEITO)"; document.getElementById('as_fabrica').value=p.fornecedor; switchTab('assistencia'); }}
+function gerarEmailLote() {
+    const checks = document.querySelectorAll('.ped-check:checked'); if (checks.length === 0) return alert("SELECIONE PEDIDOS!");
+    const selecionados = Array.from(checks).map(c => pedidos.find(p => p.uid == c.value)).filter(p => p);
+    const grupos = {}; selecionados.forEach(p => { if (!grupos[p.fornecedor]) grupos[p.fornecedor] = []; grupos[p.fornecedor].push(p); });
+    for (const fab in grupos) {
+        const email = (fornecedores.find(f => f.nome === fab) || {}).email || "";
+        let corpo = `Olá, segue pedido para fábrica ${fab}:%0D%0A%0D%0A`;
+        grupos[fab].forEach((p, idx) => { corpo += `Qtde: ${String(p.qtd).padStart(2, '0')} - ${p.produto}%0D%0A${p.medida !== "-" ? `MEDIDA: ${p.medida}%0D%0A` : ""}COR/TECIDO: ${p.cor}%0D%0AREF: ${p.idDoc}%0D%0A${idx < grupos[fab].length - 1 ? `%0D%0A--------------------------%0D%0A` : ""}`; });
+        corpo += `%0D%0AForma de pagamento: 30/60/90.%0D%0A%0D%0AIDs para controle interno, favor desconsiderar.%0D%0A%0D%0AFavor confirmar o recebimento e nos enviar o documento de confirmação dos itens acima para conferência.%0D%0A%0D%0AAtenciosamente,%0D%0ALucas Mercier.`;
+        window.open(`mailto:${email}?subject=${encodeURIComponent('PEDIDO - MERCIER DESIGN - '+fab)}&body=${corpo}`);
+    }
+}
+
+// --- DRAG AND DROP DO BLOCO DE NOTAS ---
+const painelSugestoes = document.getElementById('painel-sugestoes');
+const dragHandle = document.getElementById('drag-handle');
+let isDragging = false, offsetX, offsetY;
+
+dragHandle.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    offsetX = e.clientX - painelSugestoes.getBoundingClientRect().left;
+    offsetY = e.clientY - painelSugestoes.getBoundingClientRect().top;
+    painelSugestoes.style.bottom = 'auto'; 
+    painelSugestoes.style.right = 'auto';  
+});
+
+document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    painelSugestoes.style.left = (e.clientX - offsetX) + 'px';
+    painelSugestoes.style.top = (e.clientY - offsetY) + 'px';
+});
+
+document.addEventListener('mouseup', () => { isDragging = false; });
+
+mostrarCamposTarefa('SIMPLES');
