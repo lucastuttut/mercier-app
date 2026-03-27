@@ -17,10 +17,33 @@ const db = firebase.database();
 
 let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[], tarefasEquipe=[], proximoID=255, notasMelhoria="", notasEstoque="", cestoItensTemporario=[], filtrandoNaoEnviados=false, filtrandoVendidos=false, cpfValido=true;
 
+// --- SISTEMA DE LOGIN LOCAL ---
+let usuarioAtual = localStorage.getItem('mercier_user') || null;
+
+function verificarLogin() {
+    const modalLogin = document.getElementById('modal-login');
+    const userDisplay = document.getElementById('user-display');
+    if(!usuarioAtual) {
+        modalLogin.style.display = 'flex';
+    } else {
+        modalLogin.style.display = 'none';
+        userDisplay.innerHTML = `👤 LOGADO COMO: ${usuarioAtual}`;
+    }
+}
+
+function setUsuario(nome) {
+    usuarioAtual = nome;
+    localStorage.setItem('mercier_user', nome);
+    document.getElementById('modal-login').style.display = 'none';
+    document.getElementById('user-display').innerHTML = `👤 LOGADO COMO: ${nome}`;
+}
+
+// Inicia verificação de login assim que a página carrega
+window.onload = verificarLogin;
+
+
 // Função de Proteção contra XSS
 const esc = str => (str || "").toString().replace(/[&<>'"]/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag] || tag));
-
-// Função para remover acentos durante as pesquisas
 const removeAcentos = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
 // MONITOR DE CONEXÃO FÍSICO
@@ -55,6 +78,14 @@ db.ref('dados').on('value', (s) => {
     atualizarSelectsFornecedores();
     atualizarSugestoes();
     renderAll();
+    
+    // Se o modal de comentários estiver aberto, atualiza em tempo real
+    const modalComent = document.getElementById('modal-comentarios');
+    if(modalComent.style.display === 'flex') {
+        const uidAtivo = document.getElementById('comentario-tarefa-uid').value;
+        if(uidAtivo) renderComentarios(uidAtivo);
+    }
+
 }, (error) => {
     if(statusEl) { statusEl.innerText = "ERRO DE ACESSO"; statusEl.className = "status-offline"; }
     console.error("ERRO FIREBASE:", error);
@@ -182,7 +213,7 @@ function cadastrarEstoque() { const p = document.getElementById('e_produto').val
 function toggleFiltroVendidos(){ filtrandoVendidos=!filtrandoVendidos; document.getElementById('btnFiltroVendidos').classList.toggle('bg-red-600'); document.getElementById('btnFiltroVendidos').classList.toggle('text-white'); renderEstoque(); }
 
 
-// --- NOVA ABA: EQUIPE KANBAN ---
+// --- ABA EQUIPE KANBAN E COMENTÁRIOS ---
 const coresEquipe = {
     "LUCAS": "bg-blue-100 text-blue-700 border-blue-300",
     "ANGÉLICA": "bg-purple-100 text-purple-700 border-purple-300",
@@ -200,7 +231,8 @@ function adicionarTarefaEquipe() {
         data: new Date().toLocaleDateString('pt-BR'),
         descricao: desc,
         responsavel: resp,
-        coluna: "TODO" 
+        coluna: "TODO",
+        comentarios:[] // Novo array para os comentários
     });
     salvarColecao('tarefasEquipe', tarefasEquipe);
     document.getElementById('eq_desc').value = "";
@@ -221,6 +253,77 @@ function excluirTarefaEquipe(uid) {
     }
 }
 
+// LÓGICA DO CHAT/COMENTÁRIOS
+function abrirComentarios(uid) {
+    document.getElementById('comentario-tarefa-uid').value = uid;
+    document.getElementById('modal-comentarios').style.display = 'flex';
+    renderComentarios(uid);
+}
+
+function renderComentarios(uid) {
+    const t = tarefasEquipe.find(x => x.uid == uid);
+    const lista = document.getElementById('lista-comentarios');
+    if(!t || !t.comentarios || t.comentarios.length === 0) {
+        lista.innerHTML = '<span class="text-slate-400 text-[10px] font-bold text-center uppercase block mt-10 border-2 border-dashed p-4 rounded-xl">Nenhum comentário ainda.<br>Escreva o primeiro abaixo!</span>';
+        return;
+    }
+    
+    lista.innerHTML = t.comentarios.map(c => {
+        const corTag = coresEquipe[c.autor] || "bg-slate-200 text-slate-700";
+        // Pega só a classe de texto e fundo da tag
+        const estiloAutor = corTag.split(' ').slice(0,2).join(' ');
+        
+        return `
+        <div class="bg-white p-3 rounded-xl border shadow-sm flex flex-col">
+            <div class="flex justify-between items-center mb-2">
+                <span class="${estiloAutor} px-2 py-0.5 rounded text-[9px] font-black uppercase">${esc(c.autor)}</span>
+                <span class="text-[9px] font-bold text-slate-400">${esc(c.dataHora)}</span>
+            </div>
+            <span class="text-[11px] font-bold text-slate-800 uppercase">${esc(c.texto)}</span>
+        </div>`;
+    }).join('');
+    
+    // Rola para o final automático
+    lista.scrollTop = lista.scrollHeight;
+}
+
+function adicionarComentario() {
+    if(!usuarioAtual) {
+        alert("IDENTIFIQUE-SE PRIMEIRO!\nClique no botão '👤 IDENTIFICAR' no topo da tela.");
+        document.getElementById('modal-comentarios').style.display = 'none';
+        document.getElementById('modal-login').style.display = 'flex';
+        return;
+    }
+    
+    const input = document.getElementById('input-comentario');
+    const txt = input.value.trim().toUpperCase();
+    if(!txt) return;
+
+    const uid = document.getElementById('comentario-tarefa-uid').value;
+    const t = tarefasEquipe.find(x => x.uid == uid);
+    if(!t) return;
+
+    if(!t.comentarios) t.comentarios =[];
+
+    const agora = new Date();
+    const strData = agora.toLocaleDateString('pt-BR') + ' às ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+
+    t.comentarios.push({
+        id: Date.now(),
+        autor: usuarioAtual,
+        texto: txt,
+        dataHora: strData
+    });
+
+    salvarColecao('tarefasEquipe', tarefasEquipe);
+    input.value = "";
+    
+    // Atualiza a visualização sem fechar a janela
+    renderComentarios(uid);
+    renderQuadroEquipe();
+}
+
+// Renderização do Kanban
 function renderQuadroEquipe() {
     const colTodo = document.getElementById('col-todo');
     const colDoing = document.getElementById('col-doing');
@@ -233,6 +336,7 @@ function renderQuadroEquipe() {
     tarefasEquipe.forEach(t => {
         const cor = coresEquipe[t.responsavel] || "bg-slate-100 text-slate-700 border-slate-300";
         const corBorda = cor.split(' ')[2]; 
+        const qtdComent = t.comentarios ? t.comentarios.length : 0;
         
         const card = `
             <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 ${corBorda} flex flex-col gap-2 transition hover:shadow-md">
@@ -240,11 +344,18 @@ function renderQuadroEquipe() {
                     <span class="text-[11px] font-black uppercase text-slate-700 leading-tight">${esc(t.descricao)}</span>
                     <button onclick="excluirTarefaEquipe(${t.uid})" class="text-slate-300 hover:text-red-500 text-sm font-black transition">✕</button>
                 </div>
+                
                 <div class="flex justify-between items-end mt-2">
-                    <div class="flex flex-col">
-                        <span class="text-[9px] font-black text-slate-400 mb-1">${t.data}</span>
+                    <div class="flex flex-col gap-1">
                         <span class="${cor} px-2 py-1 rounded text-[9px] font-black uppercase w-fit tracking-wider">${esc(t.responsavel)}</span>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span class="text-[9px] font-black text-slate-400">${t.data}</span>
+                            <button onclick="abrirComentarios(${t.uid})" class="bg-slate-100 hover:bg-slate-200 text-slate-500 px-2 py-0.5 rounded text-[9px] font-black transition flex items-center gap-1">
+                                💬 ${qtdComent}
+                            </button>
+                        </div>
                     </div>
+                    
                     <div class="flex gap-1.5">
                         ${t.coluna === 'TODO' ? `<button onclick="moverTarefaEquipe(${t.uid}, 'DOING')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 p-2 rounded-lg text-[10px] font-black transition" title="Mover para Em Andamento">➡️</button>` : ''}
                         ${t.coluna === 'DOING' ? `
@@ -365,63 +476,4 @@ function cadastrarFornecedor(){ const n=document.getElementById('f_nome').value.
 function renderCatalogo() { const tb=document.getElementById('tabelaCatalogo'); if(!tb) return; tb.innerHTML=catalogo.map((c,i)=>`<tr><td class="uppercase">${esc(c.nome)}</td><td class="text-center"><button onclick="catalogo.splice(${i},1); salvarColecao('catalogo', catalogo);">✕</button></td></tr>`).join(''); }
 function cadastrarCatalogo(){ const n=document.getElementById('cat_nome').value.toUpperCase(); if(n){catalogo.push({nome:n}); salvarColecao('catalogo', catalogo); document.getElementById('cat_nome').value="";}}
 function renderAssistencias() { const tb=document.getElementById('tabelaAssistencias'); if(!tb) return; tb.innerHTML=assistencias.map(x=>`<tr><td>${esc(x.data)}</td><td class="uppercase font-bold">${esc(x.cliente)}</td><td class="uppercase">${esc(x.produto)}</td><td class="font-black text-blue-800 uppercase">${esc(x.fabrica)}</td><td><button onclick="cycleAssisStatus(${x.uid})" class="status-badge bg-slate-200">${esc(x.status)}</button></td><td><button onclick="assistencias=assistencias.filter(y=>y.uid!=${x.uid}); salvarColecao('assistencias', assistencias);" class="text-red-500 font-black">✕</button></td></tr>`).join(''); }
-function cadastrarAssistencia(){ const c=document.getElementById('as_cliente').value.toUpperCase(), p=document.getElementById('as_produto').value.toUpperCase(), f=document.getElementById('as_fabrica').value; if(c&&p){ assistencias.unshift({uid:Date.now(), data:new Date().toLocaleDateString('pt-BR'), cliente:c, produto:p, fabrica:f, status:"Aguardando"}); salvarColecao('assistencias', assistencias); document.getElementById('as_cliente').value=""; document.getElementById('as_produto').value=""; } }
-
-// --- GERAIS ---
-function switchTab(t){ window.scrollTo(0,0); document.querySelectorAll('main').forEach(x=>x.classList.add('hidden')); document.getElementById('view-'+t).classList.remove('hidden'); document.querySelectorAll('nav button').forEach(x=>x.classList.remove('tab-active')); document.getElementById('tab-'+t).classList.add('tab-active'); }
-function cycleStatus(u){ const x=pedidos.find(y=>y.uid==u); const s=["Não enviado","Pedido enviado","Aguardando fábrica","Pedido na loja"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('pedidos', pedidos); }
-function cycleTarefaStatus(u){ const x=tarefas.find(y=>y.uid==u); const s=["Não Iniciado","Em Andamento","Feito"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('tarefas', tarefas); }
-function cycleAssisStatus(u){ const x=assistencias.find(y=>y.uid==u); const s=["Aguardando","Peça Solicitada","Concluído"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('assistencias', assistencias); }
-function togglePainelSugestoes(){ const p=document.getElementById('painel-sugestoes'); p.style.display=p.style.display==='flex'?'none':'flex'; }
-function autoSalvarNotas(){ notasMelhoria=document.getElementById('texto-melhorias').value; db.ref('dados/notasMelhoria').set(notasMelhoria); }
-function marcarTodos(v){ document.querySelectorAll('.ped-check').forEach(c=>c.checked=v); }
-function toggleFiltroNaoEnviado(){ filtrandoNaoEnviados=!filtrandoNaoEnviados; document.getElementById('btnFiltroNaoEnviado').classList.toggle('bg-red-600'); document.getElementById('btnFiltroNaoEnviado').classList.toggle('text-white'); renderPedidos(); }
-function updPed(u,c,v){ pedidos.find(x=>x.uid==u)[c]=v; salvarColecao('pedidos', pedidos); }
-function togPed(u,c){ const x=pedidos.find(y=>y.uid==u); if(x) x[c]=!x[c]; salvarColecao('pedidos', pedidos); }
-function excluirPedido(u){ if(confirm("EXCLUIR?")){ pedidos=pedidos.filter(x=>x.uid!=u); salvarColecao('pedidos', pedidos); } }
-function calcP(d, pr){ if(!d)return{dias:0,classe:""}; try { const pA=d.split("/"); const dt=new Date(pA[2], pA[1]-1, pA[0]); let dF=new Date(dt); if(pr.includes("util")){ let c=0; while(c<parseInt(pr)){dF.setDate(dF.getDate()+1); if(dF.getDay()!==0&&dF.getDay()!==6)c++;} } else {dF.setDate(dF.getDate()+parseInt(pr||30));} const df=Math.ceil((dF-new Date())/86400000); let c=df<0?"prazo-vencido":(df<=5?"prazo-urgente":(df<=10?"prazo-alerta":(df<=20?"prazo-atencao":""))); return {dias:df,classe:c}; } catch(e){return {dias:0,classe:""}} }
-function atualizarSelectsFornecedores(){ 
-    const h = fornecedores.map(f => `<option value="${esc(f.nome)}">${esc(f.nome)}</option>`).join(''); 
-    if(document.getElementById('m_fornecedor_select')) document.getElementById('m_fornecedor_select').innerHTML = h || "<option>...</option>"; 
-    if(document.getElementById('as_fabrica')) document.getElementById('as_fabrica').innerHTML = h || "<option>...</option>";
-    if(document.getElementById('e_fabrica_select')) document.getElementById('e_fabrica_select').innerHTML = h || "<option>...</option>";
-    if(document.getElementById('estoque-filtro-fabrica')) document.getElementById('estoque-filtro-fabrica').innerHTML = '<option value="TODAS">TODAS AS FÁBRICAS</option>' + h;
-}
-function atualizarSugestoes(){ const n=[...new Set(pedidos.map(p=>p.cliente))].sort(); if(document.getElementById('listaSugestaoClientes')) document.getElementById('listaSugestaoClientes').innerHTML=n.map(x=>`<option value="${esc(x)}">`).join(''); }
-async function dupPed(u){ const x=pedidos.find(y=>y.uid==u); const nId=await getProximoID(); const idDoc="ID#"+nId.toString().padStart(4,'0'); pedidos.unshift({...x, uid:Date.now()+Math.random(), idDoc}); salvarColecao('pedidos', pedidos); }
-function gerarAssistenciaRapida(u){ const p=pedidos.find(x=>x.uid==u); if(p){ document.getElementById('as_cliente').value=p.cliente; document.getElementById('as_produto').value=p.produto+" (DEFEITO)"; document.getElementById('as_fabrica').value=p.fornecedor; switchTab('assistencia'); }}
-function gerarEmailLote() {
-    const checks = document.querySelectorAll('.ped-check:checked'); if (checks.length === 0) return alert("SELECIONE PEDIDOS!");
-    const selecionados = Array.from(checks).map(c => pedidos.find(p => p.uid == c.value)).filter(p => p);
-    const grupos = {}; selecionados.forEach(p => { if (!grupos[p.fornecedor]) grupos[p.fornecedor] = []; grupos[p.fornecedor].push(p); });
-    for (const fab in grupos) {
-        const email = (fornecedores.find(f => f.nome === fab) || {}).email || "";
-        let corpo = `Olá, segue pedido para fábrica ${fab}:%0D%0A%0D%0A`;
-        grupos[fab].forEach((p, idx) => { corpo += `Qtde: ${String(p.qtd).padStart(2, '0')} - ${p.produto}%0D%0A${p.medida !== "-" ? `MEDIDA: ${p.medida}%0D%0A` : ""}COR/TECIDO: ${p.cor}%0D%0AREF: ${p.idDoc}%0D%0A${idx < grupos[fab].length - 1 ? `%0D%0A--------------------------%0D%0A` : ""}`; });
-        corpo += `%0D%0AForma de pagamento: 30/60/90.%0D%0A%0D%0AIDs para controle interno, favor desconsiderar.%0D%0A%0D%0AFavor confirmar o recebimento e nos enviar o documento de confirmação dos itens acima para conferência.%0D%0A%0D%0AAtenciosamente,%0D%0ALucas Mercier.`;
-        window.open(`mailto:${email}?subject=${encodeURIComponent('PEDIDO - MERCIER DESIGN - '+fab)}&body=${corpo}`);
-    }
-}
-
-// --- DRAG AND DROP DO BLOCO DE NOTAS ---
-const painelSugestoes = document.getElementById('painel-sugestoes');
-const dragHandle = document.getElementById('drag-handle');
-let isDragging = false, offsetX, offsetY;
-
-dragHandle.addEventListener('mousedown', (e) => {
-    isDragging = true;
-    offsetX = e.clientX - painelSugestoes.getBoundingClientRect().left;
-    offsetY = e.clientY - painelSugestoes.getBoundingClientRect().top;
-    painelSugestoes.style.bottom = 'auto'; 
-    painelSugestoes.style.right = 'auto';  
-});
-
-document.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
-    painelSugestoes.style.left = (e.clientX - offsetX) + 'px';
-    painelSugestoes.style.top = (e.clientY - offsetY) + 'px';
-});
-
-document.addEventListener('mouseup', () => { isDragging = false; });
-
-mostrarCamposTarefa('SIMPLES');
+function cadastrarAssistencia(){ const c=document.getElementById('as_cliente').value.toUpperCase(), p=document.getElementById('as_produto').value
