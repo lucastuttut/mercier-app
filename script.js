@@ -14,6 +14,10 @@ const db = firebase.database();
 
 let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[], tarefasEquipe=[], proximoID=255, notasMelhoria="", notasEstoque="", cestoItensTemporario=[], filtrandoNaoEnviados=false, filtrandoVendidos=false, cpfValido=true;
 
+// Variável para garantir que o link direto só rode 1x quando a página abrir
+let deepLinkVerificado = false;
+
+// --- SISTEMA DE LOGIN DISCRETO ---
 let usuarioAtual = "";
 try { usuarioAtual = localStorage.getItem('mercier_user') || ""; } catch(e) {}
 
@@ -39,8 +43,10 @@ db.ref('.info/connected').on('value', (snap) => {
     else console.log("Tentando...");
 });
 
+// SINCRONIZAÇÃO DE DADOS
 db.ref('dados').on('value', (s) => {
     const d = s.val() || {};
+    
     pedidos = safeArray(d.pedidos);
     fornecedores = safeArray(d.fornecedores);
     estoque = safeArray(d.estoque);
@@ -48,6 +54,7 @@ db.ref('dados').on('value', (s) => {
     tarefas = safeArray(d.tarefas);
     assistencias = safeArray(d.assistencias);
     tarefasEquipe = safeArray(d.tarefasEquipe);
+    
     proximoID = d.proximoID || 255;
     notasMelhoria = d.notasMelhoria || "";
     notasEstoque = d.notasEstoque || "";
@@ -59,6 +66,33 @@ db.ref('dados').on('value', (s) => {
     atualizarSelectsFornecedores();
     atualizarSugestoes();
     renderAll();
+    
+    // NOVA MÁGICA: Lendo o link do WhatsApp para abrir a tarefa na hora
+    if(!deepLinkVerificado && tarefasEquipe.length > 0) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const tarefaId = urlParams.get('tarefa');
+        
+        if(tarefaId) {
+            switchTab('equipe'); // Pula pra aba da equipe
+            setTimeout(() => {
+                const card = document.getElementById(`card-${tarefaId}`);
+                if(card) {
+                    // Rola a página até o cartão
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // Dá uma piscada verde no cartão para a pessoa achar fácil
+                    const bgOriginal = card.style.backgroundColor;
+                    card.style.backgroundColor = '#bbf7d0'; // verde clarinho
+                    card.style.transition = 'background-color 2s';
+                    setTimeout(() => { card.style.backgroundColor = bgOriginal; }, 2000);
+                }
+            }, 600); // Dá um tempo pra tela carregar antes de rolar
+            
+            // Limpa o link lá em cima pra não ficar feio
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+        deepLinkVerificado = true;
+    }
+
 }, (error) => {
     if(statusEl) { statusEl.innerText = "ERRO DE ACESSO"; statusEl.className = "status-offline"; }
 });
@@ -138,7 +172,7 @@ function renderPedidos() {
         </tr>`;
     }).join('');
 }
-function adicionarItemAoCesto() { const p = document.getElementById('m_produto').value.trim().toUpperCase(); if(!p) return alert("INFORME O PRODUTO!"); cestoItensTemporario.push({ uid: Date.now(), q: document.getElementById('m_qtd').value || 1, p, m: document.getElementById('m_medida').value || "-", c: document.getElementById('m_cor').value.toUpperCase() || "-", v: document.getElementById('m_custo').value || "R$ 0,00" }); renderCesto(); document.getElementById('m_produto').value = ""; }
+function adicionarItemAoCesto() { const p = document.getElementById('m_produto').value.trim().toUpperCase(); if(!p) return alert("INFORME PRODUTO!"); cestoItensTemporario.push({ uid: Date.now(), q: document.getElementById('m_qtd').value || 1, p, m: document.getElementById('m_medida').value || "-", c: document.getElementById('m_cor').value.toUpperCase() || "-", v: document.getElementById('m_custo').value || "R$ 0,00" }); renderCesto(); document.getElementById('m_produto').value = ""; }
 function renderCesto() { document.getElementById('cesto-itens').innerHTML = cestoItensTemporario.map((item, idx) => `<div class="item-cesto"><span>${item.q}x</span><span>${esc(item.p)}</span><button onclick="cestoItensTemporario.splice(${idx},1); renderCesto();" class="text-red-500 font-bold ml-2">✕</button></div>`).join(''); }
 async function cadastrarManual() { const cli = document.getElementById('m_cliente').value.trim().toUpperCase(); const forn = document.getElementById('m_fornecedor_select').value; if(!cli || cestoItensTemporario.length === 0) return alert("FALTA DADOS!"); const nId = await getProximoID(); const idDoc = "ID#" + nId.toString().padStart(4, '0'); cestoItensTemporario.forEach(i => { pedidos.unshift({ uid: Date.now()+Math.random(), idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false }); }); cestoItensTemporario =[]; document.getElementById('m_cliente').value = ""; renderCesto(); salvarColecao('pedidos', pedidos); }
 
@@ -163,44 +197,33 @@ function darBaixaEstoque(u) { const it = estoque.find(x => x.uid == u); if (!it)
 function cadastrarEstoque() { const p = document.getElementById('e_produto').value.toUpperCase().trim(), f = document.getElementById('e_fabrica_select').value, q = document.getElementById('e_qtd').value, s = document.getElementById('e_situacao').value; if (p) { estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: p, fabrica: f, qtd: parseInt(q), situacao: s }); salvarColecao('estoque', estoque); document.getElementById('e_produto').value = ""; } }
 function toggleFiltroVendidos(){ filtrandoVendidos=!filtrandoVendidos; document.getElementById('btnFiltroVendidos').classList.toggle('bg-red-600'); document.getElementById('btnFiltroVendidos').classList.toggle('text-white'); renderEstoque(); }
 
-// --- ABA ASSISTÊNCIAS REVISADA ---
 function renderAssistencias() { 
     const tb = document.getElementById('tabelaAssistencias'); 
     if(!tb) return;
-    
     const b = removeAcentos((document.getElementById('busca-assistencia')?.value || "").toLowerCase());
     const fStatus = document.getElementById('filtro-assistencia-status')?.value || "TODAS";
-
     let lista = assistencias.filter(x => {
         const cliente = removeAcentos((x.cliente || "").toLowerCase());
         const produto = removeAcentos((x.produto || "").toLowerCase());
         const fabrica = removeAcentos((x.fabrica || "").toLowerCase());
         const status = x.status || "Aguardando";
-        
-        const matBusca = cliente.includes(b) || produto.includes(b) || fabrica.includes(b);
-        const matStatus = fStatus === "TODAS" || status === fStatus;
-        return matBusca && matStatus;
+        return (cliente.includes(b) || produto.includes(b) || fabrica.includes(b)) && (fStatus === "TODAS" || status === fStatus);
     });
-
     const cnt = document.getElementById('contador-assistencia');
     if(cnt) cnt.innerText = lista.length + " ASSISTÊNCIAS";
 
     tb.innerHTML = lista.map(x => {
-        // Cores Dinâmicas para o Status
         let sCls = "bg-slate-200 text-slate-700";
         if(x.status === "Aguardando") sCls = "bg-red-100 text-red-700 hover:bg-red-200";
         else if(x.status === "Peça Solicitada") sCls = "bg-blue-100 text-blue-700 hover:bg-blue-200";
         else if(x.status === "Concluído") sCls = "bg-green-100 text-green-700 hover:bg-green-200";
-
         return `<tr class="border-b border-slate-50 hover:bg-slate-50 transition">
             <td class="text-[10px] font-bold text-slate-400">${esc(x.data)}</td>
             <td onclick="activeInlineEdit(this, ${x.uid}, 'cliente', 'assistencias')" class="editable-cell uppercase font-bold">${esc(x.cliente)}</td>
             <td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'assistencias')" class="editable-cell uppercase">${esc(x.produto)}</td>
             <td onclick="activeInlineEdit(this, ${x.uid}, 'fabrica', 'assistencias')" class="editable-cell font-black text-blue-800 uppercase text-[10px]">${esc(x.fabrica)}</td>
             <td class="text-center"><button onclick="cycleAssisStatus(${x.uid})" class="px-2 py-1.5 rounded text-[9px] font-black w-full text-center transition ${sCls}">${esc(x.status)}</button></td>
-            <td class="text-center flex gap-1 justify-center">
-                <button onclick="if(confirm('EXCLUIR ASSISTÊNCIA?')){assistencias=assistencias.filter(y=>y.uid!=${x.uid}); salvarColecao('assistencias', assistencias);}" class="text-red-500 font-black px-2 hover:text-red-700 text-lg">✕</button>
-            </td>
+            <td class="text-center flex gap-1 justify-center"><button onclick="if(confirm('EXCLUIR ASSISTÊNCIA?')){assistencias=assistencias.filter(y=>y.uid!=${x.uid}); salvarColecao('assistencias', assistencias);}" class="text-red-500 font-black px-2 hover:text-red-700 text-lg">✕</button></td>
         </tr>`;
     }).join(''); 
 }
@@ -208,14 +231,9 @@ function cadastrarAssistencia(){
     const c=document.getElementById('as_cliente').value.toUpperCase().trim(), p=document.getElementById('as_produto').value.toUpperCase().trim(), f=document.getElementById('as_fabrica').value; 
     if(c&&p){ 
         assistencias.unshift({uid:Date.now(), data:new Date().toLocaleDateString('pt-BR'), cliente:c, produto:p, fabrica:f, status:"Aguardando"}); 
-        salvarColecao('assistencias', assistencias); 
-        document.getElementById('as_cliente').value=""; 
-        document.getElementById('as_produto').value=""; 
-    } else {
-        alert("PREENCHA O CLIENTE E O PRODUTO/DEFEITO!");
-    }
+        salvarColecao('assistencias', assistencias); document.getElementById('as_cliente').value=""; document.getElementById('as_produto').value=""; 
+    } else { alert("PREENCHA O CLIENTE E O PRODUTO/DEFEITO!"); }
 }
-
 
 // --- ABA EQUIPE KANBAN ---
 const coresEquipe = {
@@ -234,52 +252,55 @@ const telefonesEquipe = {
     "ISABELLA": "5527997452190"
 };
 
-function notificarWhatsApp(nomeRecebedor, mensagem, mostrarPopup = true) {
+function notificarIndividual(nomeRecebedor, mensagem) {
     const numero = telefonesEquipe[nomeRecebedor];
     if (!numero) return; 
-
-    // Limpa espaços no número por segurança
     const numeroLimpo = numero.replace(/\s+/g, '');
     const url = `https://wa.me/${numeroLimpo}?text=${encodeURIComponent(mensagem)}`;
     
-    if(mostrarPopup) {
-        if(confirm(`Deseja notificar ${nomeRecebedor} no WhatsApp sobre essa alteração?`)) {
-            window.open(url, '_blank');
-        }
-    } else {
+    // Na criação da tarefa, avisa o indivíduo de forma opcional (pergunta)
+    if(confirm(`Deseja avisar ${nomeRecebedor} pelo WhatsApp sobre essa nova tarefa?`)) {
         window.open(url, '_blank');
     }
 }
 
+// NOVA FUNÇÃO: Encaminha para "Enviar Para..." no WhatsApp para mandar em Grupo
+function notificarNoGrupo(tarefaAtualizada) {
+    const quemMoveu = usuarioAtual || "Alguém da equipe";
+    
+    // Captura o link base do sistema (sem os bagulhos depois da interrogação)
+    const baseUrl = window.location.href.split('?')[0];
+    const linkAcesso = `${baseUrl}?tarefa=${tarefaAtualizada.uid}`;
+    
+    const msg = `✅ *TAREFA CONCLUÍDA*\n\nO status da tarefa foi atualizado por *${quemMoveu}*.\n\n📌 *${tarefaAtualizada.descricao}*\n👤 Resp: ${tarefaAtualizada.responsavel}\n\n🔗 *Clique aqui para ver no sistema:*\n${linkAcesso}`;
+    
+    // API generica do WA abre a lista de contatos/grupos para você escolher pra quem mandar
+    const urlGrupo = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    
+    if(confirm(`Deseja enviar o aviso de conclusão no grupo do WhatsApp?`)) {
+        window.open(urlGrupo, '_blank');
+    }
+}
+
+
 let filtrosEquipeAtivos =[];
 
 function toggleFiltroEquipe(nome) {
-    if(nome === 'TODOS') {
-        filtrosEquipeAtivos =[];
-    } else {
-        if(filtrosEquipeAtivos.includes(nome)) {
-            filtrosEquipeAtivos = filtrosEquipeAtivos.filter(x => x !== nome); 
-        } else {
-            filtrosEquipeAtivos.push(nome);
-        }
-    }
-    renderFiltrosEquipe();
-    renderQuadroEquipe();
+    if(nome === 'TODOS') { filtrosEquipeAtivos =[]; } 
+    else { if(filtrosEquipeAtivos.includes(nome)) filtrosEquipeAtivos = filtrosEquipeAtivos.filter(x => x !== nome); else filtrosEquipeAtivos.push(nome); }
+    renderFiltrosEquipe(); renderQuadroEquipe();
 }
 
 function renderFiltrosEquipe() {
     const div = document.getElementById('filtros-equipe');
     if(!div) return;
-    
     let html = `<button onclick="toggleFiltroEquipe('TODOS')" class="px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition border-2 ${filtrosEquipeAtivos.length === 0 ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'}">🌟 TODOS</button>`;
-    
     Object.keys(coresEquipe).forEach(nome => {
         const corAtiva = coresEquipe[nome].split(' ')[1]; 
         const isAtivo = filtrosEquipeAtivos.includes(nome);
         const style = isAtivo ? `${coresEquipe[nome]} border-2 border-transparent shadow-sm` : `bg-white ${corAtiva} border-2 border-slate-200 hover:border-slate-300`;
         html += `<button onclick="toggleFiltroEquipe('${nome}')" class="px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition ${style}">${nome}</button>`;
     });
-    
     div.innerHTML = html;
 }
 
@@ -300,23 +321,19 @@ function adicionarTarefaEquipe() {
     salvarColecao('tarefasEquipe', tarefasEquipe);
     document.getElementById('eq_desc').value = "";
     
-    notificarWhatsApp(resp, `Olá *${resp}*! Uma nova tarefa foi designada a você no sistema Mercier Design:\n\n📌 *${desc}*`, true);
+    // Avisa o membro que ele ganhou uma tarefa (opcional com popup)
+    notificarIndividual(resp, `Olá *${resp}*! Uma nova tarefa foi designada a você no sistema Mercier Design:\n\n📌 *${desc}*`);
 }
 
 function moverTarefaEquipe(uid, novaColuna) {
     const t = tarefasEquipe.find(x => x.uid == uid);
     if(t && t.coluna !== novaColuna) {
-        const statusMap = { "TODO": "A Fazer", "DOING": "Em Andamento", "DONE": "Concluída" };
         t.coluna = novaColuna;
         salvarColecao('tarefasEquipe', tarefasEquipe);
         
-        const quemMoveu = usuarioAtual || "Alguém da equipe";
-        const msg = `Olá *${t.responsavel}*! O status da sua tarefa foi atualizado por ${quemMoveu}.\n\n📌 *${t.descricao}*\n🔄 Novo status: *${statusMap[novaColuna]}*`;
-        
-        if(novaColuna === 'DOING') {
-            notificarWhatsApp(t.responsavel, msg, false); 
-        } else if (novaColuna === 'DONE') {
-            notificarWhatsApp(t.responsavel, msg, true); 
+        // REGRA NOVA: Silencioso no DOING, Link no Grupo no DONE
+        if (novaColuna === 'DONE') {
+            notificarNoGrupo(t);
         }
         
         renderQuadroEquipe();
@@ -357,20 +374,14 @@ function adicionarComentarioInline(uid, inputElement) {
     salvarColecao('tarefasEquipe', tarefasEquipe);
     inputElement.value = ""; 
     
-    if(usuarioAtual !== t.responsavel) {
-        notificarWhatsApp(t.responsavel, `*${usuarioAtual}* comentou na sua tarefa (📌 ${t.descricao}):\n\n💬 "${txt}"`, true);
-    }
-
     setTimeout(() => {
         const chatBox = document.getElementById(`chat-${uid}`);
         if(chatBox) chatBox.scrollTop = chatBox.scrollHeight;
     }, 100);
 }
 
-function dragTarefa(ev, uid) {
-    ev.dataTransfer.setData("text/plain", uid);
-    setTimeout(() => { ev.target.classList.add('opacity-40'); }, 10);
-}
+// ARRASTAR E SOLTAR
+function dragTarefa(ev, uid) { ev.dataTransfer.setData("text/plain", uid); setTimeout(() => { ev.target.classList.add('opacity-40'); }, 10); }
 function dragEndTarefa(ev) { ev.target.classList.remove('opacity-40'); }
 function allowDropTarefa(ev) { ev.preventDefault(); ev.dataTransfer.dropEffect = "move"; }
 function dropTarefa(ev, col) {
@@ -400,11 +411,7 @@ function renderQuadroEquipe() {
         if (arrComent.length > 0) {
             comentariosHtml = arrComent.map(c => {
                 const cCor = coresEquipe[c.autor] ? coresEquipe[c.autor].split(' ')[1] : "text-slate-600"; 
-                return `
-                <div class="mb-1 leading-tight">
-                    <span class="${cCor} font-black text-[9px] uppercase tracking-tighter">${esc(c.autor)}:</span> 
-                    <span class="text-[10px] font-bold text-slate-700">${esc(c.texto)}</span>
-                </div>`;
+                return `<div class="mb-1 leading-tight"><span class="${cCor} font-black text-[9px] uppercase tracking-tighter">${esc(c.autor)}:</span> <span class="text-[10px] font-bold text-slate-700">${esc(c.texto)}</span></div>`;
             }).join('');
         }
         
@@ -412,7 +419,6 @@ function renderQuadroEquipe() {
 
         const card = `
             <div id="card-${t.uid}" draggable="true" ondragstart="dragTarefa(event, ${t.uid})" ondragend="dragEndTarefa(event)" class="bg-white p-3.5 rounded-2xl shadow-sm border-t-4 ${corBorda} flex flex-col gap-2 transition hover:shadow-md cursor-grab active:cursor-grabbing">
-                
                 <div class="flex justify-between items-start">
                     <span class="${cor} px-2 py-0.5 rounded text-[8px] font-black uppercase w-fit tracking-wider">${esc(t.responsavel)}</span>
                     <div class="flex gap-1 items-center">
@@ -435,9 +441,7 @@ function renderQuadroEquipe() {
                         <button onclick="adicionarComentarioInline(${t.uid}, this.previousElementSibling)" class="bg-slate-100 hover:bg-slate-200 text-slate-500 px-2 rounded-lg font-black text-[10px] transition">➤</button>
                     </div>
                 </div>
-                ` : `
-                <span class="text-[11px] font-black uppercase text-slate-800 leading-snug mt-1 truncate">${esc(t.descricao)}</span>
-                `}
+                ` : `<span class="text-[11px] font-black uppercase text-slate-800 leading-snug mt-1 truncate">${esc(t.descricao)}</span>`}
             </div>
         `;
 
@@ -460,7 +464,7 @@ function renderQuadroEquipe() {
     });
 }
 
-// --- RESTO DO CÓDIGO (Tirar Pedido / Catálogo / Assistência) ---
+// --- TAREFAS / TIRAR PEDIDO (CAIXA MÁGICA) ---
 function processarFichaWhatsApp(texto) {
     if(!texto) return;
     const mNome = texto.match(/Nome(?: Completo)?\s*[:\-]?\s*(.+)/i);
@@ -584,7 +588,7 @@ function gerarEmailLote() {
         const email = (fornecedores.find(f => f.nome === fab) || {}).email || "";
         let corpo = `Olá, segue pedido para fábrica ${fab}:%0D%0A%0D%0A`;
         grupos[fab].forEach((p, idx) => { corpo += `Qtde: ${String(p.qtd).padStart(2, '0')} - ${p.produto}%0D%0A${p.medida !== "-" ? `MEDIDA: ${p.medida}%0D%0A` : ""}COR/TECIDO: ${p.cor}%0D%0AREF: ${p.idDoc}%0D%0A${idx < grupos[fab].length - 1 ? `%0D%0A--------------------------%0D%0A` : ""}`; });
-        corpo += `%0D%0AForma de pagamento: 30/60/90.%0D%0A%0D%0AIDs para controle interno, favor desconsiderar.%0D%0A%0D%0AFavor confirmar o recebimento e nos enviar o documento de confirmação dos itens acima para conferência.%0D%0A%0D%0AAtenciosamente,%0D%0ALucas Mercier.`;
+        corpo += `%0D%0AForma de pagamento: 30/60/90.%0D%0A%0D%0AIDs para controle interno, favor desconsiderar.%0D%0A%0D%0AFavor confirmar o recebimento e nos হোয়াtsapp.%0D%0A%0D%0AAtenciosamente,%0D%0ALucas Mercier.`;
         window.open(`mailto:${email}?subject=${encodeURIComponent('PEDIDO - MERCIER DESIGN - '+fab)}&body=${corpo}`);
     }
 }
