@@ -14,7 +14,6 @@ const db = firebase.database();
 
 let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[], tarefasEquipe=[], proximoID=255, notasMelhoria="", notasEstoque="", cestoItensTemporario=[], filtrandoNaoEnviados=false, filtrandoVendidos=false, cpfValido=true;
 
-// --- SISTEMA DE LOGIN DISCRETO ---
 let usuarioAtual = "";
 try { usuarioAtual = localStorage.getItem('mercier_user') || ""; } catch(e) {}
 
@@ -26,11 +25,8 @@ window.onload = () => {
 
 function setUsuario(nome) {
     usuarioAtual = nome;
-    if(nome) {
-        try { localStorage.setItem('mercier_user', nome); } catch(e) {}
-    } else {
-        try { localStorage.removeItem('mercier_user'); } catch(e) {}
-    }
+    if(nome) { try { localStorage.setItem('mercier_user', nome); } catch(e) {} } 
+    else { try { localStorage.removeItem('mercier_user'); } catch(e) {} }
 }
 
 const esc = str => (str || "").toString().replace(/[&<>'"]/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag] || tag));
@@ -43,10 +39,8 @@ db.ref('.info/connected').on('value', (snap) => {
     else console.log("Tentando...");
 });
 
-// SINCRONIZAÇÃO DE DADOS
 db.ref('dados').on('value', (s) => {
     const d = s.val() || {};
-    
     pedidos = safeArray(d.pedidos);
     fornecedores = safeArray(d.fornecedores);
     estoque = safeArray(d.estoque);
@@ -54,7 +48,6 @@ db.ref('dados').on('value', (s) => {
     tarefas = safeArray(d.tarefas);
     assistencias = safeArray(d.assistencias);
     tarefasEquipe = safeArray(d.tarefasEquipe);
-    
     proximoID = d.proximoID || 255;
     notasMelhoria = d.notasMelhoria || "";
     notasEstoque = d.notasEstoque || "";
@@ -90,10 +83,15 @@ function activeInlineEdit(element, uid, field, listType) {
     input.className = "w-full p-1 text-xs font-bold border-2 border-blue-500 rounded bg-white text-black outline-none uppercase";
     if(field === 'custo') input.oninput = () => { let v = input.value.replace(/\D/g,""); v = (v/100).toFixed(2).replace(".",","); v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1."); input.value = "R$ " + v; };
     element.innerHTML = ''; element.appendChild(input); input.focus();
+    
     const save = () => {
         let newValue = input.value.toUpperCase().trim();
         if (newValue === "") newValue = "-";
-        const list = listType === 'estoque' ? estoque : pedidos;
+        
+        let list = pedidos;
+        if(listType === 'estoque') list = estoque;
+        else if(listType === 'assistencias') list = assistencias;
+
         const item = list.find(x => x.uid == uid);
         if (item) {
             if(field === 'qtd') item[field] = parseInt(newValue) || 1;
@@ -165,8 +163,61 @@ function darBaixaEstoque(u) { const it = estoque.find(x => x.uid == u); if (!it)
 function cadastrarEstoque() { const p = document.getElementById('e_produto').value.toUpperCase().trim(), f = document.getElementById('e_fabrica_select').value, q = document.getElementById('e_qtd').value, s = document.getElementById('e_situacao').value; if (p) { estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: p, fabrica: f, qtd: parseInt(q), situacao: s }); salvarColecao('estoque', estoque); document.getElementById('e_produto').value = ""; } }
 function toggleFiltroVendidos(){ filtrandoVendidos=!filtrandoVendidos; document.getElementById('btnFiltroVendidos').classList.toggle('bg-red-600'); document.getElementById('btnFiltroVendidos').classList.toggle('text-white'); renderEstoque(); }
 
+// --- ABA ASSISTÊNCIAS REVISADA ---
+function renderAssistencias() { 
+    const tb = document.getElementById('tabelaAssistencias'); 
+    if(!tb) return;
+    
+    const b = removeAcentos((document.getElementById('busca-assistencia')?.value || "").toLowerCase());
+    const fStatus = document.getElementById('filtro-assistencia-status')?.value || "TODAS";
 
-// --- ABA EQUIPE KANBAN E COMENTÁRIOS (COM INTEGRAÇÃO WHATSAPP) ---
+    let lista = assistencias.filter(x => {
+        const cliente = removeAcentos((x.cliente || "").toLowerCase());
+        const produto = removeAcentos((x.produto || "").toLowerCase());
+        const fabrica = removeAcentos((x.fabrica || "").toLowerCase());
+        const status = x.status || "Aguardando";
+        
+        const matBusca = cliente.includes(b) || produto.includes(b) || fabrica.includes(b);
+        const matStatus = fStatus === "TODAS" || status === fStatus;
+        return matBusca && matStatus;
+    });
+
+    const cnt = document.getElementById('contador-assistencia');
+    if(cnt) cnt.innerText = lista.length + " ASSISTÊNCIAS";
+
+    tb.innerHTML = lista.map(x => {
+        // Cores Dinâmicas para o Status
+        let sCls = "bg-slate-200 text-slate-700";
+        if(x.status === "Aguardando") sCls = "bg-red-100 text-red-700 hover:bg-red-200";
+        else if(x.status === "Peça Solicitada") sCls = "bg-blue-100 text-blue-700 hover:bg-blue-200";
+        else if(x.status === "Concluído") sCls = "bg-green-100 text-green-700 hover:bg-green-200";
+
+        return `<tr class="border-b border-slate-50 hover:bg-slate-50 transition">
+            <td class="text-[10px] font-bold text-slate-400">${esc(x.data)}</td>
+            <td onclick="activeInlineEdit(this, ${x.uid}, 'cliente', 'assistencias')" class="editable-cell uppercase font-bold">${esc(x.cliente)}</td>
+            <td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'assistencias')" class="editable-cell uppercase">${esc(x.produto)}</td>
+            <td onclick="activeInlineEdit(this, ${x.uid}, 'fabrica', 'assistencias')" class="editable-cell font-black text-blue-800 uppercase text-[10px]">${esc(x.fabrica)}</td>
+            <td class="text-center"><button onclick="cycleAssisStatus(${x.uid})" class="px-2 py-1.5 rounded text-[9px] font-black w-full text-center transition ${sCls}">${esc(x.status)}</button></td>
+            <td class="text-center flex gap-1 justify-center">
+                <button onclick="if(confirm('EXCLUIR ASSISTÊNCIA?')){assistencias=assistencias.filter(y=>y.uid!=${x.uid}); salvarColecao('assistencias', assistencias);}" class="text-red-500 font-black px-2 hover:text-red-700 text-lg">✕</button>
+            </td>
+        </tr>`;
+    }).join(''); 
+}
+function cadastrarAssistencia(){ 
+    const c=document.getElementById('as_cliente').value.toUpperCase().trim(), p=document.getElementById('as_produto').value.toUpperCase().trim(), f=document.getElementById('as_fabrica').value; 
+    if(c&&p){ 
+        assistencias.unshift({uid:Date.now(), data:new Date().toLocaleDateString('pt-BR'), cliente:c, produto:p, fabrica:f, status:"Aguardando"}); 
+        salvarColecao('assistencias', assistencias); 
+        document.getElementById('as_cliente').value=""; 
+        document.getElementById('as_produto').value=""; 
+    } else {
+        alert("PREENCHA O CLIENTE E O PRODUTO/DEFEITO!");
+    }
+}
+
+
+// --- ABA EQUIPE KANBAN ---
 const coresEquipe = {
     "LUCAS": "bg-emerald-100 text-emerald-700 border-emerald-400",
     "GUILHERME": "bg-blue-100 text-blue-700 border-blue-400",
@@ -175,7 +226,6 @@ const coresEquipe = {
     "ANGÉLICA": "bg-purple-100 text-purple-700 border-purple-400"
 };
 
-// NUMEROS ATUALIZADOS!
 const telefonesEquipe = {
     "LUCAS": "5527996109720",
     "ANGÉLICA": "5527998094627",
@@ -184,12 +234,13 @@ const telefonesEquipe = {
     "ISABELLA": "5527997452190"
 };
 
-// Nova Função de WhatsApp Híbrida
 function notificarWhatsApp(nomeRecebedor, mensagem, mostrarPopup = true) {
     const numero = telefonesEquipe[nomeRecebedor];
     if (!numero) return; 
 
-    const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
+    // Limpa espaços no número por segurança
+    const numeroLimpo = numero.replace(/\s+/g, '');
+    const url = `https://wa.me/${numeroLimpo}?text=${encodeURIComponent(mensagem)}`;
     
     if(mostrarPopup) {
         if(confirm(`Deseja notificar ${nomeRecebedor} no WhatsApp sobre essa alteração?`)) {
@@ -244,7 +295,7 @@ function adicionarTarefaEquipe() {
         responsavel: resp,
         coluna: "TODO",
         comentarios:[],
-        minimizada: false // Novo estado para saber se está oculta
+        minimizada: false
     });
     salvarColecao('tarefasEquipe', tarefasEquipe);
     document.getElementById('eq_desc').value = "";
@@ -262,9 +313,10 @@ function moverTarefaEquipe(uid, novaColuna) {
         const quemMoveu = usuarioAtual || "Alguém da equipe";
         const msg = `Olá *${t.responsavel}*! O status da sua tarefa foi atualizado por ${quemMoveu}.\n\n📌 *${t.descricao}*\n🔄 Novo status: *${statusMap[novaColuna]}*`;
         
-        // ENVIO WHATSAPP AJUSTADO: Não avisa em 'DOING', avisa com confirmação em 'DONE'
-        if (novaColuna === 'DONE') {
-            notificarWhatsApp(t.responsavel, msg, true); // COM POPUP
+        if(novaColuna === 'DOING') {
+            notificarWhatsApp(t.responsavel, msg, false); 
+        } else if (novaColuna === 'DONE') {
+            notificarWhatsApp(t.responsavel, msg, true); 
         }
         
         renderQuadroEquipe();
@@ -300,12 +352,7 @@ function adicionarComentarioInline(uid, inputElement) {
     const agora = new Date();
     const strData = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
 
-    t.comentarios.push({
-        id: Date.now(),
-        autor: usuarioAtual,
-        texto: txt,
-        dataHora: strData
-    });
+    t.comentarios.push({ id: Date.now(), autor: usuarioAtual, texto: txt, dataHora: strData });
 
     salvarColecao('tarefasEquipe', tarefasEquipe);
     inputElement.value = ""; 
@@ -320,18 +367,12 @@ function adicionarComentarioInline(uid, inputElement) {
     }, 100);
 }
 
-// ARRASTAR E SOLTAR (DRAG & DROP)
 function dragTarefa(ev, uid) {
     ev.dataTransfer.setData("text/plain", uid);
     setTimeout(() => { ev.target.classList.add('opacity-40'); }, 10);
 }
-function dragEndTarefa(ev) {
-    ev.target.classList.remove('opacity-40');
-}
-function allowDropTarefa(ev) {
-    ev.preventDefault();
-    ev.dataTransfer.dropEffect = "move";
-}
+function dragEndTarefa(ev) { ev.target.classList.remove('opacity-40'); }
+function allowDropTarefa(ev) { ev.preventDefault(); ev.dataTransfer.dropEffect = "move"; }
 function dropTarefa(ev, col) {
     ev.preventDefault();
     const uid = ev.dataTransfer.getData("text/plain");
@@ -419,7 +460,7 @@ function renderQuadroEquipe() {
     });
 }
 
-// --- TAREFAS / TIRAR PEDIDO (CAIXA MÁGICA) ---
+// --- RESTO DO CÓDIGO (Tirar Pedido / Catálogo / Assistência) ---
 function processarFichaWhatsApp(texto) {
     if(!texto) return;
     const mNome = texto.match(/Nome(?: Completo)?\s*[:\-]?\s*(.+)/i);
@@ -512,8 +553,6 @@ function renderFornecedores() { const tb = document.getElementById('tabelaFornec
 function cadastrarFornecedor(){ const n=document.getElementById('f_nome').value.toUpperCase().trim(), e=document.getElementById('f_email').value.toLowerCase().trim(); if(n&&e){fornecedores.push({nome:n,email:e}); salvarColecao('fornecedores', fornecedores); document.getElementById('f_nome').value=""; document.getElementById('f_email').value="";}}
 function renderCatalogo() { const tb=document.getElementById('tabelaCatalogo'); if(!tb) return; tb.innerHTML=catalogo.map((c,i)=>`<tr><td class="uppercase">${esc(c.nome)}</td><td class="text-center"><button onclick="catalogo.splice(${i},1); salvarColecao('catalogo', catalogo);">✕</button></td></tr>`).join(''); }
 function cadastrarCatalogo(){ const n=document.getElementById('cat_nome').value.toUpperCase(); if(n){catalogo.push({nome:n}); salvarColecao('catalogo', catalogo); document.getElementById('cat_nome').value="";}}
-function renderAssistencias() { const tb=document.getElementById('tabelaAssistencias'); if(!tb) return; tb.innerHTML=assistencias.map(x=>`<tr><td>${esc(x.data)}</td><td class="uppercase font-bold">${esc(x.cliente)}</td><td class="uppercase">${esc(x.produto)}</td><td class="font-black text-blue-800 uppercase">${esc(x.fabrica)}</td><td><button onclick="cycleAssisStatus(${x.uid})" class="status-badge bg-slate-200">${esc(x.status)}</button></td><td><button onclick="assistencias=assistencias.filter(y=>y.uid!=${x.uid}); salvarColecao('assistencias', assistencias);" class="text-red-500 font-black">✕</button></td></tr>`).join(''); }
-function cadastrarAssistencia(){ const c=document.getElementById('as_cliente').value.toUpperCase(), p=document.getElementById('as_produto').value.toUpperCase(), f=document.getElementById('as_fabrica').value; if(c&&p){ assistencias.unshift({uid:Date.now(), data:new Date().toLocaleDateString('pt-BR'), cliente:c, produto:p, fabrica:f, status:"Aguardando"}); salvarColecao('assistencias', assistencias); document.getElementById('as_cliente').value=""; document.getElementById('as_produto').value=""; } }
 
 function switchTab(t){ window.scrollTo(0,0); document.querySelectorAll('main').forEach(x=>x.classList.add('hidden')); document.getElementById('view-'+t).classList.remove('hidden'); document.querySelectorAll('nav button').forEach(x=>x.classList.remove('tab-active')); document.getElementById('tab-'+t).classList.add('tab-active'); }
 function cycleStatus(u){ const x=pedidos.find(y=>y.uid==u); const s=["Não enviado","Pedido enviado","Aguardando fábrica","Pedido na loja"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('pedidos', pedidos); }
