@@ -124,6 +124,11 @@
                     <label class="text-[9px] font-black text-slate-400 uppercase">O que precisa ser feito?</label>
                     <input id="eq_desc" placeholder="DESCREVA A TAREFA RAPIDAMENTE..." class="border-2 p-2.5 rounded-lg text-xs font-bold w-full uppercase outline-purple-500" onkeydown="if(event.key==='Enter') adicionarTarefaEquipe()">
                 </div>
+                <!-- NOVO CAMPO: PRAZO -->
+                <div class="w-36">
+                    <label class="text-[9px] font-black text-slate-400 uppercase">Prazo (Opcional)</label>
+                    <input type="date" id="eq_prazo" class="border-2 p-2.5 rounded-lg text-xs font-bold w-full text-slate-600 outline-purple-500 bg-white">
+                </div>
                 <div class="w-48">
                     <label class="text-[9px] font-black text-slate-400 uppercase">Responsável</label>
                     <select id="eq_resp" class="border-2 p-2.5 rounded-lg text-xs font-bold bg-white w-full outline-purple-500 uppercase cursor-pointer">
@@ -143,18 +148,41 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-            <div id="col-todo-container" ondrop="dropTarefa(event, 'TODO')" ondragover="allowDropTarefa(event)" class="bg-slate-200/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-slate-200 shadow-inner transition">
-                <h3 class="font-black text-sm uppercase text-slate-600 mb-4 flex justify-between items-center sticky top-0 pointer-events-none"><span>🟥 A Fazer</span><span id="count-todo" class="bg-slate-300 text-slate-700 py-1 px-3 rounded-full text-[10px]">0</span></h3>
-                <div id="col-todo" class="flex flex-col gap-3 flex-1 pb-4"></div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+            <!-- Coluna TODO -->
+            <div id="col-todo-container" ondrop="dropTarefa(event, 'TODO')" ondragover="allowDropTarefa(event)" class="bg-slate-200/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-slate-200 shadow-inner transition-all duration-300">
+                <h3 class="font-black text-sm uppercase text-slate-600 mb-4 flex justify-between items-center sticky top-0 bg-slate-200/90 py-1 z-10 backdrop-blur-sm pointer-events-none">
+                    <div class="flex items-center gap-2 pointer-events-auto">
+                        <button onclick="toggleColunaKanban('TODO')" id="btn-toggle-todo" class="bg-slate-300 hover:bg-slate-400 text-slate-700 w-7 h-7 rounded-full flex items-center justify-center transition shadow-sm text-lg leading-none">➖</button>
+                        <span>🟥 A Fazer</span>
+                    </div>
+                    <span id="count-todo" class="bg-slate-300 text-slate-700 py-1 px-3 rounded-full text-[10px]">0</span>
+                </h3>
+                <div id="col-todo" class="flex flex-col gap-3 flex-1 pb-4 transition-all"></div>
             </div>
-            <div id="col-doing-container" ondrop="dropTarefa(event, 'DOING')" ondragover="allowDropTarefa(event)" class="bg-blue-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-blue-200 shadow-inner transition">
-                <h3 class="font-black text-sm uppercase text-blue-600 mb-4 flex justify-between items-center sticky top-0 pointer-events-none"><span>🟨 Em Andamento</span><span id="count-doing" class="bg-blue-200 text-blue-700 py-1 px-3 rounded-full text-[10px]">0</span></h3>
-                <div id="col-doing" class="flex flex-col gap-3 flex-1 pb-4"></div>
+            
+            <!-- Coluna DOING -->
+            <div id="col-doing-container" ondrop="dropTarefa(event, 'DOING')" ondragover="allowDropTarefa(event)" class="bg-blue-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-blue-200 shadow-inner transition-all duration-300">
+                <h3 class="font-black text-sm uppercase text-blue-600 mb-4 flex justify-between items-center sticky top-0 bg-blue-100/90 py-1 z-10 backdrop-blur-sm pointer-events-none">
+                    <div class="flex items-center gap-2 pointer-events-auto">
+                        <button onclick="toggleColunaKanban('DOING')" id="btn-toggle-doing" class="bg-blue-200 hover:bg-blue-300 text-blue-700 w-7 h-7 rounded-full flex items-center justify-center transition shadow-sm text-lg leading-none">➖</button>
+                        <span>🟨 Em Andamento</span>
+                    </div>
+                    <span id="count-doing" class="bg-blue-200 text-blue-700 py-1 px-3 rounded-full text-[10px]">0</span>
+                </h3>
+                <div id="col-doing" class="flex flex-col gap-3 flex-1 pb-4 transition-all"></div>
             </div>
-            <div id="col-done-container" ondrop="dropTarefa(event, 'DONE')" ondragover="allowDropTarefa(event)" class="bg-green-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-green-200 shadow-inner transition">
-                <h3 class="font-black text-sm uppercase text-green-600 mb-4 flex justify-between items-center sticky top-0 pointer-events-none"><span>🟩 Concluído</span><span id="count-done" class="bg-green-200 text-green-700 py-1 px-3 rounded-full text-[10px]">0</span></h3>
-                <div id="col-done" class="flex flex-col gap-3 flex-1 pb-4"></div>
+            
+            <!-- Coluna DONE -->
+            <div id="col-done-container" ondrop="dropTarefa(event, 'DONE')" ondragover="allowDropTarefa(event)" class="bg-green-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-green-200 shadow-inner transition-all duration-300">
+                <h3 class="font-black text-sm uppercase text-green-600 mb-4 flex justify-between items-center sticky top-0 bg-green-100/90 py-1 z-10 backdrop-blur-sm pointer-events-none">
+                    <div class="flex items-center gap-2 pointer-events-auto">
+                        <button onclick="toggleColunaKanban('DONE')" id="btn-toggle-done" class="bg-green-200 hover:bg-green-300 text-green-700 w-7 h-7 rounded-full flex items-center justify-center transition shadow-sm text-lg leading-none">➖</button>
+                        <span>🟩 Concluído</span>
+                    </div>
+                    <span id="count-done" class="bg-green-200 text-green-700 py-1 px-3 rounded-full text-[10px]">0</span>
+                </h3>
+                <div id="col-done" class="flex flex-col gap-3 flex-1 pb-4 transition-all"></div>
             </div>
         </div>
     </main>
@@ -193,7 +221,7 @@
         <div class="card-premium overflow-hidden"><table class="w-full text-left border-collapse table-fixed"><thead><tr class="bg-slate-50 text-slate-500 uppercase text-[10px]"><th>Data</th><th>Móvel</th><th width="150">Fábrica</th><th width="60" class="text-center">Qtd</th><th width="120">Situação</th><th class="text-center" width="100">Ação</th></tr></thead><tbody id="tabelaEstoque"></tbody></table></div>
     </main>
 
-    <!-- ABA ASSISTÊNCIA REVISADA -->
+    <!-- ABA ASSISTÊNCIA -->
     <main id="view-assistencia" class="hidden p-6 max-w-[1950px] mx-auto">
         <div class="card-premium p-6 border-l-8 border-orange-500 flex flex-wrap gap-4 mb-6 uppercase shadow-lg">
             <input list="listaSugestaoClientes" id="as_cliente" placeholder="CLIENTE" class="border-2 p-2.5 rounded-lg text-xs font-bold flex-1 uppercase outline-orange-500">
@@ -202,7 +230,6 @@
             <button onclick="cadastrarAssistencia()" class="bg-orange-600 text-white px-10 py-2.5 rounded-lg font-black text-xs uppercase shadow hover:bg-orange-700 transition">Registrar</button>
         </div>
 
-        <!-- NOVO: BUSCA E FILTRO DE ASSISTÊNCIA -->
         <div class="card-premium p-4 mb-4 bg-slate-50 flex flex-wrap gap-4 items-center uppercase border border-slate-200">
             <div class="flex-1 min-w-[300px]">
                 <input type="text" id="busca-assistencia" onkeyup="renderAssistencias()" placeholder="🔍 BUSCAR ASSISTÊNCIA (CLIENTE, DEFEITO)..." class="border-2 p-2.5 rounded-xl text-xs font-bold w-full outline-orange-500">
