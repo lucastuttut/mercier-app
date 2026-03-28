@@ -35,7 +35,6 @@ function setUsuario(nome) {
 
 const esc = str => (str || "").toString().replace(/[&<>'"]/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag] || tag));
 const removeAcentos = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
 const safeArray = (data) => Array.isArray(data) ? data : Object.values(data || {});
 
 const statusEl = document.getElementById('status-db');
@@ -176,29 +175,27 @@ const coresEquipe = {
     "ANGÉLICA": "bg-purple-100 text-purple-700 border-purple-400"
 };
 
-// ⚠️ ATENÇÃO: SUBSTITUA OS NÚMEROS ABAIXO PELOS NÚMEROS REAIS DA SUA EQUIPE ⚠️
-// Formato: 55 + DDD + Número (Tudo junto, sem espaços ou traços)
+// NUMEROS ATUALIZADOS!
 const telefonesEquipe = {
     "LUCAS": "5527996109720",
     "ANGÉLICA": "5527998094627",
-    "GUILHERME": "5511900000000",
-    "CAROL": "5511900000000",
-    "ISABELLA": "5511900000000"
+    "GUILHERME": "5527999468458",
+    "CAROL": "5527999517954",
+    "ISABELLA": "5527997452190"
 };
 
-// Nova Função de Envio pro WhatsApp
-function notificarWhatsApp(nomeRecebedor, mensagem) {
+// Nova Função de WhatsApp Híbrida
+function notificarWhatsApp(nomeRecebedor, mensagem, mostrarPopup = true) {
     const numero = telefonesEquipe[nomeRecebedor];
+    if (!numero) return; 
+
+    const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
     
-    // Se o número for o falso que eu deixei, ou não existir, ele ignora.
-    if (!numero || numero === "5511900000000") {
-        console.log("Número não configurado para: " + nomeRecebedor);
-        return; 
-    }
-    
-    // Pergunta sutil para não abrir o WhatsApp sem querer toda vez
-    if(confirm(`Deseja notificar ${nomeRecebedor} no WhatsApp sobre essa alteração?`)) {
-        const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
+    if(mostrarPopup) {
+        if(confirm(`Deseja notificar ${nomeRecebedor} no WhatsApp sobre essa alteração?`)) {
+            window.open(url, '_blank');
+        }
+    } else {
         window.open(url, '_blank');
     }
 }
@@ -228,10 +225,7 @@ function renderFiltrosEquipe() {
     Object.keys(coresEquipe).forEach(nome => {
         const corAtiva = coresEquipe[nome].split(' ')[1]; 
         const isAtivo = filtrosEquipeAtivos.includes(nome);
-        const style = isAtivo 
-            ? `${coresEquipe[nome]} border-2 border-transparent shadow-sm` 
-            : `bg-white ${corAtiva} border-2 border-slate-200 hover:border-slate-300`;
-            
+        const style = isAtivo ? `${coresEquipe[nome]} border-2 border-transparent shadow-sm` : `bg-white ${corAtiva} border-2 border-slate-200 hover:border-slate-300`;
         html += `<button onclick="toggleFiltroEquipe('${nome}')" class="px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition ${style}">${nome}</button>`;
     });
     
@@ -249,25 +243,31 @@ function adicionarTarefaEquipe() {
         descricao: desc,
         responsavel: resp,
         coluna: "TODO",
-        comentarios:[]
+        comentarios:[],
+        minimizada: false // Novo estado para saber se está oculta
     });
     salvarColecao('tarefasEquipe', tarefasEquipe);
     document.getElementById('eq_desc').value = "";
     
-    // Dispara a Notificação
-    notificarWhatsApp(resp, `Olá *${resp}*! Uma nova tarefa foi designada a você no sistema Mercier Design:\n\n📌 *${desc}*`);
+    notificarWhatsApp(resp, `Olá *${resp}*! Uma nova tarefa foi designada a você no sistema Mercier Design:\n\n📌 *${desc}*`, true);
 }
 
 function moverTarefaEquipe(uid, novaColuna) {
     const t = tarefasEquipe.find(x => x.uid == uid);
-    if(t) {
+    if(t && t.coluna !== novaColuna) {
+        const statusMap = { "TODO": "A Fazer", "DOING": "Em Andamento", "DONE": "Concluída" };
         t.coluna = novaColuna;
         salvarColecao('tarefasEquipe', tarefasEquipe);
         
-        // Dispara a Notificação de Status
-        const statusMap = { "TODO": "A Fazer", "DOING": "Em Andamento", "DONE": "Concluída" };
         const quemMoveu = usuarioAtual || "Alguém da equipe";
-        notificarWhatsApp(t.responsavel, `Olá *${t.responsavel}*! O status da sua tarefa foi atualizado por ${quemMoveu}.\n\n📌 *${t.descricao}*\n🔄 Novo status: *${statusMap[novaColuna]}*`);
+        const msg = `Olá *${t.responsavel}*! O status da sua tarefa foi atualizado por ${quemMoveu}.\n\n📌 *${t.descricao}*\n🔄 Novo status: *${statusMap[novaColuna]}*`;
+        
+        // ENVIO WHATSAPP AJUSTADO: Não avisa em 'DOING', avisa com confirmação em 'DONE'
+        if (novaColuna === 'DONE') {
+            notificarWhatsApp(t.responsavel, msg, true); // COM POPUP
+        }
+        
+        renderQuadroEquipe();
     }
 }
 
@@ -275,6 +275,15 @@ function excluirTarefaEquipe(uid) {
     if(confirm("EXCLUIR ESTA TAREFA DA EQUIPE?")) {
         tarefasEquipe = tarefasEquipe.filter(x => x.uid != uid);
         salvarColecao('tarefasEquipe', tarefasEquipe);
+    }
+}
+
+function minimizarTarefaEquipe(uid) {
+    const t = tarefasEquipe.find(x => x.uid == uid);
+    if(t) {
+        t.minimizada = !t.minimizada; 
+        salvarColecao('tarefasEquipe', tarefasEquipe);
+        renderQuadroEquipe();
     }
 }
 
@@ -301,16 +310,32 @@ function adicionarComentarioInline(uid, inputElement) {
     salvarColecao('tarefasEquipe', tarefasEquipe);
     inputElement.value = ""; 
     
-    // Dispara a Notificação do Comentário
-    // OBS: Não avisa se a pessoa estiver comentando na própria tarefa
     if(usuarioAtual !== t.responsavel) {
-        notificarWhatsApp(t.responsavel, `*${usuarioAtual}* comentou na sua tarefa (📌 ${t.descricao}):\n\n💬 "${txt}"`);
+        notificarWhatsApp(t.responsavel, `*${usuarioAtual}* comentou na sua tarefa (📌 ${t.descricao}):\n\n💬 "${txt}"`, true);
     }
 
     setTimeout(() => {
         const chatBox = document.getElementById(`chat-${uid}`);
         if(chatBox) chatBox.scrollTop = chatBox.scrollHeight;
     }, 100);
+}
+
+// ARRASTAR E SOLTAR (DRAG & DROP)
+function dragTarefa(ev, uid) {
+    ev.dataTransfer.setData("text/plain", uid);
+    setTimeout(() => { ev.target.classList.add('opacity-40'); }, 10);
+}
+function dragEndTarefa(ev) {
+    ev.target.classList.remove('opacity-40');
+}
+function allowDropTarefa(ev) {
+    ev.preventDefault();
+    ev.dataTransfer.dropEffect = "move";
+}
+function dropTarefa(ev, col) {
+    ev.preventDefault();
+    const uid = ev.dataTransfer.getData("text/plain");
+    if(uid) moverTarefaEquipe(uid, col);
 }
 
 function renderQuadroEquipe() {
@@ -341,12 +366,16 @@ function renderQuadroEquipe() {
                 </div>`;
             }).join('');
         }
+        
+        const isMin = t.minimizada || false;
 
         const card = `
-            <div class="bg-white p-3.5 rounded-2xl shadow-sm border-t-4 ${corBorda} flex flex-col gap-2 transition hover:shadow-md">
+            <div id="card-${t.uid}" draggable="true" ondragstart="dragTarefa(event, ${t.uid})" ondragend="dragEndTarefa(event)" class="bg-white p-3.5 rounded-2xl shadow-sm border-t-4 ${corBorda} flex flex-col gap-2 transition hover:shadow-md cursor-grab active:cursor-grabbing">
+                
                 <div class="flex justify-between items-start">
                     <span class="${cor} px-2 py-0.5 rounded text-[8px] font-black uppercase w-fit tracking-wider">${esc(t.responsavel)}</span>
-                    <div class="flex gap-1">
+                    <div class="flex gap-1 items-center">
+                        <button onclick="minimizarTarefaEquipe(${t.uid})" class="text-slate-400 hover:text-slate-800 font-black text-[10px] mr-1 bg-slate-100 px-2 py-0.5 rounded transition" title="Minimizar / Expandir">${isMin ? '➕' : '➖'}</button>
                         ${t.coluna === 'TODO' ? `<button onclick="moverTarefaEquipe(${t.uid}, 'DOING')" class="text-slate-300 hover:text-blue-500 font-black text-xs" title="Mover">➡️</button>` : ''}
                         ${t.coluna === 'DOING' ? `<button onclick="moverTarefaEquipe(${t.uid}, 'TODO')" class="text-slate-300 hover:text-slate-500 font-black text-xs" title="Voltar">⬅️</button> <button onclick="moverTarefaEquipe(${t.uid}, 'DONE')" class="text-slate-300 hover:text-green-500 font-black text-xs ml-1" title="Concluir">✅</button>` : ''}
                         ${t.coluna === 'DONE' ? `<button onclick="moverTarefaEquipe(${t.uid}, 'DOING')" class="text-slate-300 hover:text-slate-500 font-black text-xs" title="Voltar">⬅️</button>` : ''}
@@ -354,6 +383,7 @@ function renderQuadroEquipe() {
                     </div>
                 </div>
 
+                ${!isMin ? `
                 <span class="text-[11px] font-black uppercase text-slate-800 leading-snug mt-1">${esc(t.descricao)}</span>
                 <span class="text-[8px] font-black text-slate-300 border-b border-slate-100 pb-2">${t.data}</span>
 
@@ -364,6 +394,9 @@ function renderQuadroEquipe() {
                         <button onclick="adicionarComentarioInline(${t.uid}, this.previousElementSibling)" class="bg-slate-100 hover:bg-slate-200 text-slate-500 px-2 rounded-lg font-black text-[10px] transition">➤</button>
                     </div>
                 </div>
+                ` : `
+                <span class="text-[11px] font-black uppercase text-slate-800 leading-snug mt-1 truncate">${esc(t.descricao)}</span>
+                `}
             </div>
         `;
 
@@ -385,7 +418,6 @@ function renderQuadroEquipe() {
         if(chatBox) chatBox.scrollTop = chatBox.scrollHeight;
     });
 }
-
 
 // --- TAREFAS / TIRAR PEDIDO (CAIXA MÁGICA) ---
 function processarFichaWhatsApp(texto) {
@@ -476,7 +508,6 @@ function verDetalhesTarefa(uid){
 }
 function l_i(l, v){ return `<div class="border p-2 rounded text-[10px] font-bold uppercase flex justify-between"><span>${l}: ${esc(v)}</span><button onclick="copyText('${esc(v)}', this)">📋</button></div>`; }
 
-// --- OUTRAS ABAS ---
 function renderFornecedores() { const tb = document.getElementById('tabelaFornecedores'); if(!tb) return; tb.innerHTML = fornecedores.map((f, i) => `<tr><td class="font-bold uppercase">${esc(f.nome)}</td><td class="lowercase text-blue-600">${esc(f.email)}</td><td class="text-center"><button onclick="fornecedores.splice(${i},1); salvarColecao('fornecedores', fornecedores);" class="text-red-500 font-black">✕</button></td></tr>`).join(''); }
 function cadastrarFornecedor(){ const n=document.getElementById('f_nome').value.toUpperCase().trim(), e=document.getElementById('f_email').value.toLowerCase().trim(); if(n&&e){fornecedores.push({nome:n,email:e}); salvarColecao('fornecedores', fornecedores); document.getElementById('f_nome').value=""; document.getElementById('f_email').value="";}}
 function renderCatalogo() { const tb=document.getElementById('tabelaCatalogo'); if(!tb) return; tb.innerHTML=catalogo.map((c,i)=>`<tr><td class="uppercase">${esc(c.nome)}</td><td class="text-center"><button onclick="catalogo.splice(${i},1); salvarColecao('catalogo', catalogo);">✕</button></td></tr>`).join(''); }
@@ -484,7 +515,6 @@ function cadastrarCatalogo(){ const n=document.getElementById('cat_nome').value.
 function renderAssistencias() { const tb=document.getElementById('tabelaAssistencias'); if(!tb) return; tb.innerHTML=assistencias.map(x=>`<tr><td>${esc(x.data)}</td><td class="uppercase font-bold">${esc(x.cliente)}</td><td class="uppercase">${esc(x.produto)}</td><td class="font-black text-blue-800 uppercase">${esc(x.fabrica)}</td><td><button onclick="cycleAssisStatus(${x.uid})" class="status-badge bg-slate-200">${esc(x.status)}</button></td><td><button onclick="assistencias=assistencias.filter(y=>y.uid!=${x.uid}); salvarColecao('assistencias', assistencias);" class="text-red-500 font-black">✕</button></td></tr>`).join(''); }
 function cadastrarAssistencia(){ const c=document.getElementById('as_cliente').value.toUpperCase(), p=document.getElementById('as_produto').value.toUpperCase(), f=document.getElementById('as_fabrica').value; if(c&&p){ assistencias.unshift({uid:Date.now(), data:new Date().toLocaleDateString('pt-BR'), cliente:c, produto:p, fabrica:f, status:"Aguardando"}); salvarColecao('assistencias', assistencias); document.getElementById('as_cliente').value=""; document.getElementById('as_produto').value=""; } }
 
-// --- GERAIS ---
 function switchTab(t){ window.scrollTo(0,0); document.querySelectorAll('main').forEach(x=>x.classList.add('hidden')); document.getElementById('view-'+t).classList.remove('hidden'); document.querySelectorAll('nav button').forEach(x=>x.classList.remove('tab-active')); document.getElementById('tab-'+t).classList.add('tab-active'); }
 function cycleStatus(u){ const x=pedidos.find(y=>y.uid==u); const s=["Não enviado","Pedido enviado","Aguardando fábrica","Pedido na loja"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('pedidos', pedidos); }
 function cycleTarefaStatus(u){ const x=tarefas.find(y=>y.uid==u); const s=["Não Iniciado","Em Andamento","Feito"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('tarefas', tarefas); }
@@ -520,7 +550,6 @@ function gerarEmailLote() {
     }
 }
 
-// --- DRAG AND DROP DO BLOCO DE NOTAS ---
 const painelSugestoes = document.getElementById('painel-sugestoes');
 const dragHandle = document.getElementById('drag-handle');
 let isDragging = false, offsetX, offsetY;
@@ -543,7 +572,6 @@ document.addEventListener('mouseup', () => { isDragging = false; });
 
 mostrarCamposTarefa('SIMPLES');
 
-// BARRA DE ROLAGEM CUSTOMIZADA
 const style = document.createElement('style');
 style.innerHTML = `
 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
