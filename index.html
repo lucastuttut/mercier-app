@@ -137,26 +137,24 @@
                 <button onclick="adicionarTarefaEquipe()" class="bg-purple-600 text-white px-8 py-3 rounded-lg font-black text-xs uppercase shadow hover:bg-purple-700 transition">＋ Adicionar</button>
             </div>
             
-            <!-- NOVO: FILTROS DE USUÁRIO -->
             <div class="mt-5 pt-4 border-t border-slate-100 flex flex-col gap-2">
                 <span class="text-[9px] font-black text-slate-400 uppercase">Filtre por Responsável:</span>
-                <div id="filtros-equipe" class="flex flex-wrap gap-2">
-                    <!-- Botões gerados via JS -->
-                </div>
+                <div id="filtros-equipe" class="flex flex-wrap gap-2"></div>
             </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-            <div class="bg-slate-200/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-slate-200 shadow-inner">
-                <h3 class="font-black text-sm uppercase text-slate-600 mb-4 flex justify-between items-center sticky top-0"><span>🟥 A Fazer</span><span id="count-todo" class="bg-slate-300 text-slate-700 py-1 px-3 rounded-full text-[10px]">0</span></h3>
+            <!-- Colunas com Drag & Drop -->
+            <div id="col-todo-container" ondrop="dropTarefa(event, 'TODO')" ondragover="allowDropTarefa(event)" class="bg-slate-200/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-slate-200 shadow-inner transition">
+                <h3 class="font-black text-sm uppercase text-slate-600 mb-4 flex justify-between items-center sticky top-0 pointer-events-none"><span>🟥 A Fazer</span><span id="count-todo" class="bg-slate-300 text-slate-700 py-1 px-3 rounded-full text-[10px]">0</span></h3>
                 <div id="col-todo" class="flex flex-col gap-3 flex-1 pb-4"></div>
             </div>
-            <div class="bg-blue-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-blue-200 shadow-inner">
-                <h3 class="font-black text-sm uppercase text-blue-600 mb-4 flex justify-between items-center sticky top-0"><span>🟨 Em Andamento</span><span id="count-doing" class="bg-blue-200 text-blue-700 py-1 px-3 rounded-full text-[10px]">0</span></h3>
+            <div id="col-doing-container" ondrop="dropTarefa(event, 'DOING')" ondragover="allowDropTarefa(event)" class="bg-blue-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-blue-200 shadow-inner transition">
+                <h3 class="font-black text-sm uppercase text-blue-600 mb-4 flex justify-between items-center sticky top-0 pointer-events-none"><span>🟨 Em Andamento</span><span id="count-doing" class="bg-blue-200 text-blue-700 py-1 px-3 rounded-full text-[10px]">0</span></h3>
                 <div id="col-doing" class="flex flex-col gap-3 flex-1 pb-4"></div>
             </div>
-            <div class="bg-green-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-green-200 shadow-inner">
-                <h3 class="font-black text-sm uppercase text-green-600 mb-4 flex justify-between items-center sticky top-0"><span>🟩 Concluído</span><span id="count-done" class="bg-green-200 text-green-700 py-1 px-3 rounded-full text-[10px]">0</span></h3>
+            <div id="col-done-container" ondrop="dropTarefa(event, 'DONE')" ondragover="allowDropTarefa(event)" class="bg-green-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-green-200 shadow-inner transition">
+                <h3 class="font-black text-sm uppercase text-green-600 mb-4 flex justify-between items-center sticky top-0 pointer-events-none"><span>🟩 Concluído</span><span id="count-done" class="bg-green-200 text-green-700 py-1 px-3 rounded-full text-[10px]">0</span></h3>
                 <div id="col-done" class="flex flex-col gap-3 flex-1 pb-4"></div>
             </div>
         </div>
