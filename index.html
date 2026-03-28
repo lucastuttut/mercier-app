@@ -9,7 +9,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2">
     <meta name="theme-color" content="#0f172a">
 </head>
 <body class="bg-slate-100">
@@ -124,7 +124,6 @@
                     <label class="text-[9px] font-black text-slate-400 uppercase">O que precisa ser feito?</label>
                     <input id="eq_desc" placeholder="DESCREVA A TAREFA RAPIDAMENTE..." class="border-2 p-2.5 rounded-lg text-xs font-bold w-full uppercase outline-purple-500" onkeydown="if(event.key==='Enter') adicionarTarefaEquipe()">
                 </div>
-                <!-- NOVO CAMPO: PRAZO -->
                 <div class="w-36">
                     <label class="text-[9px] font-black text-slate-400 uppercase">Prazo (Opcional)</label>
                     <input type="date" id="eq_prazo" class="border-2 p-2.5 rounded-lg text-xs font-bold w-full text-slate-600 outline-purple-500 bg-white">
@@ -148,8 +147,7 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-            <!-- Coluna TODO -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
             <div id="col-todo-container" ondrop="dropTarefa(event, 'TODO')" ondragover="allowDropTarefa(event)" class="bg-slate-200/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-slate-200 shadow-inner transition-all duration-300">
                 <h3 class="font-black text-sm uppercase text-slate-600 mb-4 flex justify-between items-center sticky top-0 bg-slate-200/90 py-1 z-10 backdrop-blur-sm pointer-events-none">
                     <div class="flex items-center gap-2 pointer-events-auto">
@@ -161,7 +159,6 @@
                 <div id="col-todo" class="flex flex-col gap-3 flex-1 pb-4 transition-all"></div>
             </div>
             
-            <!-- Coluna DOING -->
             <div id="col-doing-container" ondrop="dropTarefa(event, 'DOING')" ondragover="allowDropTarefa(event)" class="bg-blue-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-blue-200 shadow-inner transition-all duration-300">
                 <h3 class="font-black text-sm uppercase text-blue-600 mb-4 flex justify-between items-center sticky top-0 bg-blue-100/90 py-1 z-10 backdrop-blur-sm pointer-events-none">
                     <div class="flex items-center gap-2 pointer-events-auto">
@@ -173,7 +170,6 @@
                 <div id="col-doing" class="flex flex-col gap-3 flex-1 pb-4 transition-all"></div>
             </div>
             
-            <!-- Coluna DONE -->
             <div id="col-done-container" ondrop="dropTarefa(event, 'DONE')" ondragover="allowDropTarefa(event)" class="bg-green-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-green-200 shadow-inner transition-all duration-300">
                 <h3 class="font-black text-sm uppercase text-green-600 mb-4 flex justify-between items-center sticky top-0 bg-green-100/90 py-1 z-10 backdrop-blur-sm pointer-events-none">
                     <div class="flex items-center gap-2 pointer-events-auto">
@@ -282,6 +278,6 @@
     <datalist id="listaSugestaoProdutos"></datalist>
     <datalist id="listaSugestaoClientes"></datalist>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=2"></script>
 </body>
 </html>
