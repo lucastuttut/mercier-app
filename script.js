@@ -12,18 +12,24 @@ const firebaseConfig = {
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// PARA NUNCA MAIS TRAVAR A TELA SE DER ERRO:
-window.addEventListener('error', function(e) { console.error("Erro interno:", e.message); });
+window.addEventListener('error', function(e) { console.error("Erro interno blindado:", e.message); });
 
 let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[], tarefasEquipe=[], proximoID=255, notasMelhoria="", notasEstoque="", cestoItensTemporario=[], filtrandoNaoEnviados=false, filtrandoVendidos=false, cpfValido=true;
 let deepLinkVerificado = false;
 
+// --- SISTEMA DE LOGIN DISCRETO & FILTRO MINHAS TAREFAS ---
 let usuarioAtual = "";
 try { usuarioAtual = localStorage.getItem('mercier_user') || ""; } catch(e) {}
+let modoMinhasTarefas = false;
+try { modoMinhasTarefas = localStorage.getItem('mercier_so_minhas') === 'true'; } catch(e) {}
 
 window.onload = () => {
     const selectEl = document.getElementById('user-select');
     if(selectEl && usuarioAtual) selectEl.value = usuarioAtual;
+    
+    const chkMinhas = document.getElementById('check-minhas-tarefas');
+    if(chkMinhas) chkMinhas.checked = modoMinhasTarefas;
+    
     renderFiltrosEquipe();
 };
 
@@ -31,12 +37,30 @@ function setUsuario(nome) {
     usuarioAtual = nome;
     if(nome) { try { localStorage.setItem('mercier_user', nome); } catch(e) {} } 
     else { try { localStorage.removeItem('mercier_user'); } catch(e) {} }
+    renderFiltrosEquipe();
+    renderQuadroEquipe();
+}
+
+function toggleModoMinhasTarefas() {
+    if (!usuarioAtual) {
+        alert("Por favor, selecione quem você é no canto superior direito primeiro!");
+        document.getElementById('check-minhas-tarefas').checked = false;
+        return;
+    }
+    modoMinhasTarefas = document.getElementById('check-minhas-tarefas').checked;
+    try { localStorage.setItem('mercier_so_minhas', modoMinhasTarefas); } catch(e) {}
+    
+    // Se ativou "Só Minhas", desliga os outros filtros de cor pra não confundir
+    if(modoMinhasTarefas) filtrosEquipeAtivos =[];
+    
+    renderFiltrosEquipe();
+    renderQuadroEquipe();
 }
 
 const esc = str => (str || "").toString().replace(/[&<>'"]/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag] || tag));
 const removeAcentos = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-// A "ARMADURA" QUE VAI IMPEDIR O TRAVAMENTO DO FIREBASE
+// A "ARMADURA" CONTRA TRAVAMENTOS DO FIREBASE
 const safeArray = (data) => {
     if (!data) return[];
     let arr = Array.isArray(data) ? data : Object.values(data);
@@ -143,7 +167,6 @@ function validarCPF(c){ c=c.replace(/[^\d]+/g,''); if(c.length!==11||!!c.match(/
 function copyText(v, el){ if(!v || v==="-") return; navigator.clipboard.writeText(v.toUpperCase()); if(el) { el.style.color="#22c55e"; setTimeout(()=>el.style.color="#94a3b8", 1000); } }
 async function buscarCEP(i){ let cep=i.value.replace(/\D/g,""); if(cep.length===8){ document.getElementById('loading-cep').classList.remove('hidden'); try{ let r=await fetch(`https://viacep.com.br/ws/${cep}/json/`); let d=await r.json(); if(!d.erro){ document.getElementById('t_end').value=d.logradouro.toUpperCase(); document.getElementById('t_bairro').value=d.bairro.toUpperCase(); document.getElementById('t_cidade').value=d.localidade.toUpperCase(); document.getElementById('t_num').focus(); } }catch(e){} finally { document.getElementById('loading-cep').classList.add('hidden'); }}}
 
-// CALCULO BLINDADO DE PRAZO E DIAS UTEIS
 function calcP(d, pr){ 
     if(!d) return {dias:0, classe:""}; 
     try { 
@@ -153,13 +176,8 @@ function calcP(d, pr){
         let spr = String(pr || "30");
         if(spr.includes("util")){ 
             let c=0; 
-            while(c < parseInt(spr)){
-                dF.setDate(dF.getDate()+1); 
-                if(dF.getDay()!==0 && dF.getDay()!==6) c++;
-            } 
-        } else {
-            dF.setDate(dF.getDate() + parseInt(spr));
-        } 
+            while(c < parseInt(spr)){ dF.setDate(dF.getDate()+1); if(dF.getDay()!==0 && dF.getDay()!==6) c++; } 
+        } else { dF.setDate(dF.getDate() + parseInt(spr)); } 
         const df = Math.ceil((dF - new Date()) / 86400000); 
         let c = df < 0 ? "prazo-vencido" : (df <= 5 ? "prazo-urgente" : (df <= 10 ? "prazo-alerta" : (df <= 20 ? "prazo-atencao" : ""))); 
         return {dias: df, classe: c}; 
@@ -265,29 +283,25 @@ const coresEquipe = {
     "ANGÉLICA": "bg-purple-100 text-purple-700 border-purple-400"
 };
 
-const telefonesEquipe = {
-    "LUCAS": "5527996109720",
-    "ANGÉLICA": "5527998094627",
-    "GUILHERME": "5527999468458",
-    "CAROL": "5527999517954",
-    "ISABELLA": "5527997452190"
-};
-
-let colsMinimizadas = { "TODO": false, "DOING": false, "DONE": false };
-
-function toggleColunaKanban(coluna) {
-    colsMinimizadas[coluna] = !colsMinimizadas[coluna];
-    renderQuadroEquipe();
-}
-
+// NUMEROS ATUALIZADOS PARA WHATSAPP DE GRUPO/LOJA!
 function notificarNoGrupo(tarefa, tipoAcao) {
-    const quem = usuarioAtual || "A equipe";
+    const quem = usuarioAtual || "Alguém da equipe";
     const baseUrl = window.location.href.split('?')[0];
     const linkAcesso = `${baseUrl}?tarefa=${tarefa.uid}`;
+    
+    const mapaPrazo = {
+        "AGORA": "🚨 AGORA (Urgente)",
+        "IMEDIATO": "⚡ 1 DIA (Imediato)",
+        "IMPORTANTE": "⚠️ 2 DIAS (Importante)",
+        "REGULAR": "📅 3 DIAS (Regular)",
+        "TRANQUILO": "☕ + DIAS (Tranquilo)",
+        "": "Sem prazo definido"
+    };
+
     let msg = "";
 
     if (tipoAcao === 'NOVA') {
-        const prazoTxt = tarefa.prazo ? tarefa.prazo.split('-').reverse().join('/') : 'Sem prazo definido';
+        const prazoTxt = mapaPrazo[tarefa.prazo || ""];
         msg = `📢 *NOVA TAREFA*\n\nDesignada para: *${tarefa.responsavel}*\nCriada por: ${quem}\n\n📌 *${tarefa.descricao}*\n🗓️ Prazo: ${prazoTxt}\n\n🔗 *Acessar tarefa no sistema:*\n${linkAcesso}`;
     } else if (tipoAcao === 'CONCLUIDA') {
         msg = `✅ *TAREFA CONCLUÍDA*\n\nFinalizada por: *${quem}*\n\n📌 *${tarefa.descricao}*\n👤 Resp. Original: ${tarefa.responsavel}\n\n🔗 *Ver histórico no sistema:*\n${linkAcesso}`;
@@ -309,6 +323,16 @@ function toggleFiltroEquipe(nome) {
 function renderFiltrosEquipe() {
     const div = document.getElementById('filtros-equipe');
     if(!div) return;
+    
+    // Se Modo Foco tiver ligado, a gente apaga/desabilita esses botões pra não confundir
+    if(modoMinhasTarefas) {
+        div.style.opacity = '0.3';
+        div.style.pointerEvents = 'none';
+    } else {
+        div.style.opacity = '1';
+        div.style.pointerEvents = 'auto';
+    }
+
     let html = `<button onclick="toggleFiltroEquipe('TODOS')" class="px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition border-2 ${filtrosEquipeAtivos.length === 0 ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'}">🌟 TODOS</button>`;
     Object.keys(coresEquipe).forEach(nome => {
         const corAtiva = coresEquipe[nome].split(' ')[1]; 
@@ -323,6 +347,7 @@ function adicionarTarefaEquipe() {
     const desc = document.getElementById('eq_desc').value.trim().toUpperCase();
     const resp = document.getElementById('eq_resp').value;
     const prazo = document.getElementById('eq_prazo').value; 
+    
     if(!desc) return alert("DIGITE A DESCRIÇÃO DA TAREFA!");
     
     const novaTarefa = { 
@@ -404,18 +429,19 @@ function dropTarefa(ev, col) { ev.preventDefault(); const uid = ev.dataTransfer.
 
 function getBadgePrazo(prazo) {
     if(!prazo) return '';
-    const hoje = new Date();
-    hoje.setHours(0,0,0,0);
-    const dataPrazo = new Date(prazo + "T12:00:00");
-    const diffTime = dataPrazo - hoje;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if(prazo === 'AGORA') return `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-red-300">🚨 AGORA (URGENTE)</span>`;
+    if(prazo === 'IMEDIATO') return `<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-orange-300">⚡ IMEDIATO (1 DIA)</span>`;
+    if(prazo === 'IMPORTANTE') return `<span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-amber-300">⚠️ IMPORTANTE (2 DIAS)</span>`;
+    if(prazo === 'REGULAR') return `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-blue-300">📅 REGULAR (3 DIAS)</span>`;
+    if(prazo === 'TRANQUILO') return `<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-emerald-300">☕ TRANQUILO (+ DIAS)</span>`;
+    return '';
+}
 
-    if (isNaN(diffDays)) return '';
+let colsMinimizadas = { "TODO": false, "DOING": false, "DONE": false };
 
-    if (diffDays < 0) return `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-red-300">🚨 Atrasado (${Math.abs(diffDays)}d)</span>`;
-    if (diffDays === 0) return `<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-orange-300">⚠️ Vence Hoje</span>`;
-    if (diffDays === 1) return `<span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-amber-300">⏱️ Vence Amanhã</span>`;
-    return `<span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-black uppercase">📅 Em ${diffDays} dias</span>`;
+function toggleColunaKanban(coluna) {
+    colsMinimizadas[coluna] = !colsMinimizadas[coluna];
+    renderQuadroEquipe();
 }
 
 function renderQuadroEquipe() {
@@ -447,15 +473,22 @@ function renderQuadroEquipe() {
     let cTodo = 0, cDoing = 0, cDone = 0;
     let htmlTodo = "", htmlDoing = "", htmlDone = "";
 
+    // ORDENAÇÃO INTELIGENTE POR URGÊNCIA (O Segredo!)
+    const pesoPrazo = { "AGORA": 1, "IMEDIATO": 2, "IMPORTANTE": 3, "REGULAR": 4, "TRANQUILO": 5, "": 6 };
+    
     let tarefasOrdenadas =[...tarefasEquipe].sort((a, b) => {
-        if(!a.prazo && !b.prazo) return b.uid - a.uid; 
-        if(!a.prazo) return 1; 
-        if(!b.prazo) return -1;
-        return new Date(a.prazo) - new Date(b.prazo); 
+        let pA = pesoPrazo[a.prazo || ""] || 6;
+        let pB = pesoPrazo[b.prazo || ""] || 6;
+        if (pA !== pB) return pA - pB; 
+        return b.uid - a.uid; // Se empatar a urgencia, a mais nova fica em cima
     });
 
     tarefasOrdenadas.forEach(t => {
-        if(filtrosEquipeAtivos.length > 0 && !filtrosEquipeAtivos.includes(t.responsavel)) return;
+        // MODO FOCO: Filtra se a chave de "Só Minhas Tarefas" estiver ativa
+        if (modoMinhasTarefas && usuarioAtual && t.responsavel !== usuarioAtual) return;
+        
+        // MODO NORMAL: Filtros de cor convencionais
+        if (!modoMinhasTarefas && filtrosEquipeAtivos.length > 0 && !filtrosEquipeAtivos.includes(t.responsavel)) return;
 
         const cor = coresEquipe[t.responsavel] || "bg-slate-100 text-slate-700 border-slate-300";
         const corBorda = cor.split(' ')[2]; 
@@ -619,7 +652,6 @@ function renderFornecedores() { const tb = document.getElementById('tabelaFornec
 function cadastrarFornecedor(){ const n=document.getElementById('f_nome').value.toUpperCase().trim(), e=document.getElementById('f_email').value.toLowerCase().trim(); if(n&&e){fornecedores.push({nome:n,email:e}); salvarColecao('fornecedores', fornecedores); document.getElementById('f_nome').value=""; document.getElementById('f_email').value="";}}
 function renderCatalogo() { const tb=document.getElementById('tabelaCatalogo'); if(!tb) return; tb.innerHTML=catalogo.map((c,i)=>`<tr><td class="uppercase">${esc(c.nome)}</td><td class="text-center"><button onclick="catalogo.splice(${i},1); salvarColecao('catalogo', catalogo);">✕</button></td></tr>`).join(''); }
 function cadastrarCatalogo(){ const n=document.getElementById('cat_nome').value.toUpperCase(); if(n){catalogo.push({nome:n}); salvarColecao('catalogo', catalogo); document.getElementById('cat_nome').value="";}}
-
 function switchTab(t){ window.scrollTo(0,0); document.querySelectorAll('main').forEach(x=>x.classList.add('hidden')); document.getElementById('view-'+t).classList.remove('hidden'); document.querySelectorAll('nav button').forEach(x=>x.classList.remove('tab-active')); document.getElementById('tab-'+t).classList.add('tab-active'); }
 function cycleStatus(u){ const x=pedidos.find(y=>y.uid==u); const s=["Não enviado","Pedido enviado","Aguardando fábrica","Pedido na loja"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('pedidos', pedidos); }
 function cycleTarefaStatus(u){ const x=tarefas.find(y=>y.uid==u); const s=["Não Iniciado","Em Andamento","Feito"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('tarefas', tarefas); }
@@ -631,7 +663,6 @@ function toggleFiltroNaoEnviado(){ filtrandoNaoEnviados=!filtrandoNaoEnviados; d
 function updPed(u,c,v){ pedidos.find(x=>x.uid==u)[c]=v; salvarColecao('pedidos', pedidos); }
 function togPed(u,c){ const x=pedidos.find(y=>y.uid==u); if(x) x[c]=!x[c]; salvarColecao('pedidos', pedidos); }
 function excluirPedido(u){ if(confirm("EXCLUIR?")){ pedidos=pedidos.filter(x=>x.uid!=u); salvarColecao('pedidos', pedidos); } }
-
 function atualizarSelectsFornecedores(){ 
     const h = fornecedores.map(f => `<option value="${esc(f.nome)}">${esc(f.nome)}</option>`).join(''); 
     if(document.getElementById('m_fornecedor_select')) document.getElementById('m_fornecedor_select').innerHTML = h || "<option>...</option>"; 
