@@ -12,11 +12,12 @@ const firebaseConfig = {
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[], tarefasEquipe=[], proximoID=255, notasMelhoria="", notasEstoque="", cestoItensTemporario=[], filtrandoNaoEnviados=false, filtrandoVendidos=false, cpfValido=true;
+// PARA NUNCA MAIS TRAVAR A TELA SE DER ERRO:
+window.addEventListener('error', function(e) { console.error("Erro interno:", e.message); });
 
+let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[], tarefasEquipe=[], proximoID=255, notasMelhoria="", notasEstoque="", cestoItensTemporario=[], filtrandoNaoEnviados=false, filtrandoVendidos=false, cpfValido=true;
 let deepLinkVerificado = false;
 
-// --- SISTEMA DE LOGIN DISCRETO ---
 let usuarioAtual = "";
 try { usuarioAtual = localStorage.getItem('mercier_user') || ""; } catch(e) {}
 
@@ -34,7 +35,13 @@ function setUsuario(nome) {
 
 const esc = str => (str || "").toString().replace(/[&<>'"]/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag] || tag));
 const removeAcentos = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-const safeArray = (data) => Array.isArray(data) ? data : Object.values(data || {});
+
+// A "ARMADURA" QUE VAI IMPEDIR O TRAVAMENTO DO FIREBASE
+const safeArray = (data) => {
+    if (!data) return[];
+    let arr = Array.isArray(data) ? data : Object.values(data);
+    return arr.filter(item => item !== null && item !== undefined);
+};
 
 const statusEl = document.getElementById('status-db');
 db.ref('.info/connected').on('value', (snap) => {
@@ -135,6 +142,29 @@ function verifCPF(i){ const ok = validarCPF(i.value); i.style.borderColor = ok ?
 function validarCPF(c){ c=c.replace(/[^\d]+/g,''); if(c.length!==11||!!c.match(/(\d)\1{10}/))return false; let a=0; for(let i=0;i<9;i++)a+=parseInt(c.charAt(i))*(10-i); let r=11-(a%11); if(r===10||r===11)r=0; if(r!==parseInt(c.charAt(9)))return false; a=0; for(let i=0;i<10;i++)a+=parseInt(c.charAt(i))*(11-i); r=11-(a%11); return (r>=10?0:r)===parseInt(c.charAt(10)); }
 function copyText(v, el){ if(!v || v==="-") return; navigator.clipboard.writeText(v.toUpperCase()); if(el) { el.style.color="#22c55e"; setTimeout(()=>el.style.color="#94a3b8", 1000); } }
 async function buscarCEP(i){ let cep=i.value.replace(/\D/g,""); if(cep.length===8){ document.getElementById('loading-cep').classList.remove('hidden'); try{ let r=await fetch(`https://viacep.com.br/ws/${cep}/json/`); let d=await r.json(); if(!d.erro){ document.getElementById('t_end').value=d.logradouro.toUpperCase(); document.getElementById('t_bairro').value=d.bairro.toUpperCase(); document.getElementById('t_cidade').value=d.localidade.toUpperCase(); document.getElementById('t_num').focus(); } }catch(e){} finally { document.getElementById('loading-cep').classList.add('hidden'); }}}
+
+// CALCULO BLINDADO DE PRAZO E DIAS UTEIS
+function calcP(d, pr){ 
+    if(!d) return {dias:0, classe:""}; 
+    try { 
+        const pA = String(d).split("/"); 
+        const dt = new Date(pA[2], pA[1]-1, pA[0]); 
+        let dF = new Date(dt); 
+        let spr = String(pr || "30");
+        if(spr.includes("util")){ 
+            let c=0; 
+            while(c < parseInt(spr)){
+                dF.setDate(dF.getDate()+1); 
+                if(dF.getDay()!==0 && dF.getDay()!==6) c++;
+            } 
+        } else {
+            dF.setDate(dF.getDate() + parseInt(spr));
+        } 
+        const df = Math.ceil((dF - new Date()) / 86400000); 
+        let c = df < 0 ? "prazo-vencido" : (df <= 5 ? "prazo-urgente" : (df <= 10 ? "prazo-alerta" : (df <= 20 ? "prazo-atencao" : ""))); 
+        return {dias: df, classe: c}; 
+    } catch(e) { return {dias:0, classe:""}; } 
+}
 
 function renderPedidos() {
     const tb=document.getElementById('tabelaPedidos'); if(!tb) return;
@@ -394,7 +424,6 @@ function renderQuadroEquipe() {
     const colDone = document.getElementById('col-done');
     if(!colTodo) return;
     
-    // Proteção contra quebra de cache
     ['TODO', 'DOING', 'DONE'].forEach(col => {
         const container = document.getElementById(`col-${col.toLowerCase()}-container`);
         const content = document.getElementById(`col-${col.toLowerCase()}`);
@@ -418,7 +447,7 @@ function renderQuadroEquipe() {
     let cTodo = 0, cDoing = 0, cDone = 0;
     let htmlTodo = "", htmlDoing = "", htmlDone = "";
 
-    let tarefasOrdenadas = [...tarefasEquipe].sort((a, b) => {
+    let tarefasOrdenadas =[...tarefasEquipe].sort((a, b) => {
         if(!a.prazo && !b.prazo) return b.uid - a.uid; 
         if(!a.prazo) return 1; 
         if(!b.prazo) return -1;
@@ -592,4 +621,67 @@ function renderCatalogo() { const tb=document.getElementById('tabelaCatalogo'); 
 function cadastrarCatalogo(){ const n=document.getElementById('cat_nome').value.toUpperCase(); if(n){catalogo.push({nome:n}); salvarColecao('catalogo', catalogo); document.getElementById('cat_nome').value="";}}
 
 function switchTab(t){ window.scrollTo(0,0); document.querySelectorAll('main').forEach(x=>x.classList.add('hidden')); document.getElementById('view-'+t).classList.remove('hidden'); document.querySelectorAll('nav button').forEach(x=>x.classList.remove('tab-active')); document.getElementById('tab-'+t).classList.add('tab-active'); }
-function cycleStatus(u){ const x=pedidos.find(y=>y.uid==u); const s=["Não enviado","Pedido enviado","Aguardando fábrica","Pedido na loja"]; x.st
+function cycleStatus(u){ const x=pedidos.find(y=>y.uid==u); const s=["Não enviado","Pedido enviado","Aguardando fábrica","Pedido na loja"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('pedidos', pedidos); }
+function cycleTarefaStatus(u){ const x=tarefas.find(y=>y.uid==u); const s=["Não Iniciado","Em Andamento","Feito"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('tarefas', tarefas); }
+function cycleAssisStatus(u){ const x=assistencias.find(y=>y.uid==u); const s=["Aguardando","Peça Solicitada","Concluído"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('assistencias', assistencias); }
+function togglePainelSugestoes(){ const p=document.getElementById('painel-sugestoes'); p.style.display=p.style.display==='flex'?'none':'flex'; }
+function autoSalvarNotas(){ notasMelhoria=document.getElementById('texto-melhorias').value; db.ref('dados/notasMelhoria').set(notasMelhoria); }
+function marcarTodos(v){ document.querySelectorAll('.ped-check').forEach(c=>c.checked=v); }
+function toggleFiltroNaoEnviado(){ filtrandoNaoEnviados=!filtrandoNaoEnviados; document.getElementById('btnFiltroNaoEnviado').classList.toggle('bg-red-600'); document.getElementById('btnFiltroNaoEnviado').classList.toggle('text-white'); renderPedidos(); }
+function updPed(u,c,v){ pedidos.find(x=>x.uid==u)[c]=v; salvarColecao('pedidos', pedidos); }
+function togPed(u,c){ const x=pedidos.find(y=>y.uid==u); if(x) x[c]=!x[c]; salvarColecao('pedidos', pedidos); }
+function excluirPedido(u){ if(confirm("EXCLUIR?")){ pedidos=pedidos.filter(x=>x.uid!=u); salvarColecao('pedidos', pedidos); } }
+
+function atualizarSelectsFornecedores(){ 
+    const h = fornecedores.map(f => `<option value="${esc(f.nome)}">${esc(f.nome)}</option>`).join(''); 
+    if(document.getElementById('m_fornecedor_select')) document.getElementById('m_fornecedor_select').innerHTML = h || "<option>...</option>"; 
+    if(document.getElementById('as_fabrica')) document.getElementById('as_fabrica').innerHTML = h || "<option>...</option>";
+    if(document.getElementById('e_fabrica_select')) document.getElementById('e_fabrica_select').innerHTML = h || "<option>...</option>";
+    if(document.getElementById('estoque-filtro-fabrica')) document.getElementById('estoque-filtro-fabrica').innerHTML = '<option value="TODAS">TODAS AS FÁBRICAS</option>' + h;
+}
+function atualizarSugestoes(){ const n=[...new Set(pedidos.map(p=>p.cliente))].sort(); if(document.getElementById('listaSugestaoClientes')) document.getElementById('listaSugestaoClientes').innerHTML=n.map(x=>`<option value="${esc(x)}">`).join(''); }
+async function dupPed(u){ const x=pedidos.find(y=>y.uid==u); const nId=await getProximoID(); const idDoc="ID#"+nId.toString().padStart(4,'0'); pedidos.unshift({...x, uid:Date.now()+Math.random(), idDoc}); salvarColecao('pedidos', pedidos); }
+function gerarAssistenciaRapida(u){ const p=pedidos.find(x=>x.uid==u); if(p){ document.getElementById('as_cliente').value=p.cliente; document.getElementById('as_produto').value=p.produto+" (DEFEITO)"; document.getElementById('as_fabrica').value=p.fornecedor; switchTab('assistencia'); }}
+function gerarEmailLote() {
+    const checks = document.querySelectorAll('.ped-check:checked'); if (checks.length === 0) return alert("SELECIONE PEDIDOS!");
+    const selecionados = Array.from(checks).map(c => pedidos.find(p => p.uid == c.value)).filter(p => p);
+    const grupos = {}; selecionados.forEach(p => { if (!grupos[p.fornecedor]) grupos[p.fornecedor] = []; grupos[p.fornecedor].push(p); });
+    for (const fab in grupos) {
+        const email = (fornecedores.find(f => f.nome === fab) || {}).email || "";
+        let corpo = `Olá, segue pedido para fábrica ${fab}:%0D%0A%0D%0A`;
+        grupos[fab].forEach((p, idx) => { corpo += `Qtde: ${String(p.qtd).padStart(2, '0')} - ${p.produto}%0D%0A${p.medida !== "-" ? `MEDIDA: ${p.medida}%0D%0A` : ""}COR/TECIDO: ${p.cor}%0D%0AREF: ${p.idDoc}%0D%0A${idx < grupos[fab].length - 1 ? `%0D%0A--------------------------%0D%0A` : ""}`; });
+        corpo += `%0D%0AForma de pagamento: 30/60/90.%0D%0A%0D%0AIDs para controle interno, favor desconsiderar.%0D%0A%0D%0AFavor confirmar o recebimento e nos enviar o documento de confirmação dos itens acima para conferência.%0D%0A%0D%0AAtenciosamente,%0D%0ALucas Mercier.`;
+        window.open(`mailto:${email}?subject=${encodeURIComponent('PEDIDO - MERCIER DESIGN - '+fab)}&body=${corpo}`);
+    }
+}
+
+const painelSugestoes = document.getElementById('painel-sugestoes');
+const dragHandle = document.getElementById('drag-handle');
+let isDragging = false, offsetX, offsetY;
+
+dragHandle.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    offsetX = e.clientX - painelSugestoes.getBoundingClientRect().left;
+    offsetY = e.clientY - painelSugestoes.getBoundingClientRect().top;
+    painelSugestoes.style.bottom = 'auto'; 
+    painelSugestoes.style.right = 'auto';  
+});
+
+document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    painelSugestoes.style.left = (e.clientX - offsetX) + 'px';
+    painelSugestoes.style.top = (e.clientY - offsetY) + 'px';
+});
+
+document.addEventListener('mouseup', () => { isDragging = false; });
+
+mostrarCamposTarefa('SIMPLES');
+
+const style = document.createElement('style');
+style.innerHTML = `
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+`;
+document.head.appendChild(style);
