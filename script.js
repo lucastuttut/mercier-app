@@ -36,7 +36,6 @@ function setUsuario(nome) {
 const esc = str => (str || "").toString().replace(/[&<>'"]/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag] || tag));
 const removeAcentos = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-// FUNÇÃO ARMADURA
 const safeArray = (data) => Array.isArray(data) ? data : Object.values(data || {});
 
 const statusEl = document.getElementById('status-db');
@@ -85,7 +84,6 @@ function renderAll(){
     renderEstoque(); renderCatalogo(); renderAssistencias(); renderQuadroEquipe();
 }
 
-// --- FUNÇÕES PADRÕES DO SISTEMA (EDIÇÃO, DINHEIRO, MASCARAS) ---
 function activeInlineEdit(element, uid, field, listType) {
     const originalValue = element.innerText;
     const input = document.createElement('input');
@@ -98,10 +96,16 @@ function activeInlineEdit(element, uid, field, listType) {
         if (newValue === "") newValue = "-";
         const list = listType === 'estoque' ? estoque : pedidos;
         const item = list.find(x => x.uid == uid);
-        if (item) { if(field === 'qtd') item[field] = parseInt(newValue) || 1; else item[field] = newValue; salvarColecao(listType, list); } else { element.innerText = originalValue; }
+        if (item) {
+            if(field === 'qtd') item[field] = parseInt(newValue) || 1;
+            else item[field] = newValue;
+            salvarColecao(listType, list);
+        } else { element.innerText = originalValue; }
     };
-    input.onblur = save; input.onkeydown = (e) => { if(e.key === 'Enter') save(); if(e.key === 'Escape') { input.onblur = null; element.innerText = originalValue; } };
+    input.onblur = save;
+    input.onkeydown = (e) => { if(e.key === 'Enter') save(); if(e.key === 'Escape') { input.onblur = null; element.innerText = originalValue; } };
 }
+
 function maskMoney(i){ let v=i.value.replace(/\D/g,""); v=(v/100).toFixed(2).replace(".",","); v=v.replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1."); i.value="R$ "+v; if(i.classList.contains('t-v-desc')) calcTotalTirarPedido(); }
 function parseMoney(v){ return parseFloat((v||"").replace("R$ ","").replace(/\./g,"").replace(",",".")) || 0; }
 function maskCPF(i){ let v=i.value.replace(/\D/g,""); if(v.length>11)v=v.slice(0,11); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d{1,2})$/,"$1-$2"); i.value=v; if(v.length===14) verifCPF(i); }
@@ -110,7 +114,6 @@ function validarCPF(c){ c=c.replace(/[^\d]+/g,''); if(c.length!==11||!!c.match(/
 function copyText(v, el){ if(!v || v==="-") return; navigator.clipboard.writeText(v.toUpperCase()); if(el) { el.style.color="#22c55e"; setTimeout(()=>el.style.color="#94a3b8", 1000); } }
 async function buscarCEP(i){ let cep=i.value.replace(/\D/g,""); if(cep.length===8){ document.getElementById('loading-cep').classList.remove('hidden'); try{ let r=await fetch(`https://viacep.com.br/ws/${cep}/json/`); let d=await r.json(); if(!d.erro){ document.getElementById('t_end').value=d.logradouro.toUpperCase(); document.getElementById('t_bairro').value=d.bairro.toUpperCase(); document.getElementById('t_cidade').value=d.localidade.toUpperCase(); document.getElementById('t_num').focus(); } }catch(e){} finally { document.getElementById('loading-cep').classList.add('hidden'); }}}
 
-// --- PEDIDOS ---
 function renderPedidos() {
     const tb=document.getElementById('tabelaPedidos'); if(!tb) return;
     const b = removeAcentos(document.getElementById('busca').value.toLowerCase());
@@ -142,7 +145,6 @@ function adicionarItemAoCesto() { const p = document.getElementById('m_produto')
 function renderCesto() { document.getElementById('cesto-itens').innerHTML = cestoItensTemporario.map((item, idx) => `<div class="item-cesto"><span>${item.q}x</span><span>${esc(item.p)}</span><button onclick="cestoItensTemporario.splice(${idx},1); renderCesto();" class="text-red-500 font-bold ml-2">✕</button></div>`).join(''); }
 async function cadastrarManual() { const cli = document.getElementById('m_cliente').value.trim().toUpperCase(); const forn = document.getElementById('m_fornecedor_select').value; if(!cli || cestoItensTemporario.length === 0) return alert("FALTA DADOS!"); const nId = await getProximoID(); const idDoc = "ID#" + nId.toString().padStart(4, '0'); cestoItensTemporario.forEach(i => { pedidos.unshift({ uid: Date.now()+Math.random(), idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false }); }); cestoItensTemporario =[]; document.getElementById('m_cliente').value = ""; renderCesto(); salvarColecao('pedidos', pedidos); }
 
-// --- ESTOQUE ---
 function autoSalvarNotasEstoque() { notasEstoque = document.getElementById('estoque-notas-gerais').value; db.ref('dados/notasEstoque').set(notasEstoque); }
 function renderEstoque() {
     const tb = document.getElementById('tabelaEstoque'); if(!tb) return;
@@ -164,7 +166,8 @@ function darBaixaEstoque(u) { const it = estoque.find(x => x.uid == u); if (!it)
 function cadastrarEstoque() { const p = document.getElementById('e_produto').value.toUpperCase().trim(), f = document.getElementById('e_fabrica_select').value, q = document.getElementById('e_qtd').value, s = document.getElementById('e_situacao').value; if (p) { estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: p, fabrica: f, qtd: parseInt(q), situacao: s }); salvarColecao('estoque', estoque); document.getElementById('e_produto').value = ""; } }
 function toggleFiltroVendidos(){ filtrandoVendidos=!filtrandoVendidos; document.getElementById('btnFiltroVendidos').classList.toggle('bg-red-600'); document.getElementById('btnFiltroVendidos').classList.toggle('text-white'); renderEstoque(); }
 
-// --- ABA EQUIPE KANBAN E COMENTÁRIOS ---
+
+// --- ABA EQUIPE KANBAN E COMENTÁRIOS (COM INTEGRAÇÃO WHATSAPP) ---
 const coresEquipe = {
     "LUCAS": "bg-emerald-100 text-emerald-700 border-emerald-400",
     "GUILHERME": "bg-blue-100 text-blue-700 border-blue-400",
@@ -173,7 +176,33 @@ const coresEquipe = {
     "ANGÉLICA": "bg-purple-100 text-purple-700 border-purple-400"
 };
 
-// NOVO: Lógica de Filtros Múltiplos
+// ⚠️ ATENÇÃO: SUBSTITUA OS NÚMEROS ABAIXO PELOS NÚMEROS REAIS DA SUA EQUIPE ⚠️
+// Formato: 55 + DDD + Número (Tudo junto, sem espaços ou traços)
+const telefonesEquipe = {
+    "LUCAS": "5527996109720",
+    "ANGÉLICA": "5527998094627",
+    "GUILHERME": "5511900000000",
+    "CAROL": "5511900000000",
+    "ISABELLA": "5511900000000"
+};
+
+// Nova Função de Envio pro WhatsApp
+function notificarWhatsApp(nomeRecebedor, mensagem) {
+    const numero = telefonesEquipe[nomeRecebedor];
+    
+    // Se o número for o falso que eu deixei, ou não existir, ele ignora.
+    if (!numero || numero === "5511900000000") {
+        console.log("Número não configurado para: " + nomeRecebedor);
+        return; 
+    }
+    
+    // Pergunta sutil para não abrir o WhatsApp sem querer toda vez
+    if(confirm(`Deseja notificar ${nomeRecebedor} no WhatsApp sobre essa alteração?`)) {
+        const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
+        window.open(url, '_blank');
+    }
+}
+
 let filtrosEquipeAtivos =[];
 
 function toggleFiltroEquipe(nome) {
@@ -181,9 +210,9 @@ function toggleFiltroEquipe(nome) {
         filtrosEquipeAtivos =[];
     } else {
         if(filtrosEquipeAtivos.includes(nome)) {
-            filtrosEquipeAtivos = filtrosEquipeAtivos.filter(x => x !== nome); // Remove se já tem
+            filtrosEquipeAtivos = filtrosEquipeAtivos.filter(x => x !== nome); 
         } else {
-            filtrosEquipeAtivos.push(nome); // Adiciona
+            filtrosEquipeAtivos.push(nome);
         }
     }
     renderFiltrosEquipe();
@@ -194,16 +223,11 @@ function renderFiltrosEquipe() {
     const div = document.getElementById('filtros-equipe');
     if(!div) return;
     
-    // Botão de "Todos" (Fica ativo se o array de filtros estiver vazio)
     let html = `<button onclick="toggleFiltroEquipe('TODOS')" class="px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition border-2 ${filtrosEquipeAtivos.length === 0 ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'}">🌟 TODOS</button>`;
     
-    // Gera botões para cada membro
     Object.keys(coresEquipe).forEach(nome => {
-        const corBase = coresEquipe[nome].split(' ')[0]; // Pega a classe bg-cor-100
-        const corAtiva = coresEquipe[nome].split(' ')[1]; // Pega text-cor-700
+        const corAtiva = coresEquipe[nome].split(' ')[1]; 
         const isAtivo = filtrosEquipeAtivos.includes(nome);
-        
-        // Se estiver ativo, fica pintado. Se não, fica branquinho com borda da cor
         const style = isAtivo 
             ? `${coresEquipe[nome]} border-2 border-transparent shadow-sm` 
             : `bg-white ${corAtiva} border-2 border-slate-200 hover:border-slate-300`;
@@ -218,7 +242,8 @@ function adicionarTarefaEquipe() {
     const desc = document.getElementById('eq_desc').value.trim().toUpperCase();
     const resp = document.getElementById('eq_resp').value;
     if(!desc) return alert("DIGITE A DESCRIÇÃO DA TAREFA!");
-    tarefasEquipe.unshift({ // unshift para cair no topo
+    
+    tarefasEquipe.unshift({ 
         uid: Date.now(),
         data: new Date().toLocaleDateString('pt-BR'),
         descricao: desc,
@@ -228,6 +253,9 @@ function adicionarTarefaEquipe() {
     });
     salvarColecao('tarefasEquipe', tarefasEquipe);
     document.getElementById('eq_desc').value = "";
+    
+    // Dispara a Notificação
+    notificarWhatsApp(resp, `Olá *${resp}*! Uma nova tarefa foi designada a você no sistema Mercier Design:\n\n📌 *${desc}*`);
 }
 
 function moverTarefaEquipe(uid, novaColuna) {
@@ -235,6 +263,11 @@ function moverTarefaEquipe(uid, novaColuna) {
     if(t) {
         t.coluna = novaColuna;
         salvarColecao('tarefasEquipe', tarefasEquipe);
+        
+        // Dispara a Notificação de Status
+        const statusMap = { "TODO": "A Fazer", "DOING": "Em Andamento", "DONE": "Concluída" };
+        const quemMoveu = usuarioAtual || "Alguém da equipe";
+        notificarWhatsApp(t.responsavel, `Olá *${t.responsavel}*! O status da sua tarefa foi atualizado por ${quemMoveu}.\n\n📌 *${t.descricao}*\n🔄 Novo status: *${statusMap[novaColuna]}*`);
     }
 }
 
@@ -245,7 +278,6 @@ function excluirTarefaEquipe(uid) {
     }
 }
 
-// NOVA FUNÇÃO: Adicionar comentário direto do cartão (Inline)
 function adicionarComentarioInline(uid, inputElement) {
     if(!usuarioAtual) return alert("Por favor, selecione quem você é no topo da tela antes de comentar!");
     
@@ -269,14 +301,18 @@ function adicionarComentarioInline(uid, inputElement) {
     salvarColecao('tarefasEquipe', tarefasEquipe);
     inputElement.value = ""; 
     
-    // Dica de UI: a gente precisa fazer um pequeno truque para rolar o chat novo pro final após renderizar
+    // Dispara a Notificação do Comentário
+    // OBS: Não avisa se a pessoa estiver comentando na própria tarefa
+    if(usuarioAtual !== t.responsavel) {
+        notificarWhatsApp(t.responsavel, `*${usuarioAtual}* comentou na sua tarefa (📌 ${t.descricao}):\n\n💬 "${txt}"`);
+    }
+
     setTimeout(() => {
         const chatBox = document.getElementById(`chat-${uid}`);
         if(chatBox) chatBox.scrollTop = chatBox.scrollHeight;
     }, 100);
 }
 
-// NOVO: Render do Quadro com Comentários Abertos
 function renderQuadroEquipe() {
     const colTodo = document.getElementById('col-todo');
     const colDoing = document.getElementById('col-doing');
@@ -287,20 +323,17 @@ function renderQuadroEquipe() {
     let htmlTodo = "", htmlDoing = "", htmlDone = "";
 
     tarefasEquipe.forEach(t => {
-        // Se houver filtro ativo e o responsável não estiver nele, esconde.
         if(filtrosEquipeAtivos.length > 0 && !filtrosEquipeAtivos.includes(t.responsavel)) return;
 
         const cor = coresEquipe[t.responsavel] || "bg-slate-100 text-slate-700 border-slate-300";
-        const corBorda = cor.split(' ')[2]; // a classe de borda
+        const corBorda = cor.split(' ')[2]; 
         
-        // Gerando o HTML interno dos comentários
         const arrComent = safeArray(t.comentarios);
         let comentariosHtml = "";
         
         if (arrComent.length > 0) {
             comentariosHtml = arrComent.map(c => {
-                // Para os comentários ficarem bem sutis no cartão
-                const cCor = coresEquipe[c.autor] ? coresEquipe[c.autor].split(' ')[1] : "text-slate-600"; // Só a cor do texto
+                const cCor = coresEquipe[c.autor] ? coresEquipe[c.autor].split(' ')[1] : "text-slate-600"; 
                 return `
                 <div class="mb-1 leading-tight">
                     <span class="${cCor} font-black text-[9px] uppercase tracking-tighter">${esc(c.autor)}:</span> 
@@ -311,8 +344,6 @@ function renderQuadroEquipe() {
 
         const card = `
             <div class="bg-white p-3.5 rounded-2xl shadow-sm border-t-4 ${corBorda} flex flex-col gap-2 transition hover:shadow-md">
-                
-                <!-- TOPO: Nome e Botões -->
                 <div class="flex justify-between items-start">
                     <span class="${cor} px-2 py-0.5 rounded text-[8px] font-black uppercase w-fit tracking-wider">${esc(t.responsavel)}</span>
                     <div class="flex gap-1">
@@ -323,11 +354,9 @@ function renderQuadroEquipe() {
                     </div>
                 </div>
 
-                <!-- MEIO: Descrição da Tarefa -->
                 <span class="text-[11px] font-black uppercase text-slate-800 leading-snug mt-1">${esc(t.descricao)}</span>
                 <span class="text-[8px] font-black text-slate-300 border-b border-slate-100 pb-2">${t.data}</span>
 
-                <!-- FUNDO: Chat e Input -->
                 <div class="mt-1 flex flex-col gap-1.5">
                     ${arrComent.length > 0 ? `<div id="chat-${t.uid}" class="bg-slate-50 p-2 rounded-lg max-h-24 overflow-y-auto shadow-inner custom-scrollbar">${comentariosHtml}</div>` : ''}
                     <div class="flex gap-1">
@@ -335,7 +364,6 @@ function renderQuadroEquipe() {
                         <button onclick="adicionarComentarioInline(${t.uid}, this.previousElementSibling)" class="bg-slate-100 hover:bg-slate-200 text-slate-500 px-2 rounded-lg font-black text-[10px] transition">➤</button>
                     </div>
                 </div>
-
             </div>
         `;
 
@@ -352,7 +380,6 @@ function renderQuadroEquipe() {
     document.getElementById('count-doing').innerText = cDoing;
     document.getElementById('count-done').innerText = cDone;
     
-    // Tenta rolar todos os chats abertos pro final toda vez que renderiza
     tarefasEquipe.forEach(t => {
         const chatBox = document.getElementById(`chat-${t.uid}`);
         if(chatBox) chatBox.scrollTop = chatBox.scrollHeight;
@@ -516,7 +543,7 @@ document.addEventListener('mouseup', () => { isDragging = false; });
 
 mostrarCamposTarefa('SIMPLES');
 
-// DICA VISUAL CSS: Adiciona barra de rolagem customizada para o chat não ficar feio
+// BARRA DE ROLAGEM CUSTOMIZADA
 const style = document.createElement('style');
 style.innerHTML = `
 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
