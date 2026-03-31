@@ -50,9 +50,7 @@ function toggleModoMinhasTarefas() {
     modoMinhasTarefas = document.getElementById('check-minhas-tarefas').checked;
     try { localStorage.setItem('mercier_so_minhas', modoMinhasTarefas); } catch(e) {}
     
-    // Se ativou "Só Minhas", desliga os outros filtros de cor pra não confundir
     if(modoMinhasTarefas) filtrosEquipeAtivos =[];
-    
     renderFiltrosEquipe();
     renderQuadroEquipe();
 }
@@ -60,7 +58,6 @@ function toggleModoMinhasTarefas() {
 const esc = str => (str || "").toString().replace(/[&<>'"]/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag] || tag));
 const removeAcentos = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-// A "ARMADURA" CONTRA TRAVAMENTOS DO FIREBASE
 const safeArray = (data) => {
     if (!data) return[];
     let arr = Array.isArray(data) ? data : Object.values(data);
@@ -283,9 +280,23 @@ const coresEquipe = {
     "ANGÉLICA": "bg-purple-100 text-purple-700 border-purple-400"
 };
 
-// NUMEROS ATUALIZADOS PARA WHATSAPP DE GRUPO/LOJA!
+const telefonesEquipe = {
+    "LUCAS": "5527996109720",
+    "ANGÉLICA": "5527998094627",
+    "GUILHERME": "5527999468458",
+    "CAROL": "5527999517954",
+    "ISABELLA": "5527997452190"
+};
+
+let colsMinimizadas = { "TODO": false, "DOING": false, "DONE": false };
+
+function toggleColunaKanban(coluna) {
+    colsMinimizadas[coluna] = !colsMinimizadas[coluna];
+    renderQuadroEquipe();
+}
+
 function notificarNoGrupo(tarefa, tipoAcao) {
-    const quem = usuarioAtual || "Alguém da equipe";
+    const quem = usuarioAtual || "A equipe";
     const baseUrl = window.location.href.split('?')[0];
     const linkAcesso = `${baseUrl}?tarefa=${tarefa.uid}`;
     
@@ -324,7 +335,6 @@ function renderFiltrosEquipe() {
     const div = document.getElementById('filtros-equipe');
     if(!div) return;
     
-    // Se Modo Foco tiver ligado, a gente apaga/desabilita esses botões pra não confundir
     if(modoMinhasTarefas) {
         div.style.opacity = '0.3';
         div.style.pointerEvents = 'none';
@@ -429,28 +439,19 @@ function dropTarefa(ev, col) { ev.preventDefault(); const uid = ev.dataTransfer.
 
 function getBadgePrazo(prazo) {
     if(!prazo) return '';
-    if(prazo === 'AGORA') return `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-red-300">🚨 AGORA (URGENTE)</span>`;
-    if(prazo === 'IMEDIATO') return `<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-orange-300">⚡ IMEDIATO (1 DIA)</span>`;
-    if(prazo === 'IMPORTANTE') return `<span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-amber-300">⚠️ IMPORTANTE (2 DIAS)</span>`;
-    if(prazo === 'REGULAR') return `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-blue-300">📅 REGULAR (3 DIAS)</span>`;
-    if(prazo === 'TRANQUILO') return `<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-emerald-300">☕ TRANQUILO (+ DIAS)</span>`;
+    if(prazo === 'AGORA') return `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-red-300">🚨 AGORA</span>`;
+    if(prazo === 'IMEDIATO') return `<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-orange-300">⚡ 1 DIA</span>`;
+    if(prazo === 'IMPORTANTE') return `<span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-amber-300">⚠️ 2 DIAS</span>`;
+    if(prazo === 'REGULAR') return `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-blue-300">📅 3 DIAS</span>`;
+    if(prazo === 'TRANQUILO') return `<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-emerald-300">☕ + DIAS</span>`;
     return '';
-}
-
-let colsMinimizadas = { "TODO": false, "DOING": false, "DONE": false };
-
-function toggleColunaKanban(coluna) {
-    colsMinimizadas[coluna] = !colsMinimizadas[coluna];
-    renderQuadroEquipe();
 }
 
 function renderQuadroEquipe() {
     const colTodo = document.getElementById('col-todo');
     const colDoing = document.getElementById('col-doing');
     const colDone = document.getElementById('col-done');
-    if(!colTodo) return;
-    
-    ['TODO', 'DOING', 'DONE'].forEach(col => {
+    if(!colTodo) return;['TODO', 'DOING', 'DONE'].forEach(col => {
         const container = document.getElementById(`col-${col.toLowerCase()}-container`);
         const content = document.getElementById(`col-${col.toLowerCase()}`);
         const btn = document.getElementById(`btn-toggle-${col.toLowerCase()}`);
@@ -473,21 +474,17 @@ function renderQuadroEquipe() {
     let cTodo = 0, cDoing = 0, cDone = 0;
     let htmlTodo = "", htmlDoing = "", htmlDone = "";
 
-    // ORDENAÇÃO INTELIGENTE POR URGÊNCIA (O Segredo!)
     const pesoPrazo = { "AGORA": 1, "IMEDIATO": 2, "IMPORTANTE": 3, "REGULAR": 4, "TRANQUILO": 5, "": 6 };
     
     let tarefasOrdenadas =[...tarefasEquipe].sort((a, b) => {
         let pA = pesoPrazo[a.prazo || ""] || 6;
         let pB = pesoPrazo[b.prazo || ""] || 6;
         if (pA !== pB) return pA - pB; 
-        return b.uid - a.uid; // Se empatar a urgencia, a mais nova fica em cima
+        return b.uid - a.uid; 
     });
 
     tarefasOrdenadas.forEach(t => {
-        // MODO FOCO: Filtra se a chave de "Só Minhas Tarefas" estiver ativa
         if (modoMinhasTarefas && usuarioAtual && t.responsavel !== usuarioAtual) return;
-        
-        // MODO NORMAL: Filtros de cor convencionais
         if (!modoMinhasTarefas && filtrosEquipeAtivos.length > 0 && !filtrosEquipeAtivos.includes(t.responsavel)) return;
 
         const cor = coresEquipe[t.responsavel] || "bg-slate-100 text-slate-700 border-slate-300";
@@ -560,6 +557,10 @@ function renderQuadroEquipe() {
     });
 }
 
+// =========================================================================
+// CORREÇÃO RESPONSIVIDADE MOBILE DA TELA "TIRAR PEDIDO"
+// =========================================================================
+
 function processarFichaWhatsApp(texto) {
     if(!texto) return;
     const mNome = texto.match(/Nome(?: Completo)?\s*[:\-]?\s*(.+)/i);
@@ -586,44 +587,86 @@ function mostrarCamposTarefa(t){
     const c=document.getElementById('container-campos-tarefa'); c.innerHTML="";
     if(t==='TIRAR PEDIDO'){
         c.innerHTML=`
-            <div class="col-span-1 md:col-span-4 mb-2 bg-indigo-50 p-4 rounded-xl border-2 border-dashed border-indigo-300">
+            <div class="col-span-1 md:col-span-4 mb-2 bg-indigo-50 p-4 rounded-xl border-2 border-dashed border-indigo-300 w-full">
                 <label class="text-[10px] font-black text-indigo-800 uppercase mb-2 block flex items-center gap-2">✨ Cole a ficha do WhatsApp aqui:</label>
                 <textarea id="t_magic_box" oninput="processarFichaWhatsApp(this.value)" placeholder="Ficha de Cadastro&#10;Nome Completo:&#10;CPF:&#10;CEP:&#10;Endereço:&#10;N:&#10;Contato 1:&#10;Contato 2:&#10;OBS:" class="w-full border p-3 rounded-lg text-xs font-bold outline-indigo-500 h-24 resize-none shadow-inner"></textarea>
                 <p class="text-[9px] font-bold text-indigo-400 mt-1 uppercase">O sistema tentará preencher os dados abaixo sozinho.</p>
             </div>
-            <input id="t_nome" placeholder="CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold col-span-2 uppercase">
-            <input id="t_cpf" placeholder="CPF" class="border-2 p-2 rounded-lg text-xs font-bold" oninput="maskCPF(this)">
-            <input id="t_contato" placeholder="CONTATO 1" class="border-2 p-2 rounded-lg text-xs font-bold">
-            <input id="t_contato2" placeholder="CONTATO 2" class="border-2 p-2 rounded-lg text-xs font-bold">
-            <input id="t_cep" placeholder="CEP" class="border-2 p-2 rounded-lg text-xs font-bold" oninput="buscarCEP(this)">
-            <input id="t_end" placeholder="RUA" class="border-2 p-2 rounded-lg text-xs font-bold col-span-2 uppercase">
-            <input id="t_bairro" placeholder="BAIRRO" class="border-2 p-2 rounded-lg text-xs font-bold uppercase">
-            <input id="t_cidade" placeholder="CIDADE" class="border-2 p-2 rounded-lg text-xs font-bold uppercase">
-            <input id="t_num" placeholder="NÚMERO" class="border-2 p-2 rounded-lg text-xs font-bold">
-            <input id="t_torre" placeholder="TORRE" class="border-2 p-2 rounded-lg text-xs font-bold uppercase">
-            <div class="col-span-1 md:col-span-4 border-t mt-4 pt-4">
-                <div id="lista-produtos-tarefa"></div>
+            <input id="t_nome" placeholder="CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold md:col-span-2 w-full uppercase outline-indigo-500">
+            <input id="t_cpf" placeholder="CPF" class="border-2 p-2 rounded-lg text-xs font-bold w-full outline-indigo-500" oninput="maskCPF(this)">
+            <input id="t_contato" placeholder="CONTATO 1" class="border-2 p-2 rounded-lg text-xs font-bold w-full outline-indigo-500">
+            <input id="t_contato2" placeholder="CONTATO 2" class="border-2 p-2 rounded-lg text-xs font-bold w-full outline-indigo-500">
+            <input id="t_cep" placeholder="CEP" class="border-2 p-2 rounded-lg text-xs font-bold w-full outline-indigo-500" oninput="buscarCEP(this)">
+            <input id="t_end" placeholder="RUA" class="border-2 p-2 rounded-lg text-xs font-bold md:col-span-2 w-full uppercase outline-indigo-500">
+            <input id="t_bairro" placeholder="BAIRRO" class="border-2 p-2 rounded-lg text-xs font-bold w-full uppercase outline-indigo-500">
+            <input id="t_cidade" placeholder="CIDADE" class="border-2 p-2 rounded-lg text-xs font-bold w-full uppercase outline-indigo-500">
+            <input id="t_num" placeholder="NÚMERO" class="border-2 p-2 rounded-lg text-xs font-bold w-full outline-indigo-500">
+            <input id="t_torre" placeholder="TORRE" class="border-2 p-2 rounded-lg text-xs font-bold w-full uppercase outline-indigo-500">
+            
+            <div class="col-span-1 md:col-span-4 border-t mt-4 pt-4 w-full">
+                <div id="lista-produtos-tarefa" class="flex flex-col gap-2 w-full"></div>
                 <button onclick="addProdutoLinha()" class="text-[10px] font-black text-blue-600 mt-2 uppercase hover:underline">+ MÓVEL</button>
                 <div id="total-pedido-tarefa" class="text-right text-indigo-600 font-black text-xs mt-1 uppercase italic">Total: R$ 0,00</div>
             </div>
-            <div class="col-span-1 md:col-span-4 border-t mt-4 pt-4">
-                <div id="lista-pagamentos-tarefa"></div>
+            
+            <div class="col-span-1 md:col-span-4 border-t mt-4 pt-4 w-full">
+                <div id="lista-pagamentos-tarefa" class="flex flex-col gap-2 w-full"></div>
                 <button onclick="addPagamentoLinha()" class="text-[10px] font-black text-emerald-600 mt-2 uppercase hover:underline">+ PAGAMENTO</button>
             </div>
-            <textarea id="t_obs" placeholder="OBSERVAÇÕES DO PEDIDO..." class="col-span-1 md:col-span-4 border-2 p-2 rounded-lg text-xs font-bold h-16 uppercase mt-2"></textarea>
+            
+            <textarea id="t_obs" placeholder="OBSERVAÇÕES DO PEDIDO..." class="col-span-1 md:col-span-4 border-2 p-2 rounded-lg text-xs font-bold h-16 uppercase mt-2 w-full outline-indigo-500"></textarea>
         `;
         addProdutoLinha(); addPagamentoLinha();
-    } else { c.innerHTML = `<input id="t_raw" placeholder="DESCRICAO..." class="border-2 p-2 rounded-lg text-xs font-bold col-span-4 uppercase">`; }
+    } else { c.innerHTML = `<input id="t_raw" placeholder="DESCRICAO..." class="border-2 p-2 rounded-lg text-xs font-bold col-span-4 uppercase w-full outline-indigo-500">`; }
 }
-function addProdutoLinha(){ const d = document.getElementById('lista-produtos-tarefa'); const r = document.createElement('div'); r.className = "flex gap-2 mb-1 items-center row-prod bg-slate-50 p-2 rounded border border-dashed"; r.innerHTML = `<input class="t-p-nome border-2 p-2 rounded text-xs font-bold flex-1 uppercase" placeholder="MÓVEL"><input class="t-v-orig border-2 p-2 rounded text-xs font-bold w-32" placeholder="ORIGINAL" oninput="maskMoney(this)"><input class="t-v-desc border-2 p-2 rounded text-xs font-bold w-32 text-indigo-600" placeholder="DESCONTO" oninput="maskMoney(this)"><button onclick="this.parentElement.remove(); calcTotalTirarPedido();" class="text-red-500 font-black px-2 hover:text-red-700">✕</button>`; d.appendChild(r); }
+
+function addProdutoLinha(){ 
+    const d = document.getElementById('lista-produtos-tarefa'); 
+    const r = document.createElement('div'); 
+    r.className = "flex flex-col md:flex-row gap-2 mb-2 items-start md:items-center row-prod bg-slate-50 p-3 rounded-lg border border-dashed w-full"; 
+    r.innerHTML = `
+        <div class="flex justify-between w-full md:flex-1 gap-2">
+            <input class="t-p-nome border-2 p-2 rounded text-xs font-bold flex-1 uppercase w-full outline-indigo-500" placeholder="MÓVEL">
+            <button onclick="this.parentElement.parentElement.remove(); calcTotalTirarPedido();" class="text-red-500 font-black px-3 py-1 md:hidden bg-red-100 rounded-lg">✕</button>
+        </div>
+        <div class="flex w-full md:w-auto gap-2">
+            <input class="t-v-orig border-2 p-2 rounded text-xs font-bold w-1/2 md:w-28 outline-indigo-500" placeholder="ORIGINAL" oninput="maskMoney(this)">
+            <input class="t-v-desc border-2 p-2 rounded text-xs font-bold w-1/2 md:w-28 text-indigo-600 outline-indigo-500" placeholder="DESCONTO" oninput="maskMoney(this)">
+            <button onclick="this.parentElement.parentElement.remove(); calcTotalTirarPedido();" class="text-red-500 font-black px-2 hidden md:block hover:text-red-700">✕</button>
+        </div>`; 
+    d.appendChild(r); 
+}
+
 function addPagamentoLinha(){
-    const d=document.getElementById('lista-pagamentos-tarefa'); let total=0; document.querySelectorAll('.t-v-desc').forEach(i=>total+=parseMoney(i.value)); let pago=0; document.querySelectorAll('.t-p-val').forEach(i=>pago+=parseMoney(i.value)); let saldo=total-pago; if(saldo<0) saldo=0;
-    const r=document.createElement('div'); r.className="flex flex-col bg-slate-50 p-2 rounded border mb-3 row-pag";
-    r.innerHTML=`<div class="flex gap-1 mb-2 flex-wrap"><button onclick="setP(this,'PIX')" class="btn-pag-opt active">PIX</button><button onclick="setP(this,'CRÉDITO')" class="btn-pag-opt">CRÉDITO</button><button onclick="setP(this,'DÉBITO')" class="btn-pag-opt">DÉBITO</button><button onclick="setP(this,'CHEQUE')" class="btn-pag-opt">CHEQUE</button><input type="hidden" class="t-p-tipo" value="PIX"><select class="t-p-parc hidden border-2 p-1 rounded text-[10px] font-bold bg-white">${[...Array(12).keys()].map(n => `<option value="${n+1}x">${n+1}x</option>`).join('')}</select></div><div class="flex gap-1"><input class="t-p-val border-2 p-2 rounded-lg text-xs font-bold w-48 text-emerald-600" placeholder="VALOR" oninput="maskMoney(this)" value="R$ ${saldo.toLocaleString('pt-BR',{minimumFractionDigits:2})}"><input class="t-p-obs border-2 p-2 rounded-lg text-xs font-bold flex-1 uppercase" placeholder="OBS/DATA"><button onclick="this.parentElement.parentElement.remove()" class="text-red-500 font-black px-2 hover:text-red-700">✕</button></div>`;
+    const d=document.getElementById('lista-pagamentos-tarefa'); 
+    let total=0; document.querySelectorAll('.t-v-desc').forEach(i=>total+=parseMoney(i.value)); 
+    let pago=0; document.querySelectorAll('.t-p-val').forEach(i=>pago+=parseMoney(i.value)); 
+    let saldo=total-pago; if(saldo<0) saldo=0;
+    
+    const r=document.createElement('div'); 
+    r.className="flex flex-col bg-slate-50 p-3 rounded-lg border mb-3 row-pag w-full gap-2";
+    r.innerHTML=`
+        <div class="flex gap-2 mb-1 flex-wrap md:flex-nowrap w-full">
+            <button onclick="setP(this,'PIX')" class="btn-pag-opt active flex-1 md:flex-none text-center px-1 py-2 text-[10px]">PIX</button>
+            <button onclick="setP(this,'CRÉDITO')" class="btn-pag-opt flex-1 md:flex-none text-center px-1 py-2 text-[10px]">CRÉDITO</button>
+            <button onclick="setP(this,'DÉBITO')" class="btn-pag-opt flex-1 md:flex-none text-center px-1 py-2 text-[10px]">DÉBITO</button>
+            <button onclick="setP(this,'CHEQUE')" class="btn-pag-opt flex-1 md:flex-none text-center px-1 py-2 text-[10px]">CHEQUE</button>
+            <input type="hidden" class="t-p-tipo" value="PIX">
+            <select class="t-p-parc hidden border-2 p-1 rounded text-[10px] font-bold bg-white w-full md:w-auto mt-2 md:mt-0 outline-emerald-500">${[...Array(12).keys()].map(n => `<option value="${n+1}x">${n+1}x</option>`).join('')}</select>
+        </div>
+        <div class="flex flex-col md:flex-row gap-2 w-full">
+            <input class="t-p-val border-2 p-2 rounded-lg text-xs font-bold w-full md:w-48 text-emerald-600 outline-emerald-500" placeholder="VALOR" oninput="maskMoney(this)" value="R$ ${saldo.toLocaleString('pt-BR',{minimumFractionDigits:2})}">
+            <div class="flex w-full gap-2 md:flex-1">
+                <input class="t-p-obs border-2 p-2 rounded-lg text-xs font-bold flex-1 uppercase outline-emerald-500" placeholder="OBS/DATA">
+                <button onclick="this.parentElement.parentElement.parentElement.remove()" class="text-red-500 font-black px-3 py-1 bg-red-100 md:bg-transparent rounded-lg md:hover:text-red-700">✕</button>
+            </div>
+        </div>`;
     d.appendChild(r);
 }
+
 function setP(b,v){ const p = b.parentElement; p.querySelectorAll('button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); p.querySelector('.t-p-tipo').value=v; const s = p.querySelector('.t-p-parc'); if(v === 'CRÉDITO') s.classList.remove('hidden'); else s.classList.add('hidden'); }
 function calcTotalTirarPedido(){ let t=0; document.querySelectorAll('.t-v-desc').forEach(i=>t+=parseMoney(i.value)); document.getElementById('total-pedido-tarefa').innerText="Total: R$ "+t.toLocaleString('pt-BR',{minimumFractionDigits:2}); }
+
 function cadastrarTarefa(){
     const t = document.getElementById('t_tipo').value; let obj = { uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), tipo: t, status: "Não Iniciado" };
     if(t === 'TIRAR PEDIDO'){ const cli = document.getElementById('t_nome').value; if(!cli) return alert("FALTA NOME DO CLIENTE!"); let total=0; document.querySelectorAll('.t-v-desc').forEach(i=>total+=parseMoney(i.value)); obj.descricao = "PEDIDO: " + cli.toUpperCase(); obj.detalhes = { cliente: cli.toUpperCase(), cpf: document.getElementById('t_cpf').value, contato: document.getElementById('t_contato').value, contato2: document.getElementById('t_contato2').value, cep: document.getElementById('t_cep').value, end: document.getElementById('t_end').value, bairro: document.getElementById('t_bairro').value, cidade: document.getElementById('t_cidade').value, num: document.getElementById('t_num').value, torre: document.getElementById('t_torre').value, obs: document.getElementById('t_obs').value, totalDesc:"R$ "+total.toLocaleString('pt-BR',{minimumFractionDigits:2}), produtos:[], pagamentos:[] }; document.querySelectorAll('.row-prod').forEach(row => { if(row.querySelector('.t-p-nome').value) obj.detalhes.produtos.push({ n: row.querySelector('.t-p-nome').value.toUpperCase(), o: row.querySelector('.t-v-orig').value, d: row.querySelector('.t-v-desc').value }); }); document.querySelectorAll('.row-pag').forEach(row => { const tipo = row.querySelector('.t-p-tipo').value; const parcelas = (tipo === 'CRÉDITO') ? row.querySelector('.t-p-parc').value : ""; obj.detalhes.pagamentos.push({ t: tipo + (parcelas ? " " + parcelas : ""), v: row.querySelector('.t-p-val').value, o: row.querySelector('.t-p-obs').value.toUpperCase() }); }); }
@@ -652,6 +695,7 @@ function renderFornecedores() { const tb = document.getElementById('tabelaFornec
 function cadastrarFornecedor(){ const n=document.getElementById('f_nome').value.toUpperCase().trim(), e=document.getElementById('f_email').value.toLowerCase().trim(); if(n&&e){fornecedores.push({nome:n,email:e}); salvarColecao('fornecedores', fornecedores); document.getElementById('f_nome').value=""; document.getElementById('f_email').value="";}}
 function renderCatalogo() { const tb=document.getElementById('tabelaCatalogo'); if(!tb) return; tb.innerHTML=catalogo.map((c,i)=>`<tr><td class="uppercase">${esc(c.nome)}</td><td class="text-center"><button onclick="catalogo.splice(${i},1); salvarColecao('catalogo', catalogo);">✕</button></td></tr>`).join(''); }
 function cadastrarCatalogo(){ const n=document.getElementById('cat_nome').value.toUpperCase(); if(n){catalogo.push({nome:n}); salvarColecao('catalogo', catalogo); document.getElementById('cat_nome').value="";}}
+
 function switchTab(t){ window.scrollTo(0,0); document.querySelectorAll('main').forEach(x=>x.classList.add('hidden')); document.getElementById('view-'+t).classList.remove('hidden'); document.querySelectorAll('nav button').forEach(x=>x.classList.remove('tab-active')); document.getElementById('tab-'+t).classList.add('tab-active'); }
 function cycleStatus(u){ const x=pedidos.find(y=>y.uid==u); const s=["Não enviado","Pedido enviado","Aguardando fábrica","Pedido na loja"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('pedidos', pedidos); }
 function cycleTarefaStatus(u){ const x=tarefas.find(y=>y.uid==u); const s=["Não Iniciado","Em Andamento","Feito"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('tarefas', tarefas); }
