@@ -4,14 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mercier Design - Gestão Cloud</title>
+    
+    <!-- COMANDO PARA DESTRUIR O CACHE ANTIGO QUE ESTAVA TRAVANDO A TELA -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) { registration.unregister(); }
+            });
+        }
+    </script>
+
     <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-    <!-- NOVO: Biblioteca para tirar o "Print" (Foto) dos cartões -->
+    
+    <!-- BIBLIOTECA PARA TIRAR A FOTO (PRINT) DO CARTÃO DA TAREFA -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=4">
+    
+    <link rel="stylesheet" href="style.css?v=10">
     <meta name="theme-color" content="#0f172a">
 </head>
 <body class="bg-slate-100">
@@ -288,12 +299,12 @@
     <div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()">💡</div>
     <div id="painel-sugestoes"><div id="drag-handle" class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase cursor-move"><span>💡 Bloco de Notas</span><button onclick="togglePainelSugestoes()">✕</button></div><textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" oninput="autoSalvarNotas()"></textarea></div>
 
-    <!-- NOVO: INPUT INVISÍVEL PARA ANEXAR FOTOS NOS COMENTÁRIOS -->
+    <!-- UPLOAD INVISÍVEL -->
     <input type="file" id="file-upload-global" accept="image/*" class="hidden" onchange="processarUploadImagem(event)">
 
     <datalist id="listaSugestaoProdutos"></datalist>
     <datalist id="listaSugestaoClientes"></datalist>
 
-    <script src="script.js?v=4"></script>
+    <script src="script.js?v=10"></script>
 </body>
 </html>
