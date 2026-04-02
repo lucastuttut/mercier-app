@@ -12,6 +12,7 @@ const firebaseConfig = {
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+// BLINDAGEM DE ERROS FATAL
 window.addEventListener('error', function(e) { console.error("Erro interno blindado:", e.message); });
 
 let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[], tarefasEquipe=[], proximoID=255, notasMelhoria="", notasEstoque="", cestoItensTemporario=[], filtrandoNaoEnviados=false, filtrandoVendidos=false, cpfValido=true;
@@ -56,10 +57,15 @@ function toggleModoMinhasTarefas() {
 const esc = str => (str || "").toString().replace(/[&<>'"]/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag] || tag));
 const removeAcentos = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
+// ARMADURA ANTIBUG DO FIREBASE
 const safeArray = (data) => {
     if (!data) return[];
-    let arr = Array.isArray(data) ? data : Object.values(data);
-    return arr.filter(item => item !== null && item !== undefined);
+    try {
+        let arr = Array.isArray(data) ? data : Object.values(data);
+        return arr.filter(item => item && typeof item === 'object');
+    } catch (e) {
+        return[];
+    }
 };
 
 const statusEl = document.getElementById('status-db');
@@ -68,51 +74,55 @@ db.ref('.info/connected').on('value', (snap) => {
     else console.log("Tentando...");
 });
 
-// SINCRONIZAÇÃO DE DADOS
+// SINCRONIZAÇÃO DE DADOS (COM PROTEÇÃO)
 db.ref('dados').on('value', (s) => {
-    const d = s.val() || {};
-    
-    pedidos = safeArray(d.pedidos);
-    fornecedores = safeArray(d.fornecedores);
-    estoque = safeArray(d.estoque);
-    catalogo = safeArray(d.catalogo);
-    tarefas = safeArray(d.tarefas);
-    assistencias = safeArray(d.assistencias);
-    tarefasEquipe = safeArray(d.tarefasEquipe);
-    
-    proximoID = d.proximoID || 255;
-    notasMelhoria = d.notasMelhoria || "";
-    notasEstoque = d.notasEstoque || "";
-
-    if(statusEl) { statusEl.innerText = "ONLINE"; statusEl.className = "status-online"; }
-    if(document.getElementById('texto-melhorias')) document.getElementById('texto-melhorias').value = notasMelhoria;
-    if(document.getElementById('estoque-notas-gerais')) document.getElementById('estoque-notas-gerais').value = notasEstoque;
-
-    atualizarSelectsFornecedores();
-    atualizarSugestoes();
-    renderAll();
-    
-    if(!deepLinkVerificado && tarefasEquipe.length > 0) {
-        const urlParams = new URLSearchParams(window.location.search);
-        const tarefaId = urlParams.get('tarefa');
+    try {
+        const d = s.val() || {};
         
-        if(tarefaId) {
-            switchTab('equipe');
-            setTimeout(() => {
-                const card = document.getElementById(`card-${tarefaId}`);
-                if(card) {
-                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    const bgOriginal = card.style.backgroundColor;
-                    card.style.backgroundColor = '#bbf7d0'; 
-                    card.style.transition = 'background-color 2s';
-                    setTimeout(() => { card.style.backgroundColor = bgOriginal; }, 2000);
-                }
-            }, 600); 
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }
-        deepLinkVerificado = true;
-    }
+        pedidos = safeArray(d.pedidos);
+        fornecedores = safeArray(d.fornecedores);
+        estoque = safeArray(d.estoque);
+        catalogo = safeArray(d.catalogo);
+        tarefas = safeArray(d.tarefas);
+        assistencias = safeArray(d.assistencias);
+        tarefasEquipe = safeArray(d.tarefasEquipe);
+        
+        proximoID = d.proximoID || 255;
+        notasMelhoria = d.notasMelhoria || "";
+        notasEstoque = d.notasEstoque || "";
 
+        if(statusEl) { statusEl.innerText = "ONLINE"; statusEl.className = "status-online"; }
+        if(document.getElementById('texto-melhorias')) document.getElementById('texto-melhorias').value = notasMelhoria;
+        if(document.getElementById('estoque-notas-gerais')) document.getElementById('estoque-notas-gerais').value = notasEstoque;
+
+        atualizarSelectsFornecedores();
+        atualizarSugestoes();
+        renderAll();
+        
+        if(!deepLinkVerificado && tarefasEquipe.length > 0) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const tarefaId = urlParams.get('tarefa');
+            
+            if(tarefaId) {
+                switchTab('equipe');
+                setTimeout(() => {
+                    const card = document.getElementById(`card-${tarefaId}`);
+                    if(card) {
+                        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        const bgOriginal = card.style.backgroundColor;
+                        card.style.backgroundColor = '#bbf7d0'; 
+                        card.style.transition = 'background-color 2s';
+                        setTimeout(() => { card.style.backgroundColor = bgOriginal; }, 2000);
+                    }
+                }, 600); 
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+            deepLinkVerificado = true;
+        }
+    } catch (err) {
+        if(statusEl) { statusEl.innerText = "ERRO DE LEITURA"; statusEl.className = "status-offline"; }
+        console.error("Erro critico na sincronizacao: ", err);
+    }
 }, (error) => {
     if(statusEl) { statusEl.innerText = "ERRO DE ACESSO"; statusEl.className = "status-offline"; }
 });
@@ -278,9 +288,16 @@ const coresEquipe = {
     "ANGÉLICA": "bg-purple-100 text-purple-700 border-purple-400"
 };
 
-// ==========================================
+// NUMEROS REAIS
+const telefonesEquipe = {
+    "LUCAS": "5527996109720",
+    "ANGÉLICA": "5527998094627",
+    "GUILHERME": "5527999468458",
+    "CAROL": "5527999517954",
+    "ISABELLA": "5527997452190"
+};
+
 // MÁGICA 1: TIRA O PRINT DO CARTÃO (html2canvas) E ABRE O WHATSAPP
-// ==========================================
 async function notificarNoGrupoComPrint(tarefa, tipoAcao) {
     const quem = usuarioAtual || "A equipe";
     const baseUrl = window.location.href.split('?')[0];
@@ -297,38 +314,30 @@ async function notificarNoGrupoComPrint(tarefa, tipoAcao) {
         msg = `✅ *TAREFA CONCLUÍDA*\nFinalizada por: *${quem}*\n\n📌 *${tarefa.descricao}*\n👤 Resp: ${tarefa.responsavel}\n\n🔗 *Ver histórico no sistema:*\n${linkAcesso}`;
     }
 
-    if(confirm(`Deseja notificar no WhatsApp e tentar COPIAR A IMAGEM do cartão?`)) {
+    if(confirm(`Deseja notificar no WhatsApp da loja e tentar COPIAR A IMAGEM do cartão automaticamente?`)) {
         
-        // Garante que o cartao ta expandido pra bater a foto bonita
-        if(tarefa.minimizada) {
-            minimizarTarefaEquipe(tarefa.uid);
-        }
+        if(tarefa.minimizada) minimizarTarefaEquipe(tarefa.uid);
 
         const cardElement = document.getElementById(`card-${tarefa.uid}`);
         
         if (cardElement && typeof html2canvas !== 'undefined') {
             try {
-                // Tira a foto
                 const canvas = await html2canvas(cardElement, { scale: 2, backgroundColor: null });
                 canvas.toBlob(async (blob) => {
                     try {
-                        // Salva a foto no mouse/teclado da pessoa
                         const item = new ClipboardItem({ "image/png": blob });
                         await navigator.clipboard.write([item]);
-                        alert("📸 A FOTO DA TAREFA FOI COPIADA!\n\nO WhatsApp será aberto agora. Basta você clicar na mensagem e dar um COLAR (Ctrl+V) antes de enviar.");
+                        alert("📸 A FOTO DA TAREFA FOI COPIADA!\n\nO WhatsApp será aberto agora. Basta você dar um COLAR (Ctrl+V) antes de enviar para anexar o print.");
                     } catch (err) {
-                        alert("⚠️ Não foi possível copiar a foto automaticamente no seu dispositivo. O WhatsApp será aberto apenas com o texto.");
+                        alert("⚠️ O seu navegador bloqueou a cópia automática da foto. O WhatsApp será aberto apenas com o texto.");
                     }
-                    // Abre o zap
                     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
                 }, "image/png");
                 return; 
             } catch (error) {
-                console.error("Erro ao gerar imagem: ", error);
+                console.error("Erro html2canvas: ", error);
             }
         }
-        
-        // Se der algum erro na foto, ele manda o link com texto normal
         window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
     }
 }
@@ -388,10 +397,7 @@ function adicionarTarefaEquipe() {
     
     renderQuadroEquipe();
 
-    // Dispara a tentativa de Print após a tela ter atualizado (delay de 300ms pro html2canvas achar o elemento novo)
-    setTimeout(() => {
-        notificarNoGrupoComPrint(novaTarefa, 'NOVA');
-    }, 300);
+    setTimeout(() => { notificarNoGrupoComPrint(novaTarefa, 'NOVA'); }, 300);
 }
 
 function moverTarefaEquipe(uid, novaColuna) {
@@ -424,9 +430,7 @@ function minimizarTarefaEquipe(uid) {
     }
 }
 
-// ==========================================================
 // MÁGICA 2: UPLOAD E COMPRESSÃO DE IMAGENS NOS COMENTÁRIOS
-// ==========================================================
 let uidUploadPendente = null;
 
 function acionarUploadImagem(uid) {
@@ -442,13 +446,12 @@ function processarUploadImagem(event) {
     const t = tarefasEquipe.find(x => x.uid == uidUploadPendente);
     if(!t) return;
 
-    // Lendo a imagem e encolhendo ela num canvas pra não explodir o banco de dados
     const reader = new FileReader();
     reader.onload = function(e) {
         const img = new Image();
         img.onload = function() {
             const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 800; // Limite pro celular
+            const MAX_WIDTH = 800; 
             const MAX_HEIGHT = 800;
             let width = img.width;
             let height = img.height;
@@ -461,7 +464,6 @@ function processarUploadImagem(event) {
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
 
-            // Transforma a foto reduzida em texto pra salvar no Firebase
             const base64Data = canvas.toDataURL('image/jpeg', 0.6); 
 
             t.comentarios = safeArray(t.comentarios);
@@ -475,7 +477,7 @@ function processarUploadImagem(event) {
 
             salvarColecao('tarefasEquipe', tarefasEquipe);
             renderQuadroEquipe();
-            event.target.value = ""; // Limpa a memória do input
+            event.target.value = ""; 
         };
         img.src = e.target.result;
     };
@@ -511,11 +513,11 @@ function dropTarefa(ev, col) { ev.preventDefault(); const uid = ev.dataTransfer.
 
 function getBadgePrazo(prazo) {
     if(!prazo) return '';
-    if(prazo === 'AGORA') return `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-red-300">🚨 AGORA</span>`;
-    if(prazo === 'IMEDIATO') return `<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-orange-300">⚡ 1 DIA</span>`;
-    if(prazo === 'IMPORTANTE') return `<span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-amber-300">⚠️ 2 DIAS</span>`;
-    if(prazo === 'REGULAR') return `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-blue-300">📅 3 DIAS</span>`;
-    if(prazo === 'TRANQUILO') return `<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-emerald-300">☕ + DIAS</span>`;
+    if(prazo === 'AGORA') return `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-red-300 shadow-sm">🚨 AGORA</span>`;
+    if(prazo === 'IMEDIATO') return `<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-orange-300 shadow-sm">⚡ 1 DIA</span>`;
+    if(prazo === 'IMPORTANTE') return `<span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-amber-300 shadow-sm">⚠️ 2 DIAS</span>`;
+    if(prazo === 'REGULAR') return `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-blue-300 shadow-sm">📅 3 DIAS</span>`;
+    if(prazo === 'TRANQUILO') return `<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-emerald-300 shadow-sm">☕ + DIAS</span>`;
     return '';
 }
 
@@ -576,8 +578,7 @@ function renderQuadroEquipe() {
         if (arrComent.length > 0) {
             comentariosHtml = arrComent.map(c => {
                 const cCor = coresEquipe[c.autor] ? coresEquipe[c.autor].split(' ')[1] : "text-slate-600"; 
-                // Se o comentario tiver anexo, ele desenha a miniatura da foto!
-                const anexoHtml = c.anexo ? `<br><img src="${c.anexo}" class="mt-2 rounded-lg max-h-40 cursor-pointer object-cover border border-slate-200" onclick="window.open('${c.anexo}', '_blank')" />` : '';
+                const anexoHtml = c.anexo ? `<br><img src="${c.anexo}" class="mt-2 rounded-lg max-h-40 w-full cursor-pointer object-cover border border-slate-200" onclick="window.open('${c.anexo}', '_blank')" />` : '';
                 return `<div class="mb-2 leading-tight bg-white p-2 rounded-md border border-slate-100 shadow-sm"><span class="${cCor} font-black text-[9px] uppercase tracking-tighter">${esc(c.autor)}:</span> <span class="text-[10px] font-bold text-slate-700">${esc(c.texto)}</span>${anexoHtml}</div>`;
             }).join('');
         }
@@ -600,190 +601,4 @@ function renderQuadroEquipe() {
                     <div class="flex gap-1 items-center">
                         <button onclick="minimizarTarefaEquipe(${t.uid})" class="text-slate-400 hover:text-slate-800 font-black text-[12px] mr-2 bg-slate-100 px-3 py-1 rounded-lg transition shadow-sm" title="Minimizar/Expandir">${isMin ? '➕' : '➖'}</button>
                         ${t.coluna === 'TODO' ? `<button onclick="moverTarefaEquipe(${t.uid}, 'DOING')" class="${btnMover}" title="Mover p/ Em Andamento">➡️</button>` : ''}
-                        ${t.coluna === 'DOING' ? `<button onclick="moverTarefaEquipe(${t.uid}, 'TODO')" class="${btnVoltar}" title="Voltar p/ Fazer">⬅️</button> <button onclick="moverTarefaEquipe(${t.uid}, 'DONE')" class="${btnConcluir}" title="Concluir">✅</button>` : ''}
-                        ${t.coluna === 'DONE' ? `<button onclick="moverTarefaEquipe(${t.uid}, 'DOING')" class="${btnVoltar}" title="Voltar p/ Em Andamento">⬅️</button>` : ''}
-                        <button onclick="excluirTarefaEquipe(${t.uid})" class="text-slate-200 hover:text-red-500 font-black text-lg ml-3 p-1" title="Excluir">✕</button>
-                    </div>
-                </div>
-
-                ${!isMin ? `
-                <span class="text-sm font-black uppercase text-slate-800 leading-snug mt-1">${esc(t.descricao)}</span>
-                <span class="text-[8px] font-black text-slate-300 border-b border-slate-100 pb-2">Criado em: ${t.data}</span>
-
-                <div class="mt-1 flex flex-col gap-1.5">
-                    ${arrComent.length > 0 ? `<div id="chat-${t.uid}" class="bg-slate-50 p-2 rounded-lg max-h-36 overflow-y-auto shadow-inner custom-scrollbar">${comentariosHtml}</div>` : ''}
-                    <div class="flex gap-1 mt-1 items-center">
-                        <input type="text" placeholder="Responder..." onkeydown="if(event.key==='Enter') { adicionarComentarioInline(${t.uid}, this); }" class="flex-1 bg-white border border-slate-200 p-2 text-[10px] font-bold rounded-xl outline-blue-500 uppercase placeholder:text-slate-300 shadow-sm">
-                        <button onclick="acionarUploadImagem(${t.uid})" class="bg-slate-100 text-slate-400 hover:text-blue-600 px-2 rounded-xl font-black text-[12px] transition h-full border border-slate-200" title="Anexar Imagem">📎</button>
-                        <button onclick="adicionarComentarioInline(${t.uid}, this.previousElementSibling.previousElementSibling)" class="bg-blue-100 hover:bg-blue-600 hover:text-white text-blue-600 px-3 rounded-xl font-black text-[12px] transition h-full border border-transparent">➤</button>
-                    </div>
-                </div>
-                ` : `<span class="text-[11px] font-black uppercase text-slate-800 leading-snug mt-1 truncate border-t pt-2">${esc(t.descricao)}</span>`}
-            </div>
-        `;
-
-        if(t.coluna === 'TODO') { htmlTodo += card; cTodo++; }
-        else if(t.coluna === 'DOING') { htmlDoing += card; cDoing++; }
-        else if(t.coluna === 'DONE') { htmlDone += card; cDone++; }
-    });
-
-    if(document.getElementById('col-todo')) document.getElementById('col-todo').innerHTML = htmlTodo || '<span class="text-[10px] font-bold text-slate-400 text-center mt-6 uppercase">Limpo 🎉</span>';
-    if(document.getElementById('col-doing')) document.getElementById('col-doing').innerHTML = htmlDoing || '<span class="text-[10px] font-bold text-slate-400 text-center mt-6 uppercase">Nada em andamento</span>';
-    if(document.getElementById('col-done')) document.getElementById('col-done').innerHTML = htmlDone || '<span class="text-[10px] font-bold text-slate-400 text-center mt-6 uppercase">Nenhuma conclusão</span>';
-    
-    if(document.getElementById('count-todo')) document.getElementById('count-todo').innerText = cTodo;
-    if(document.getElementById('count-doing')) document.getElementById('count-doing').innerText = cDoing;
-    if(document.getElementById('count-done')) document.getElementById('count-done').innerText = cDone;
-    
-    tarefasEquipe.forEach(t => {
-        const chatBox = document.getElementById(`chat-${t.uid}`);
-        if(chatBox) chatBox.scrollTop = chatBox.scrollHeight;
-    });
-}
-
-function processarFichaWhatsApp(texto) {
-    if(!texto) return;
-    const mNome = texto.match(/Nome(?: Completo)?\s*[:\-]?\s*(.+)/i);
-    const mCpf = texto.match(/CPF\s*[:\-]?\s*([\d\.\-]+)/i);
-    const mCep = texto.match(/CEP\s*[:\-]?\s*([\d\.\-]+)/i);
-    const mEnd = texto.match(/Endere[çc]o\s*[:\-]?\s*(.+)/i);
-    const mContato = texto.match(/(?:^|\n)\s*Contato(?: 1)?\s*[:\-]?\s*(.+)/i);
-    const mContato2 = texto.match(/(?:^|\n)\s*Contato\s*2\s*[:\-]?\s*(.+)/i);
-    const mNum = texto.match(/(?:^|\n)\s*N(?:[°ºoúu]mero)?\s*[:\-]?\s*([A-Za-z0-9]+)/i);
-    const mObs = texto.match(/(?:OBS|OBSERVA[CÇ][AÃ]O)(?:ES)?\s*[:\-]?\s*([\s\S]+)/i);
-
-    if (mNome) document.getElementById('t_nome').value = mNome[1].trim().toUpperCase();
-    if (mEnd) document.getElementById('t_end').value = mEnd[1].trim().toUpperCase();
-    if (mContato) document.getElementById('t_contato').value = mContato[1].trim().toUpperCase();
-    if (mContato2) document.getElementById('t_contato2').value = mContato2[1].trim().toUpperCase();
-    if (mNum) document.getElementById('t_num').value = mNum[1].trim().toUpperCase();
-    if (mObs) document.getElementById('t_obs').value = mObs[1].trim().toUpperCase();
-    
-    if (mCpf) { let cpfInput = document.getElementById('t_cpf'); cpfInput.value = mCpf[1].trim(); maskCPF(cpfInput); }
-    if (mCep) { let cepInput = document.getElementById('t_cep'); cepInput.value = mCep[1].trim(); buscarCEP(cepInput); }
-}
-
-function mostrarCamposTarefa(t){
-    const c=document.getElementById('container-campos-tarefa'); c.innerHTML="";
-    if(t==='TIRAR PEDIDO'){
-        c.innerHTML=`
-            <div class="col-span-1 md:col-span-4 mb-2 bg-indigo-50 p-4 rounded-xl border-2 border-dashed border-indigo-300 w-full">
-                <label class="text-[10px] font-black text-indigo-800 uppercase mb-2 block flex items-center gap-2">✨ Cole a ficha do WhatsApp aqui:</label>
-                <textarea id="t_magic_box" oninput="processarFichaWhatsApp(this.value)" placeholder="Ficha de Cadastro&#10;Nome Completo:&#10;CPF:&#10;CEP:&#10;Endereço:&#10;N:&#10;Contato 1:&#10;Contato 2:&#10;OBS:" class="w-full border p-3 rounded-lg text-xs font-bold outline-indigo-500 h-24 resize-none shadow-inner"></textarea>
-                <p class="text-[9px] font-bold text-indigo-400 mt-1 uppercase">O sistema tentará preencher os dados abaixo sozinho.</p>
-            </div>
-            <input id="t_nome" placeholder="CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold md:col-span-2 w-full uppercase outline-indigo-500">
-            <input id="t_cpf" placeholder="CPF" class="border-2 p-2 rounded-lg text-xs font-bold w-full outline-indigo-500" oninput="maskCPF(this)">
-            <input id="t_contato" placeholder="CONTATO 1" class="border-2 p-2 rounded-lg text-xs font-bold w-full outline-indigo-500">
-            <input id="t_contato2" placeholder="CONTATO 2" class="border-2 p-2 rounded-lg text-xs font-bold w-full outline-indigo-500">
-            <input id="t_cep" placeholder="CEP" class="border-2 p-2 rounded-lg text-xs font-bold w-full outline-indigo-500" oninput="buscarCEP(this)">
-            <input id="t_end" placeholder="RUA" class="border-2 p-2 rounded-lg text-xs font-bold md:col-span-2 w-full uppercase outline-indigo-500">
-            <input id="t_bairro" placeholder="BAIRRO" class="border-2 p-2 rounded-lg text-xs font-bold w-full uppercase outline-indigo-500">
-            <input id="t_cidade" placeholder="CIDADE" class="border-2 p-2 rounded-lg text-xs font-bold w-full uppercase outline-indigo-500">
-            <input id="t_num" placeholder="NÚMERO" class="border-2 p-2 rounded-lg text-xs font-bold w-full outline-indigo-500">
-            <input id="t_torre" placeholder="TORRE" class="border-2 p-2 rounded-lg text-xs font-bold w-full uppercase outline-indigo-500">
-            
-            <div class="col-span-1 md:col-span-4 border-t mt-4 pt-4 w-full">
-                <div id="lista-produtos-tarefa" class="flex flex-col gap-2 w-full"></div>
-                <button onclick="addProdutoLinha()" class="text-[10px] font-black text-blue-600 mt-2 uppercase hover:underline">+ MÓVEL</button>
-                <div id="total-pedido-tarefa" class="text-right text-indigo-600 font-black text-xs mt-1 uppercase italic">Total: R$ 0,00</div>
-            </div>
-            
-            <div class="col-span-1 md:col-span-4 border-t mt-4 pt-4 w-full">
-                <div id="lista-pagamentos-tarefa" class="flex flex-col gap-2 w-full"></div>
-                <button onclick="addPagamentoLinha()" class="text-[10px] font-black text-emerald-600 mt-2 uppercase hover:underline">+ PAGAMENTO</button>
-            </div>
-            
-            <textarea id="t_obs" placeholder="OBSERVAÇÕES DO PEDIDO..." class="col-span-1 md:col-span-4 border-2 p-2 rounded-lg text-xs font-bold h-16 uppercase mt-2 w-full outline-indigo-500"></textarea>
-        `;
-        addProdutoLinha(); addPagamentoLinha();
-    } else { c.innerHTML = `<input id="t_raw" placeholder="DESCRICAO..." class="border-2 p-2 rounded-lg text-xs font-bold col-span-4 uppercase w-full outline-indigo-500">`; }
-}
-
-function addProdutoLinha(){ 
-    const d = document.getElementById('lista-produtos-tarefa'); 
-    const r = document.createElement('div'); 
-    r.className = "flex flex-col md:flex-row gap-2 mb-2 items-start md:items-center row-prod bg-slate-50 p-3 rounded-lg border border-dashed w-full"; 
-    r.innerHTML = `
-        <div class="flex justify-between w-full md:flex-1 gap-2">
-            <input class="t-p-nome border-2 p-2 rounded text-xs font-bold flex-1 uppercase w-full outline-indigo-500" placeholder="MÓVEL">
-            <button onclick="this.parentElement.parentElement.remove(); calcTotalTirarPedido();" class="text-red-500 font-black px-3 py-1 md:hidden bg-red-100 rounded-lg">✕</button>
-        </div>
-        <div class="flex w-full md:w-auto gap-2">
-            <input class="t-v-orig border-2 p-2 rounded text-xs font-bold w-1/2 md:w-28 outline-indigo-500" placeholder="ORIGINAL" oninput="maskMoney(this)">
-            <input class="t-v-desc border-2 p-2 rounded text-xs font-bold w-1/2 md:w-28 text-indigo-600 outline-indigo-500" placeholder="DESCONTO" oninput="maskMoney(this)">
-            <button onclick="this.parentElement.parentElement.remove(); calcTotalTirarPedido();" class="text-red-500 font-black px-2 hidden md:block hover:text-red-700">✕</button>
-        </div>`; 
-    d.appendChild(r); 
-}
-
-function addPagamentoLinha(){
-    const d=document.getElementById('lista-pagamentos-tarefa'); 
-    let total=0; document.querySelectorAll('.t-v-desc').forEach(i=>total+=parseMoney(i.value)); 
-    let pago=0; document.querySelectorAll('.t-p-val').forEach(i=>pago+=parseMoney(i.value)); 
-    let saldo=total-pago; if(saldo<0) saldo=0;
-    
-    const r=document.createElement('div'); 
-    r.className="flex flex-col bg-slate-50 p-3 rounded-lg border mb-3 row-pag w-full gap-2";
-    r.innerHTML=`
-        <div class="flex gap-2 mb-1 flex-wrap md:flex-nowrap w-full">
-            <button onclick="setP(this,'PIX')" class="btn-pag-opt active flex-1 md:flex-none text-center px-1 py-2 text-[10px]">PIX</button>
-            <button onclick="setP(this,'CRÉDITO')" class="btn-pag-opt flex-1 md:flex-none text-center px-1 py-2 text-[10px]">CRÉDITO</button>
-            <button onclick="setP(this,'DÉBITO')" class="btn-pag-opt flex-1 md:flex-none text-center px-1 py-2 text-[10px]">DÉBITO</button>
-            <button onclick="setP(this,'CHEQUE')" class="btn-pag-opt flex-1 md:flex-none text-center px-1 py-2 text-[10px]">CHEQUE</button>
-            <input type="hidden" class="t-p-tipo" value="PIX">
-            <select class="t-p-parc hidden border-2 p-1 rounded text-[10px] font-bold bg-white w-full md:w-auto mt-2 md:mt-0 outline-emerald-500">${[...Array(12).keys()].map(n => `<option value="${n+1}x">${n+1}x</option>`).join('')}</select>
-        </div>
-        <div class="flex flex-col md:flex-row gap-2 w-full">
-            <input class="t-p-val border-2 p-2 rounded-lg text-xs font-bold w-full md:w-48 text-emerald-600 outline-emerald-500" placeholder="VALOR" oninput="maskMoney(this)" value="R$ ${saldo.toLocaleString('pt-BR',{minimumFractionDigits:2})}">
-            <div class="flex w-full gap-2 md:flex-1">
-                <input class="t-p-obs border-2 p-2 rounded-lg text-xs font-bold flex-1 uppercase outline-emerald-500" placeholder="OBS/DATA">
-                <button onclick="this.parentElement.parentElement.parentElement.remove()" class="text-red-500 font-black px-3 py-1 bg-red-100 md:bg-transparent rounded-lg md:hover:text-red-700">✕</button>
-            </div>
-        </div>`;
-    d.appendChild(r);
-}
-
-function setP(b,v){ const p = b.parentElement; p.querySelectorAll('button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); p.querySelector('.t-p-tipo').value=v; const s = p.querySelector('.t-p-parc'); if(v === 'CRÉDITO') s.classList.remove('hidden'); else s.classList.add('hidden'); }
-function calcTotalTirarPedido(){ let t=0; document.querySelectorAll('.t-v-desc').forEach(i=>t+=parseMoney(i.value)); document.getElementById('total-pedido-tarefa').innerText="Total: R$ "+t.toLocaleString('pt-BR',{minimumFractionDigits:2}); }
-
-function cadastrarTarefa(){
-    const t = document.getElementById('t_tipo').value; let obj = { uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), tipo: t, status: "Não Iniciado" };
-    if(t === 'TIRAR PEDIDO'){ const cli = document.getElementById('t_nome').value; if(!cli) return alert("FALTA NOME DO CLIENTE!"); let total=0; document.querySelectorAll('.t-v-desc').forEach(i=>total+=parseMoney(i.value)); obj.descricao = "PEDIDO: " + cli.toUpperCase(); obj.detalhes = { cliente: cli.toUpperCase(), cpf: document.getElementById('t_cpf').value, contato: document.getElementById('t_contato').value, contato2: document.getElementById('t_contato2').value, cep: document.getElementById('t_cep').value, end: document.getElementById('t_end').value, bairro: document.getElementById('t_bairro').value, cidade: document.getElementById('t_cidade').value, num: document.getElementById('t_num').value, torre: document.getElementById('t_torre').value, obs: document.getElementById('t_obs').value, totalDesc:"R$ "+total.toLocaleString('pt-BR',{minimumFractionDigits:2}), produtos:[], pagamentos:[] }; document.querySelectorAll('.row-prod').forEach(row => { if(row.querySelector('.t-p-nome').value) obj.detalhes.produtos.push({ n: row.querySelector('.t-p-nome').value.toUpperCase(), o: row.querySelector('.t-v-orig').value, d: row.querySelector('.t-v-desc').value }); }); document.querySelectorAll('.row-pag').forEach(row => { const tipo = row.querySelector('.t-p-tipo').value; const parcelas = (tipo === 'CRÉDITO') ? row.querySelector('.t-p-parc').value : ""; obj.detalhes.pagamentos.push({ t: tipo + (parcelas ? " " + parcelas : ""), v: row.querySelector('.t-p-val').value, o: row.querySelector('.t-p-obs').value.toUpperCase() }); }); }
-    else { obj.descricao = (document.getElementById('t_raw')?.value || "").toUpperCase(); }
-    if(!obj.descricao) return; tarefas.unshift(obj); salvarColecao('tarefas', tarefas); mostrarCamposTarefa(t); renderTarefas();
-}
-function renderTarefas() { const tb=document.getElementById('tabelaTarefas'); if(!tb) return; const f=document.getElementById('filtro-tarefa-status').value; let lista=f==='TODAS'?tarefas:tarefas.filter(x=>x.status===f); tb.innerHTML=lista.map(x=>`<tr onclick="verDetalhesTarefa(${x.uid})" class="hover:bg-slate-50 cursor-pointer border-b transition"><td>${esc(x.data)}</td><td class="font-black text-xs uppercase">${esc(x.descricao)}</td><td class="text-[10px] uppercase">${esc(x.tipo)}</td><td><button onclick="event.stopPropagation(); cycleTarefaStatus(${x.uid})" class="status-badge bg-slate-100">${esc(x.status)}</button></td><td class="text-center"><button onclick="event.stopPropagation(); if(confirm('Excluir?')){tarefas=tarefas.filter(y=>y.uid!=${x.uid});salvarColecao('tarefas', tarefas);}" class="text-red-400 hover:text-red-600 font-black text-lg">✕</button></td></tr>`).join(''); }
-
-function verDetalhesTarefa(uid){
-    const t=tarefas.find(x=>x.uid==uid); if(!t) return; document.getElementById('modal-detalhes').style.display='flex'; const c=document.getElementById('detalhe-corpo');
-    if(!t.detalhes){ c.innerHTML=`<div class="font-black uppercase">${esc(t.descricao)}</div>`; return; }
-    const d = t.detalhes; 
-    let enderecoCompleto = `${d.end || ''}${d.num ? ', ' + d.num : ''}${d.torre ? ' - ' + d.torre : ''}${d.bairro ? ' - ' + d.bairro : ''}${d.cidade ? ' - ' + d.cidade : ''}`;
-    let h = `<div class="grid grid-cols-2 gap-2">${l_i("CLIENTE", d.cliente)}${l_i("CPF", d.cpf)}${l_i("CONTATO 1", d.contato)}${l_i("CONTATO 2", d.contato2 || "-")}${l_i("CEP", d.cep)}${l_i("ENDEREÇO", enderecoCompleto)}</div><div class="mt-4 font-black text-xs uppercase border-b text-blue-600">Móveis:</div>`;
-    const prods = safeArray(d.produtos);
-    prods.forEach(p => h += `<div class="text-xs font-bold border-b py-1 flex justify-between items-center"><span>${esc(p.n)} <span class="text-slate-400 line-through text-[10px] ml-1">${esc(p.o)}</span> <span class="text-indigo-600 ml-1">${esc(p.d)}</span></span><button onclick="copyText('${esc(p.n)} - De: ${esc(p.o)} Por: ${esc(p.d)}', this)">📋</button></div>`);
-    h += `<div class="mt-4 font-black text-xs uppercase border-b text-emerald-600">Pagamento:</div>`;
-    const pags = safeArray(d.pagamentos);
-    pags.forEach(p => h += `<div class="text-xs font-bold border-b py-1 flex justify-between"><span>${esc(p.t)}: ${esc(p.v)} (${esc(p.o)})</span><button onclick="copyText('${esc(p.t)}: ${esc(p.v)}', this)">📋</button></div>`);
-    if(d.obs && d.obs !== "") { h += `<div class="mt-4 font-black text-xs uppercase border-b text-orange-600">Observações:</div><div class="text-xs font-bold py-2 bg-slate-50 p-2 rounded mt-1">${esc(d.obs)}</div>`; }
-    c.innerHTML = h;
-}
-function l_i(l, v){ return `<div class="border p-2 rounded text-[10px] font-bold uppercase flex justify-between"><span>${l}: ${esc(v)}</span><button onclick="copyText('${esc(v)}', this)">📋</button></div>`; }
-
-function switchTab(t){ window.scrollTo(0,0); document.querySelectorAll('main').forEach(x=>x.classList.add('hidden')); document.getElementById('view-'+t).classList.remove('hidden'); document.querySelectorAll('nav button').forEach(x=>x.classList.remove('tab-active')); document.getElementById('tab-'+t).classList.add('tab-active'); }
-function cycleStatus(u){ const x=pedidos.find(y=>y.uid==u); const s=["Não enviado","Pedido enviado","Aguardando fábrica","Pedido na loja"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('pedidos', pedidos); }
-function cycleTarefaStatus(u){ const x=tarefas.find(y=>y.uid==u); const s=["Não Iniciado","Em Andamento","Feito"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('tarefas', tarefas); }
-function cycleAssisStatus(u){ const x=assistencias.find(y=>y.uid==u); const s=["Aguardando","Peça Solicitada","Concluído"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('assistencias', assistencias); }
-function togglePainelSugestoes(){ const p=document.getElementById('painel-sugestoes'); p.style.display=p.style.display==='flex'?'none':'flex'; }
-function autoSalvarNotas(){ notasMelhoria=document.getElementById('texto-melhorias').value; db.ref('dados/notasMelhoria').set(notasMelhoria); }
-function marcarTodos(v){ document.querySelectorAll('.ped-check').forEach(c=>c.checked=v); }
-function toggleFiltroNaoEnviado(){ filtrandoNaoEnviados=!filtrandoNaoEnviados; document.getElementById('btnFiltroNaoEnviado').classList.toggle('bg-red-600'); document.getElementById('btnFiltroNaoEnviado').classList.toggle('text-white'); renderPedidos(); }
-function updPed(u,c,v){ pedidos.find(x=>x.uid==u)[c]=v; salvarColecao('pedidos', pedidos); }
-function togPed(u,c){ const x=pedidos.find(y=>y.uid==u); if(x) x[c]=!x[c]; salvarColecao('pedidos', pedidos); }
-function excluirPedido(u){ if(confirm("EXCLUIR?")){ pedidos=pedidos.filter(x=>x.uid!=u); salvarColecao('pedidos', pedidos); } }
-function atualizarSelectsFornecedores(){ 
-    const h = fornecedores.map(f => `<option value="${esc(f.nome)}">${esc(f.nome)}</option>`).join(''); 
-    if(document.getElementById('m_fornecedor_select')) document.getElementById('m_fornecedor_select').innerHTML = h || "<option>...</option>"; 
-    if(document.getElementById('as_fabrica')) document.getElementById('as_fabrica').innerHTML = h || "<option>...</option>";
-    if(document.getElementById('e_fabrica_select')) document.getElem
+                        ${t.coluna === 'DOING' ? `<button onclick="moverTarefaEquipe(${t.uid}, 'TODO')" class="${btnVoltar}" title="Voltar p/ Fazer">⬅️</button> <button onclick="moverTarefaEquipe(${t.uid}, 'DONE')" class="${
