@@ -18,11 +18,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
-    
-    <!-- BIBLIOTECA PARA TIRAR A FOTO (PRINT) DO CARTÃO DA TAREFA -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
-    <link rel="stylesheet" href="style.css?v=10">
+    <link rel="stylesheet" href="style.css?v=9999">
     <meta name="theme-color" content="#0f172a">
 </head>
 <body class="bg-slate-100">
@@ -42,6 +41,9 @@
             <div id="status-db" class="status-offline hidden md:block">Conectando...</div>
         </div>
     </header>
+
+    <!-- Dedo-duro de erros (Mostra na tela se algo falhar) -->
+    <div id="error-log" class="text-red-500 font-bold text-xs text-center p-1 bg-red-100 hidden"></div>
 
     <nav class="bg-slate-900 text-slate-400 px-8 flex gap-8 shadow-md overflow-x-auto sticky top-[72px] z-40">
         <button onclick="switchTab('pedidos')" id="tab-pedidos" class="py-4 text-xs font-black uppercase tab-active whitespace-nowrap">📋 Pedidos</button>
@@ -305,6 +307,13 @@
     <datalist id="listaSugestaoProdutos"></datalist>
     <datalist id="listaSugestaoClientes"></datalist>
 
-    <script src="script.js?v=10"></script>
+    <!-- TRATAMENTO DE ERROS VISUAL -->
+    <script>
+        window.addEventListener('error', function(e) {
+            document.getElementById('error-log').classList.remove('hidden');
+            document.getElementById('error-log').innerText += "ERRO: " + e.message + " | ";
+        });
+    </script>
+    <script src="script.js?v=9999"></script>
 </body>
 </html>
