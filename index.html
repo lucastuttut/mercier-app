@@ -9,7 +9,9 @@
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=3">
+    <!-- NOVO: Biblioteca para tirar o "Print" (Foto) dos cartões -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="style.css?v=4">
     <meta name="theme-color" content="#0f172a">
 </head>
 <body class="bg-slate-100">
@@ -124,7 +126,6 @@
                     <label class="text-[9px] font-black text-slate-400 uppercase">O que precisa ser feito?</label>
                     <input id="eq_desc" placeholder="DESCREVA A TAREFA RAPIDAMENTE..." class="border-2 p-2.5 rounded-lg text-xs font-bold w-full uppercase outline-purple-500" onkeydown="if(event.key==='Enter') adicionarTarefaEquipe()">
                 </div>
-                <!-- NOVO CAMPO DE PRAZO SELETOR -->
                 <div class="w-48">
                     <label class="text-[9px] font-black text-slate-400 uppercase">Prazo / Urgência</label>
                     <select id="eq_prazo" class="border-2 p-2.5 rounded-lg text-xs font-bold bg-white w-full outline-purple-500 uppercase cursor-pointer">
@@ -152,7 +153,6 @@
             <div class="mt-5 pt-4 border-t border-slate-100 flex flex-col gap-2 relative">
                 <div class="flex justify-between items-center flex-wrap gap-2">
                     <span class="text-[9px] font-black text-slate-400 uppercase">Filtre por Responsável:</span>
-                    <!-- CHAVE DE MODO FOCO -->
                     <label class="flex items-center gap-2 cursor-pointer bg-slate-800 text-white px-4 py-2 rounded-xl shadow-md hover:bg-slate-700 transition">
                         <input type="checkbox" id="check-minhas-tarefas" onchange="toggleModoMinhasTarefas()" class="cursor-pointer w-4 h-4 accent-purple-500">
                         <span class="text-[10px] font-black uppercase tracking-wider">👁️ Mostrar Apenas as Minhas</span>
@@ -163,7 +163,6 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-            <!-- Coluna TODO -->
             <div id="col-todo-container" ondrop="dropTarefa(event, 'TODO')" ondragover="allowDropTarefa(event)" class="bg-slate-200/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-slate-200 shadow-inner transition-all duration-300">
                 <h3 class="font-black text-sm uppercase text-slate-600 mb-4 flex justify-between items-center sticky top-0 bg-slate-200/90 py-1 z-10 backdrop-blur-sm pointer-events-none">
                     <div class="flex items-center gap-2 pointer-events-auto">
@@ -175,7 +174,6 @@
                 <div id="col-todo" class="flex flex-col gap-3 flex-1 pb-4 transition-all"></div>
             </div>
             
-            <!-- Coluna DOING -->
             <div id="col-doing-container" ondrop="dropTarefa(event, 'DOING')" ondragover="allowDropTarefa(event)" class="bg-blue-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-blue-200 shadow-inner transition-all duration-300">
                 <h3 class="font-black text-sm uppercase text-blue-600 mb-4 flex justify-between items-center sticky top-0 bg-blue-100/90 py-1 z-10 backdrop-blur-sm pointer-events-none">
                     <div class="flex items-center gap-2 pointer-events-auto">
@@ -187,7 +185,6 @@
                 <div id="col-doing" class="flex flex-col gap-3 flex-1 pb-4 transition-all"></div>
             </div>
             
-            <!-- Coluna DONE -->
             <div id="col-done-container" ondrop="dropTarefa(event, 'DONE')" ondragover="allowDropTarefa(event)" class="bg-green-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-green-200 shadow-inner transition-all duration-300">
                 <h3 class="font-black text-sm uppercase text-green-600 mb-4 flex justify-between items-center sticky top-0 bg-green-100/90 py-1 z-10 backdrop-blur-sm pointer-events-none">
                     <div class="flex items-center gap-2 pointer-events-auto">
@@ -286,16 +283,17 @@
         <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50 text-[10px] uppercase"><th>Fábrica</th><th>E-mail</th><th class="text-center" width="100">Remover</th></tr></thead><tbody id="tabelaFornecedores"></tbody></table></div>
     </main>
 
-    <!-- MODAL DETALHES PEDIDO -->
+    <!-- MODAIS E BLOCOS ESCONDIDOS -->
     <div id="modal-detalhes" class="modal-overlay" onclick="if(event.target==this) this.style.display='none'"><div class="card-premium w-full max-w-2xl bg-white overflow-hidden flex flex-col max-h-[90vh] shadow-2xl"><div class="bg-indigo-600 p-5 text-white font-black flex justify-between items-center uppercase text-sm tracking-widest"><span>📄 Resumo Detalhado</span><button onclick="document.getElementById('modal-detalhes').style.display='none'" class="text-xl">✕</button></div><div id="detalhe-corpo" class="p-8 overflow-y-auto space-y-4 bg-white text-slate-800"></div></div></div>
-    
-    <!-- BLOCO DE NOTAS -->
     <div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()">💡</div>
     <div id="painel-sugestoes"><div id="drag-handle" class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase cursor-move"><span>💡 Bloco de Notas</span><button onclick="togglePainelSugestoes()">✕</button></div><textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" oninput="autoSalvarNotas()"></textarea></div>
+
+    <!-- NOVO: INPUT INVISÍVEL PARA ANEXAR FOTOS NOS COMENTÁRIOS -->
+    <input type="file" id="file-upload-global" accept="image/*" class="hidden" onchange="processarUploadImagem(event)">
 
     <datalist id="listaSugestaoProdutos"></datalist>
     <datalist id="listaSugestaoClientes"></datalist>
 
-    <script src="script.js?v=3"></script>
+    <script src="script.js?v=4"></script>
 </body>
 </html>
