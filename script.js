@@ -26,10 +26,8 @@ try { modoMinhasTarefas = localStorage.getItem('mercier_so_minhas') === 'true'; 
 window.onload = () => {
     const selectEl = document.getElementById('user-select');
     if(selectEl && usuarioAtual) selectEl.value = usuarioAtual;
-    
     const chkMinhas = document.getElementById('check-minhas-tarefas');
     if(chkMinhas) chkMinhas.checked = modoMinhasTarefas;
-    
     renderFiltrosEquipe();
 };
 
@@ -280,47 +278,58 @@ const coresEquipe = {
     "ANGÉLICA": "bg-purple-100 text-purple-700 border-purple-400"
 };
 
-const telefonesEquipe = {
-    "LUCAS": "5527996109720",
-    "ANGÉLICA": "5527998094627",
-    "GUILHERME": "5527999468458",
-    "CAROL": "5527999517954",
-    "ISABELLA": "5527997452190"
-};
-
-let colsMinimizadas = { "TODO": false, "DOING": false, "DONE": false };
-
-function toggleColunaKanban(coluna) {
-    colsMinimizadas[coluna] = !colsMinimizadas[coluna];
-    renderQuadroEquipe();
-}
-
-function notificarNoGrupo(tarefa, tipoAcao) {
+// ==========================================
+// MÁGICA 1: TIRA O PRINT DO CARTÃO (html2canvas) E ABRE O WHATSAPP
+// ==========================================
+async function notificarNoGrupoComPrint(tarefa, tipoAcao) {
     const quem = usuarioAtual || "A equipe";
     const baseUrl = window.location.href.split('?')[0];
     const linkAcesso = `${baseUrl}?tarefa=${tarefa.uid}`;
     
     const mapaPrazo = {
-        "AGORA": "🚨 AGORA (Urgente)",
-        "IMEDIATO": "⚡ 1 DIA (Imediato)",
-        "IMPORTANTE": "⚠️ 2 DIAS (Importante)",
-        "REGULAR": "📅 3 DIAS (Regular)",
-        "TRANQUILO": "☕ + DIAS (Tranquilo)",
-        "": "Sem prazo definido"
+        "AGORA": "🚨 AGORA (Urgente)", "IMEDIATO": "⚡ 1 DIA", "IMPORTANTE": "⚠️ 2 DIAS", "REGULAR": "📅 3 DIAS", "TRANQUILO": "☕ + DIAS", "": "Sem prazo"
     };
 
     let msg = "";
-
     if (tipoAcao === 'NOVA') {
-        const prazoTxt = mapaPrazo[tarefa.prazo || ""];
-        msg = `📢 *NOVA TAREFA*\n\nDesignada para: *${tarefa.responsavel}*\nCriada por: ${quem}\n\n📌 *${tarefa.descricao}*\n🗓️ Prazo: ${prazoTxt}\n\n🔗 *Acessar tarefa no sistema:*\n${linkAcesso}`;
+        msg = `📢 *NOVA TAREFA*\nDesignada para: *${tarefa.responsavel}*\nCriada por: ${quem}\n\n📌 *${tarefa.descricao}*\n🗓️ Prazo: ${mapaPrazo[tarefa.prazo || ""]}\n\n🔗 *Acessar no sistema:*\n${linkAcesso}`;
     } else if (tipoAcao === 'CONCLUIDA') {
-        msg = `✅ *TAREFA CONCLUÍDA*\n\nFinalizada por: *${quem}*\n\n📌 *${tarefa.descricao}*\n👤 Resp. Original: ${tarefa.responsavel}\n\n🔗 *Ver histórico no sistema:*\n${linkAcesso}`;
+        msg = `✅ *TAREFA CONCLUÍDA*\nFinalizada por: *${quem}*\n\n📌 *${tarefa.descricao}*\n👤 Resp: ${tarefa.responsavel}\n\n🔗 *Ver histórico no sistema:*\n${linkAcesso}`;
     }
 
-    const urlGrupo = `https://wa.me/?text=${encodeURIComponent(msg)}`;
-    if(confirm(`Deseja enviar este aviso no WhatsApp da loja/grupo?`)) {
-        window.open(urlGrupo, '_blank');
+    if(confirm(`Deseja notificar no WhatsApp e tentar COPIAR A IMAGEM do cartão?`)) {
+        
+        // Garante que o cartao ta expandido pra bater a foto bonita
+        if(tarefa.minimizada) {
+            minimizarTarefaEquipe(tarefa.uid);
+        }
+
+        const cardElement = document.getElementById(`card-${tarefa.uid}`);
+        
+        if (cardElement && typeof html2canvas !== 'undefined') {
+            try {
+                // Tira a foto
+                const canvas = await html2canvas(cardElement, { scale: 2, backgroundColor: null });
+                canvas.toBlob(async (blob) => {
+                    try {
+                        // Salva a foto no mouse/teclado da pessoa
+                        const item = new ClipboardItem({ "image/png": blob });
+                        await navigator.clipboard.write([item]);
+                        alert("📸 A FOTO DA TAREFA FOI COPIADA!\n\nO WhatsApp será aberto agora. Basta você clicar na mensagem e dar um COLAR (Ctrl+V) antes de enviar.");
+                    } catch (err) {
+                        alert("⚠️ Não foi possível copiar a foto automaticamente no seu dispositivo. O WhatsApp será aberto apenas com o texto.");
+                    }
+                    // Abre o zap
+                    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+                }, "image/png");
+                return; 
+            } catch (error) {
+                console.error("Erro ao gerar imagem: ", error);
+            }
+        }
+        
+        // Se der algum erro na foto, ele manda o link com texto normal
+        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
     }
 }
 
@@ -377,7 +386,12 @@ function adicionarTarefaEquipe() {
     document.getElementById('eq_desc').value = "";
     document.getElementById('eq_prazo').value = "";
     
-    notificarNoGrupo(novaTarefa, 'NOVA');
+    renderQuadroEquipe();
+
+    // Dispara a tentativa de Print após a tela ter atualizado (delay de 300ms pro html2canvas achar o elemento novo)
+    setTimeout(() => {
+        notificarNoGrupoComPrint(novaTarefa, 'NOVA');
+    }, 300);
 }
 
 function moverTarefaEquipe(uid, novaColuna) {
@@ -386,11 +400,11 @@ function moverTarefaEquipe(uid, novaColuna) {
         t.coluna = novaColuna;
         salvarColecao('tarefasEquipe', tarefasEquipe);
         
-        if (novaColuna === 'DONE') {
-            notificarNoGrupo(t, 'CONCLUIDA');
-        }
-        
         renderQuadroEquipe();
+
+        if (novaColuna === 'DONE') {
+            setTimeout(() => { notificarNoGrupoComPrint(t, 'CONCLUIDA'); }, 300);
+        }
     }
 }
 
@@ -408,6 +422,64 @@ function minimizarTarefaEquipe(uid) {
         salvarColecao('tarefasEquipe', tarefasEquipe);
         renderQuadroEquipe();
     }
+}
+
+// ==========================================================
+// MÁGICA 2: UPLOAD E COMPRESSÃO DE IMAGENS NOS COMENTÁRIOS
+// ==========================================================
+let uidUploadPendente = null;
+
+function acionarUploadImagem(uid) {
+    if(!usuarioAtual) return alert("Por favor, selecione quem você é no topo da tela antes de anexar imagens!");
+    uidUploadPendente = uid;
+    document.getElementById('file-upload-global').click();
+}
+
+function processarUploadImagem(event) {
+    const file = event.target.files[0];
+    if(!file || !uidUploadPendente) return;
+
+    const t = tarefasEquipe.find(x => x.uid == uidUploadPendente);
+    if(!t) return;
+
+    // Lendo a imagem e encolhendo ela num canvas pra não explodir o banco de dados
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 800; // Limite pro celular
+            const MAX_HEIGHT = 800;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) { if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } } 
+            else { if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; } }
+            
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Transforma a foto reduzida em texto pra salvar no Firebase
+            const base64Data = canvas.toDataURL('image/jpeg', 0.6); 
+
+            t.comentarios = safeArray(t.comentarios);
+            const agora = new Date();
+            const strData = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+
+            t.comentarios.push({
+                id: Date.now(), autor: usuarioAtual,
+                texto: "📷 IMAGEM ANEXADA", anexo: base64Data, dataHora: strData
+            });
+
+            salvarColecao('tarefasEquipe', tarefasEquipe);
+            renderQuadroEquipe();
+            event.target.value = ""; // Limpa a memória do input
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
 }
 
 function adicionarComentarioInline(uid, inputElement) {
@@ -447,11 +519,20 @@ function getBadgePrazo(prazo) {
     return '';
 }
 
+let colsMinimizadas = { "TODO": false, "DOING": false, "DONE": false };
+
+function toggleColunaKanban(coluna) {
+    colsMinimizadas[coluna] = !colsMinimizadas[coluna];
+    renderQuadroEquipe();
+}
+
 function renderQuadroEquipe() {
     const colTodo = document.getElementById('col-todo');
     const colDoing = document.getElementById('col-doing');
     const colDone = document.getElementById('col-done');
-    if(!colTodo) return;['TODO', 'DOING', 'DONE'].forEach(col => {
+    if(!colTodo) return;
+    
+    ['TODO', 'DOING', 'DONE'].forEach(col => {
         const container = document.getElementById(`col-${col.toLowerCase()}-container`);
         const content = document.getElementById(`col-${col.toLowerCase()}`);
         const btn = document.getElementById(`btn-toggle-${col.toLowerCase()}`);
@@ -495,7 +576,9 @@ function renderQuadroEquipe() {
         if (arrComent.length > 0) {
             comentariosHtml = arrComent.map(c => {
                 const cCor = coresEquipe[c.autor] ? coresEquipe[c.autor].split(' ')[1] : "text-slate-600"; 
-                return `<div class="mb-1 leading-tight"><span class="${cCor} font-black text-[9px] uppercase tracking-tighter">${esc(c.autor)}:</span> <span class="text-[10px] font-bold text-slate-700">${esc(c.texto)}</span></div>`;
+                // Se o comentario tiver anexo, ele desenha a miniatura da foto!
+                const anexoHtml = c.anexo ? `<br><img src="${c.anexo}" class="mt-2 rounded-lg max-h-40 cursor-pointer object-cover border border-slate-200" onclick="window.open('${c.anexo}', '_blank')" />` : '';
+                return `<div class="mb-2 leading-tight bg-white p-2 rounded-md border border-slate-100 shadow-sm"><span class="${cCor} font-black text-[9px] uppercase tracking-tighter">${esc(c.autor)}:</span> <span class="text-[10px] font-bold text-slate-700">${esc(c.texto)}</span>${anexoHtml}</div>`;
             }).join('');
         }
         
@@ -507,7 +590,7 @@ function renderQuadroEquipe() {
         const btnConcluir = "text-slate-300 hover:text-green-500 font-black text-xl p-1 ml-1 bg-slate-50 hover:bg-green-50 rounded-lg transition-colors";
 
         const card = `
-            <div id="card-${t.uid}" draggable="true" ondragstart="dragTarefa(event, ${t.uid})" ondragend="dragEndTarefa(event)" class="bg-white p-3.5 rounded-2xl shadow-sm border-t-4 ${corBorda} flex flex-col gap-2 transition hover:shadow-md cursor-grab active:cursor-grabbing">
+            <div id="card-${t.uid}" draggable="true" ondragstart="dragTarefa(event, ${t.uid})" ondragend="dragEndTarefa(event)" class="bg-white p-3.5 rounded-2xl shadow-sm border-t-4 ${corBorda} flex flex-col gap-2 transition hover:shadow-md cursor-grab active:cursor-grabbing relative overflow-hidden">
                 
                 <div class="flex justify-between items-start">
                     <div class="flex flex-col gap-1 items-start">
@@ -528,10 +611,11 @@ function renderQuadroEquipe() {
                 <span class="text-[8px] font-black text-slate-300 border-b border-slate-100 pb-2">Criado em: ${t.data}</span>
 
                 <div class="mt-1 flex flex-col gap-1.5">
-                    ${arrComent.length > 0 ? `<div id="chat-${t.uid}" class="bg-slate-50 p-2 rounded-lg max-h-28 overflow-y-auto shadow-inner custom-scrollbar">${comentariosHtml}</div>` : ''}
-                    <div class="flex gap-1 mt-1">
+                    ${arrComent.length > 0 ? `<div id="chat-${t.uid}" class="bg-slate-50 p-2 rounded-lg max-h-36 overflow-y-auto shadow-inner custom-scrollbar">${comentariosHtml}</div>` : ''}
+                    <div class="flex gap-1 mt-1 items-center">
                         <input type="text" placeholder="Responder..." onkeydown="if(event.key==='Enter') { adicionarComentarioInline(${t.uid}, this); }" class="flex-1 bg-white border border-slate-200 p-2 text-[10px] font-bold rounded-xl outline-blue-500 uppercase placeholder:text-slate-300 shadow-sm">
-                        <button onclick="adicionarComentarioInline(${t.uid}, this.previousElementSibling)" class="bg-blue-100 hover:bg-blue-600 hover:text-white text-blue-600 px-3 rounded-xl font-black text-[12px] transition">➤</button>
+                        <button onclick="acionarUploadImagem(${t.uid})" class="bg-slate-100 text-slate-400 hover:text-blue-600 px-2 rounded-xl font-black text-[12px] transition h-full border border-slate-200" title="Anexar Imagem">📎</button>
+                        <button onclick="adicionarComentarioInline(${t.uid}, this.previousElementSibling.previousElementSibling)" class="bg-blue-100 hover:bg-blue-600 hover:text-white text-blue-600 px-3 rounded-xl font-black text-[12px] transition h-full border border-transparent">➤</button>
                     </div>
                 </div>
                 ` : `<span class="text-[11px] font-black uppercase text-slate-800 leading-snug mt-1 truncate border-t pt-2">${esc(t.descricao)}</span>`}
@@ -556,10 +640,6 @@ function renderQuadroEquipe() {
         if(chatBox) chatBox.scrollTop = chatBox.scrollHeight;
     });
 }
-
-// =========================================================================
-// CORREÇÃO RESPONSIVIDADE MOBILE DA TELA "TIRAR PEDIDO"
-// =========================================================================
 
 function processarFichaWhatsApp(texto) {
     if(!texto) return;
@@ -691,11 +771,6 @@ function verDetalhesTarefa(uid){
 }
 function l_i(l, v){ return `<div class="border p-2 rounded text-[10px] font-bold uppercase flex justify-between"><span>${l}: ${esc(v)}</span><button onclick="copyText('${esc(v)}', this)">📋</button></div>`; }
 
-function renderFornecedores() { const tb = document.getElementById('tabelaFornecedores'); if(!tb) return; tb.innerHTML = fornecedores.map((f, i) => `<tr><td class="font-bold uppercase">${esc(f.nome)}</td><td class="lowercase text-blue-600">${esc(f.email)}</td><td class="text-center"><button onclick="fornecedores.splice(${i},1); salvarColecao('fornecedores', fornecedores);" class="text-red-500 font-black">✕</button></td></tr>`).join(''); }
-function cadastrarFornecedor(){ const n=document.getElementById('f_nome').value.toUpperCase().trim(), e=document.getElementById('f_email').value.toLowerCase().trim(); if(n&&e){fornecedores.push({nome:n,email:e}); salvarColecao('fornecedores', fornecedores); document.getElementById('f_nome').value=""; document.getElementById('f_email').value="";}}
-function renderCatalogo() { const tb=document.getElementById('tabelaCatalogo'); if(!tb) return; tb.innerHTML=catalogo.map((c,i)=>`<tr><td class="uppercase">${esc(c.nome)}</td><td class="text-center"><button onclick="catalogo.splice(${i},1); salvarColecao('catalogo', catalogo);">✕</button></td></tr>`).join(''); }
-function cadastrarCatalogo(){ const n=document.getElementById('cat_nome').value.toUpperCase(); if(n){catalogo.push({nome:n}); salvarColecao('catalogo', catalogo); document.getElementById('cat_nome').value="";}}
-
 function switchTab(t){ window.scrollTo(0,0); document.querySelectorAll('main').forEach(x=>x.classList.add('hidden')); document.getElementById('view-'+t).classList.remove('hidden'); document.querySelectorAll('nav button').forEach(x=>x.classList.remove('tab-active')); document.getElementById('tab-'+t).classList.add('tab-active'); }
 function cycleStatus(u){ const x=pedidos.find(y=>y.uid==u); const s=["Não enviado","Pedido enviado","Aguardando fábrica","Pedido na loja"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('pedidos', pedidos); }
 function cycleTarefaStatus(u){ const x=tarefas.find(y=>y.uid==u); const s=["Não Iniciado","Em Andamento","Feito"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('tarefas', tarefas); }
@@ -711,52 +786,4 @@ function atualizarSelectsFornecedores(){
     const h = fornecedores.map(f => `<option value="${esc(f.nome)}">${esc(f.nome)}</option>`).join(''); 
     if(document.getElementById('m_fornecedor_select')) document.getElementById('m_fornecedor_select').innerHTML = h || "<option>...</option>"; 
     if(document.getElementById('as_fabrica')) document.getElementById('as_fabrica').innerHTML = h || "<option>...</option>";
-    if(document.getElementById('e_fabrica_select')) document.getElementById('e_fabrica_select').innerHTML = h || "<option>...</option>";
-    if(document.getElementById('estoque-filtro-fabrica')) document.getElementById('estoque-filtro-fabrica').innerHTML = '<option value="TODAS">TODAS AS FÁBRICAS</option>' + h;
-}
-function atualizarSugestoes(){ const n=[...new Set(pedidos.map(p=>p.cliente))].sort(); if(document.getElementById('listaSugestaoClientes')) document.getElementById('listaSugestaoClientes').innerHTML=n.map(x=>`<option value="${esc(x)}">`).join(''); }
-async function dupPed(u){ const x=pedidos.find(y=>y.uid==u); const nId=await getProximoID(); const idDoc="ID#"+nId.toString().padStart(4,'0'); pedidos.unshift({...x, uid:Date.now()+Math.random(), idDoc}); salvarColecao('pedidos', pedidos); }
-function gerarAssistenciaRapida(u){ const p=pedidos.find(x=>x.uid==u); if(p){ document.getElementById('as_cliente').value=p.cliente; document.getElementById('as_produto').value=p.produto+" (DEFEITO)"; document.getElementById('as_fabrica').value=p.fornecedor; switchTab('assistencia'); }}
-function gerarEmailLote() {
-    const checks = document.querySelectorAll('.ped-check:checked'); if (checks.length === 0) return alert("SELECIONE PEDIDOS!");
-    const selecionados = Array.from(checks).map(c => pedidos.find(p => p.uid == c.value)).filter(p => p);
-    const grupos = {}; selecionados.forEach(p => { if (!grupos[p.fornecedor]) grupos[p.fornecedor] = []; grupos[p.fornecedor].push(p); });
-    for (const fab in grupos) {
-        const email = (fornecedores.find(f => f.nome === fab) || {}).email || "";
-        let corpo = `Olá, segue pedido para fábrica ${fab}:%0D%0A%0D%0A`;
-        grupos[fab].forEach((p, idx) => { corpo += `Qtde: ${String(p.qtd).padStart(2, '0')} - ${p.produto}%0D%0A${p.medida !== "-" ? `MEDIDA: ${p.medida}%0D%0A` : ""}COR/TECIDO: ${p.cor}%0D%0AREF: ${p.idDoc}%0D%0A${idx < grupos[fab].length - 1 ? `%0D%0A--------------------------%0D%0A` : ""}`; });
-        corpo += `%0D%0AForma de pagamento: 30/60/90.%0D%0A%0D%0AIDs para controle interno, favor desconsiderar.%0D%0A%0D%0AFavor confirmar o recebimento e nos enviar o documento de confirmação dos itens acima para conferência.%0D%0A%0D%0AAtenciosamente,%0D%0ALucas Mercier.`;
-        window.open(`mailto:${email}?subject=${encodeURIComponent('PEDIDO - MERCIER DESIGN - '+fab)}&body=${corpo}`);
-    }
-}
-
-const painelSugestoes = document.getElementById('painel-sugestoes');
-const dragHandle = document.getElementById('drag-handle');
-let isDragging = false, offsetX, offsetY;
-
-dragHandle.addEventListener('mousedown', (e) => {
-    isDragging = true;
-    offsetX = e.clientX - painelSugestoes.getBoundingClientRect().left;
-    offsetY = e.clientY - painelSugestoes.getBoundingClientRect().top;
-    painelSugestoes.style.bottom = 'auto'; 
-    painelSugestoes.style.right = 'auto';  
-});
-
-document.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
-    painelSugestoes.style.left = (e.clientX - offsetX) + 'px';
-    painelSugestoes.style.top = (e.clientY - offsetY) + 'px';
-});
-
-document.addEventListener('mouseup', () => { isDragging = false; });
-
-mostrarCamposTarefa('SIMPLES');
-
-const style = document.createElement('style');
-style.innerHTML = `
-.custom-scrollbar::-webkit-scrollbar { width: 4px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-`;
-document.head.appendChild(style);
+    if(document.getElementById('e_fabrica_select')) document.getElem
