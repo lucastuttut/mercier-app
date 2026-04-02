@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mercier Design - Gestão Cloud</title>
     
-    <!-- COMANDO PARA DESTRUIR O CACHE ANTIGO QUE ESTAVA TRAVANDO A TELA -->
+    <!-- ESSE COMANDO MATA O CACHE VELHO DO CELULAR -->
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(function(registrations) {
@@ -21,7 +21,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
-    <link rel="stylesheet" href="style.css?v=9999">
+    <link rel="stylesheet" href="style.css?v=200">
     <meta name="theme-color" content="#0f172a">
 </head>
 <body class="bg-slate-100">
@@ -42,7 +42,7 @@
         </div>
     </header>
 
-    <!-- Dedo-duro de erros (Mostra na tela se algo falhar) -->
+    <!-- Dedo-duro de erros invisível -->
     <div id="error-log" class="text-red-500 font-bold text-xs text-center p-1 bg-red-100 hidden"></div>
 
     <nav class="bg-slate-900 text-slate-400 px-8 flex gap-8 shadow-md overflow-x-auto sticky top-[72px] z-40">
@@ -256,7 +256,7 @@
 
         <div class="card-premium p-4 mb-4 bg-slate-50 flex flex-wrap gap-4 items-center uppercase border border-slate-200">
             <div class="flex-1 min-w-[300px]">
-                <input type="text" id="busca-assistencia" onkeyup="renderAssistencias()" placeholder="🔍 BUSCAR ASSISTÊNCIA (CLIENTE, DEFEITO)..." class="border-2 p-2.5 rounded-xl text-xs font-bold w-full outline-orange-500">
+                <input type="text" id="busca-assistencia" onkeyup="renderAssistencias()" placeholder="🔍 BUSCAR ASSISTÊNCIA..." class="border-2 p-2.5 rounded-xl text-xs font-bold w-full outline-orange-500">
             </div>
             <select id="filtro-assistencia-status" onchange="renderAssistencias()" class="border-2 p-2.5 rounded-xl text-xs font-bold bg-white w-48 outline-orange-500 cursor-pointer">
                 <option value="TODAS">TODOS OS STATUS</option>
@@ -296,24 +296,22 @@
         <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50 text-[10px] uppercase"><th>Fábrica</th><th>E-mail</th><th class="text-center" width="100">Remover</th></tr></thead><tbody id="tabelaFornecedores"></tbody></table></div>
     </main>
 
-    <!-- MODAIS E BLOCOS ESCONDIDOS -->
+    <!-- MODAL DETALHES PEDIDO -->
     <div id="modal-detalhes" class="modal-overlay" onclick="if(event.target==this) this.style.display='none'"><div class="card-premium w-full max-w-2xl bg-white overflow-hidden flex flex-col max-h-[90vh] shadow-2xl"><div class="bg-indigo-600 p-5 text-white font-black flex justify-between items-center uppercase text-sm tracking-widest"><span>📄 Resumo Detalhado</span><button onclick="document.getElementById('modal-detalhes').style.display='none'" class="text-xl">✕</button></div><div id="detalhe-corpo" class="p-8 overflow-y-auto space-y-4 bg-white text-slate-800"></div></div></div>
     <div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()">💡</div>
     <div id="painel-sugestoes"><div id="drag-handle" class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase cursor-move"><span>💡 Bloco de Notas</span><button onclick="togglePainelSugestoes()">✕</button></div><textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" oninput="autoSalvarNotas()"></textarea></div>
 
-    <!-- UPLOAD INVISÍVEL -->
     <input type="file" id="file-upload-global" accept="image/*" class="hidden" onchange="processarUploadImagem(event)">
 
     <datalist id="listaSugestaoProdutos"></datalist>
     <datalist id="listaSugestaoClientes"></datalist>
 
-    <!-- TRATAMENTO DE ERROS VISUAL -->
+    <script src="app.js"></script>
     <script>
         window.addEventListener('error', function(e) {
-            document.getElementById('error-log').classList.remove('hidden');
-            document.getElementById('error-log').innerText += "ERRO: " + e.message + " | ";
+            const errEl = document.getElementById('error-log');
+            if(errEl) { errEl.classList.remove('hidden'); errEl.innerText += " ERRO DE SISTEMA: " + e.message; }
         });
     </script>
-    <script src="script.js?v=9999"></script>
 </body>
 </html>
