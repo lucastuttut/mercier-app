@@ -12,6 +12,11 @@ const firebaseConfig = {
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+// BLINDAGEM DE ERROS FATAL
+window.addEventListener('error', function(e) { 
+    console.error("Erro interno blindado:", e.message);
+});
+
 let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[], tarefasEquipe=[], proximoID=255, notasMelhoria="", notasEstoque="", cestoItensTemporario=[], filtrandoNaoEnviados=false, filtrandoVendidos=false, cpfValido=true;
 let deepLinkVerificado = false;
 
@@ -24,16 +29,22 @@ try { modoMinhasTarefas = localStorage.getItem('mercier_so_minhas') === 'true'; 
 window.onload = function() {
     const selectEl = document.getElementById('user-select');
     if(selectEl && usuarioAtual) selectEl.value = usuarioAtual;
+    
     const chkMinhas = document.getElementById('check-minhas-tarefas');
     if(chkMinhas) chkMinhas.checked = modoMinhasTarefas;
+    
     renderFiltrosEquipe();
 };
 
 function setUsuario(nome) {
     usuarioAtual = nome;
-    if(nome) { try { localStorage.setItem('mercier_user', nome); } catch(e) {} } 
-    else { try { localStorage.removeItem('mercier_user'); } catch(e) {} }
-    renderFiltrosEquipe(); renderQuadroEquipe();
+    if(nome) { 
+        try { localStorage.setItem('mercier_user', nome); } catch(e) {} 
+    } else { 
+        try { localStorage.removeItem('mercier_user'); } catch(e) {} 
+    }
+    renderFiltrosEquipe();
+    renderQuadroEquipe();
 }
 
 function toggleModoMinhasTarefas() {
@@ -44,32 +55,71 @@ function toggleModoMinhasTarefas() {
     }
     modoMinhasTarefas = document.getElementById('check-minhas-tarefas').checked;
     try { localStorage.setItem('mercier_so_minhas', modoMinhasTarefas); } catch(e) {}
+    
     if(modoMinhasTarefas) filtrosEquipeAtivos =[];
-    renderFiltrosEquipe(); renderQuadroEquipe();
+    renderFiltrosEquipe();
+    renderQuadroEquipe();
 }
 
 const esc = function(str) { return (str || "").toString().replace(/[&<>'"]/g, function(tag) { return ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag] || tag); }); };
 const removeAcentos = function(str) { return str.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); };
 
-// A "ARMADURA" CONTRA TRAVAMENTOS
+// A "ARMADURA" CONTRA TRAVAMENTOS DO FIREBASE
 const safeArray = function(data) {
     if (!data) return[];
     try {
-        if (Array.isArray(data)) return data.filter(Boolean);
-        if (typeof data === 'object') return Object.values(data).filter(Boolean);
+        let arr = Array.isArray(data) ? data : Object.values(data);
+        return arr.filter(function(item) { return item && typeof item === 'object'; });
+    } catch (e) {
         return[];
-    } catch (e) { return[]; }
+    }
 };
 
 const statusEl = document.getElementById('status-db');
 db.ref('.info/connected').on('value', function(snap) {
-    if (snap.val() === true) console.log("Conectado!"); else console.log("Tentando...");
+    if (snap.val() === true) console.log("Conectado!");
+    else console.log("Tentando...");
 });
 
-// SINCRONIZAÇÃO DE DADOS BLINDADA
+// NOTIFICAÇÃO NATIVA DO NAVEGADOR
+let primeiraCarga = true;
+let ultimasTarefas =[];
+
+function solicitarPermissaoNotificacao() {
+    if (!("Notification" in window)) {
+        alert("Este aparelho/navegador não suporta notificações do sistema.");
+        return;
+    }
+    Notification.requestPermission().then(function (permission) {
+        if (permission === "granted") {
+            alert("🔔 Notificações ativadas! Você será avisado quando o aplicativo estiver aberto em segundo plano.");
+        } else {
+            alert("⚠️ Permissão negada para notificações.");
+        }
+    });
+}
+
+function dispararNotificacaoNativa(titulo, corpo) {
+    if (Notification.permission === 'granted') {
+        if (navigator.serviceWorker) {
+            navigator.serviceWorker.ready.then(function(registration) {
+                registration.showNotification(titulo, {
+                    body: corpo,
+                    icon: 'https://cdn-icons-png.flaticon.com/512/2972/2972161.png',
+                    vibrate:[200, 100, 200]
+                });
+            });
+        } else {
+            new Notification(titulo, { body: corpo });
+        }
+    }
+}
+
+// SINCRONIZAÇÃO DE DADOS (BLINDADA)
 db.ref('dados').on('value', function(s) {
     try {
         const d = s.val() || {};
+        
         pedidos = safeArray(d.pedidos);
         fornecedores = safeArray(d.fornecedores);
         estoque = safeArray(d.estoque);
@@ -82,17 +132,37 @@ db.ref('dados').on('value', function(s) {
         notasMelhoria = d.notasMelhoria || "";
         notasEstoque = d.notasEstoque || "";
 
+        // Lógica da Notificação Nativa (Se tiver tarefa nova para o usuário logado)
+        if (!primeiraCarga && usuarioAtual) {
+            const novasTarefas = tarefasEquipe.filter(function(t) { 
+                return !ultimasTarefas.some(function(ut) { return ut.uid === t.uid; }); 
+            });
+            novasTarefas.forEach(function(t) {
+                if (t.responsavel === usuarioAtual) {
+                    const mapaPrazo = { "AGORA": "🚨 AGORA", "IMEDIATO": "⚡ 1 DIA", "IMPORTANTE": "⚠️ 2 DIAS", "REGULAR": "📅 3 DIAS", "TRANQUILO": "☕ + DIAS", "": "Sem prazo" };
+                    dispararNotificacaoNativa(`Nova Tarefa Designada!`, `📌 ${t.descricao}\n🗓️ Prazo: ${mapaPrazo[t.prazo || ""]}`);
+                }
+            });
+        }
+        ultimasTarefas = [...tarefasEquipe];
+        primeiraCarga = false;
+
         if(statusEl) { statusEl.innerText = "ONLINE"; statusEl.className = "status-online"; }
+        
         const elMelhorias = document.getElementById('texto-melhorias');
         if(elMelhorias) elMelhorias.value = notasMelhoria;
+        
         const elEstoqueNotas = document.getElementById('estoque-notas-gerais');
         if(elEstoqueNotas) elEstoqueNotas.value = notasEstoque;
 
-        atualizarSelectsFornecedores(); atualizarSugestoes(); renderAll();
+        atualizarSelectsFornecedores();
+        atualizarSugestoes();
+        renderAll();
         
         if(!deepLinkVerificado && tarefasEquipe.length > 0) {
             const urlParams = new URLSearchParams(window.location.search);
             const tarefaId = urlParams.get('tarefa');
+            
             if(tarefaId) {
                 switchTab('equipe');
                 setTimeout(function() {
@@ -111,9 +181,11 @@ db.ref('dados').on('value', function(s) {
         }
     } catch (err) {
         if(statusEl) { statusEl.innerText = "ERRO DE LEITURA"; statusEl.className = "status-offline"; }
-        console.error("Erro critico: ", err);
+        console.error("Erro critico na sincronizacao: ", err);
     }
-}, function(error) { if(statusEl) { statusEl.innerText = "ERRO DE ACESSO"; statusEl.className = "status-offline"; } });
+}, function(error) {
+    if(statusEl) { statusEl.innerText = "ERRO DE ACESSO"; statusEl.className = "status-offline"; }
+});
 
 function salvarColecao(colecao, dados) { db.ref('dados/' + colecao).set(dados); }
 
@@ -123,7 +195,10 @@ async function getProximoID() {
     return res.snapshot.val();
 }
 
-function renderAll(){ renderPedidos(); renderTarefas(); renderFornecedores(); renderEstoque(); renderCatalogo(); renderAssistencias(); renderQuadroEquipe(); }
+function renderAll(){ 
+    renderPedidos(); renderTarefas(); renderFornecedores(); 
+    renderEstoque(); renderCatalogo(); renderAssistencias(); renderQuadroEquipe();
+}
 
 function activeInlineEdit(element, uid, field, listType) {
     const originalValue = element.innerText;
@@ -190,7 +265,8 @@ function renderEstoque() {
     const tb = document.getElementById('tabelaEstoque'); if(!tb) return;
     const elBusca = document.getElementById('estoque-busca');
     const b = removeAcentos((elBusca ? elBusca.value : "").toLowerCase());
-    const fFab = document.getElementById('estoque-filtro-fabrica').value;
+    const elFab = document.getElementById('estoque-filtro-fabrica');
+    const fFab = elFab ? elFab.value : "TODAS";
     const elFiltroSit = document.getElementById('estoque-filtro-situacao');
     const fSit = elFiltroSit ? elFiltroSit.value : "TODAS";
     let totEst = 0, totVen = 0;
@@ -204,7 +280,7 @@ function renderEstoque() {
     });
     if(document.getElementById('resumo-estoque-total')) document.getElementById('resumo-estoque-total').innerText = totEst;
     if(document.getElementById('resumo-estoque-vendidos')) document.getElementById('resumo-estoque-vendidos').innerText = totVen;
-    tb.innerHTML = lista.map(function(x) { return `<tr><td class="text-[10px] text-slate-400 font-bold">${esc(x.data) || '-'}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'estoque')" class="editable-cell uppercase font-bold">${esc(x.produto)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'fabrica', 'estoque')" class="editable-cell text-blue-600 text-[10px] font-black uppercase">${esc(x.fabrica) || "-"}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'qtd', 'estoque')" class="editable-cell text-center">${esc(x.qtd)}</td><td><button onclick="cycleEstoqueStatus(${x.uid})" class="px-2 py-1 rounded text-[9px] font-black w-full text-center transition ${x.situacao === 'VENDIDO' ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}">${esc(x.situacao)}</button></td><td class="text-center flex gap-1 justify-center">${x.situacao === 'ESTOQUE' ? `<button onclick="darBaixaEstoque(${x.uid})" title="Dar Baixa">📉</button>` : ''}<button onclick="if(confirm('EXCLUIR?')){estoque=estoque.filter(y=>y.uid!=${x.uid}); salvarColecao('estoque', estoque);}" class="text-red-500 font-black px-2">✕</button></td></tr>`; }).join('');
+    tb.innerHTML = lista.map(function(x) { return `<tr><td class="text-[10px] text-slate-400 font-bold">${esc(x.data) || '-'}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'estoque')" class="editable-cell uppercase font-bold">${esc(x.produto)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'fabrica', 'estoque')" class="editable-cell text-blue-600 text-[10px] font-black uppercase">${esc(x.fabrica) || "-"}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'qtd', 'estoque')" class="editable-cell text-center">${esc(x.qtd)}</td><td><button onclick="cycleEstoqueStatus(${x.uid})" class="px-2 py-1 rounded text-[9px] font-black w-full text-center transition ${x.situacao === 'VENDIDO' ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}">${esc(x.situacao)}</button></td><td class="text-center flex gap-1 justify-center">${x.situacao === 'ESTOQUE' ? `<button onclick="darBaixaEstoque(${x.uid})" title="Dar Baixa">📉</button>` : ''}<button onclick="if(confirm('EXCLUIR?')){estoque=estoque.filter(function(y){return y.uid!=${x.uid};}); salvarColecao('estoque', estoque);}" class="text-red-500 font-black px-2">✕</button></td></tr>`; }).join('');
 }
 function cycleEstoqueStatus(u){ const x = estoque.find(function(y) { return y.uid == u; }); if(x) { x.situacao = x.situacao === 'ESTOQUE' ? 'VENDIDO' : 'ESTOQUE'; salvarColecao('estoque', estoque); } }
 function darBaixaEstoque(u) { const it = estoque.find(function(x) { return x.uid == u; }); if (!it) return; let qS = prompt(`SAÍDA DE "${it.produto}". QTD?`, "1"); if (!qS) return; qS = parseInt(qS); if (isNaN(qS) || qS <= 0 || qS > it.qtd) return alert("QTD INVÁLIDA!"); if (qS == it.qtd) { it.situacao = "VENDIDO"; it.data = new Date().toLocaleDateString('pt-BR'); } else { it.qtd -= qS; estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: it.produto, fabrica: it.fabrica, qtd: qS, situacao: "VENDIDO" }); } salvarColecao('estoque', estoque); }
@@ -312,7 +388,7 @@ async function notificarNoGrupoComPrint(tarefa, tipoAcao) {
                             await navigator.clipboard.write([item]);
                             alert("📸 A FOTO DA TAREFA FOI COPIADA!\n\nO WhatsApp será aberto agora. Basta você dar um COLAR (Ctrl+V) antes de enviar para anexar o print.");
                         } else {
-                            alert("⚠️ Seu navegador não suporta copiar a foto. O WhatsApp abrirá apenas com o texto.");
+                            alert("⚠️ Seu navegador antigo não suporta copiar a foto. O WhatsApp abrirá apenas com o texto.");
                         }
                     } catch (err) {
                         alert("⚠️ O seu navegador bloqueou a cópia automática da foto. O WhatsApp será aberto apenas com o texto.");
@@ -360,7 +436,8 @@ function renderFiltrosEquipe() {
 function adicionarTarefaEquipe() {
     const desc = document.getElementById('eq_desc').value.trim().toUpperCase();
     const resp = document.getElementById('eq_resp').value;
-    const prazo = document.getElementById('eq_prazo').value; 
+    const elPrazo = document.getElementById('eq_prazo');
+    const prazo = elPrazo ? elPrazo.value : ""; 
     
     if(!desc) return alert("DIGITE A DESCRIÇÃO DA TAREFA!");
     
@@ -379,7 +456,7 @@ function adicionarTarefaEquipe() {
     salvarColecao('tarefasEquipe', tarefasEquipe);
     
     document.getElementById('eq_desc').value = "";
-    document.getElementById('eq_prazo').value = "";
+    if(elPrazo) elPrazo.value = "";
     
     renderQuadroEquipe();
     setTimeout(function() { notificarNoGrupoComPrint(novaTarefa, 'NOVA'); }, 300);
@@ -729,7 +806,7 @@ function gerarAssistenciaRapida(u){ const p=pedidos.find(function(x){ return x.u
 function gerarEmailLote() {
     const checks = document.querySelectorAll('.ped-check:checked'); if (checks.length === 0) return alert("SELECIONE PEDIDOS!");
     const selecionados = Array.from(checks).map(function(c) { return pedidos.find(function(p) { return p.uid == c.value; }); }).filter(function(p) { return p; });
-    const grupos = {}; selecionados.forEach(function(p) { if (!grupos[p.fornecedor]) grupos[p.fornecedor] =[]; grupos[p.fornecedor].push(p); });
+    const grupos = {}; selecionados.forEach(function(p) { if (!grupos[p.fornecedor]) grupos[p.fornecedor] = []; grupos[p.fornecedor].push(p); });
     for (const fab in grupos) {
         const email = (fornecedores.find(function(f) { return f.nome === fab; }) || {}).email || "";
         let corpo = `Olá, segue pedido para fábrica ${fab}:%0D%0A%0D%0A`;
