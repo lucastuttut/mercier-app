@@ -1,15 +1,7 @@
-const CACHE_NAME = 'mercier-v106-safe'; // Atualizei a versão do cache
-const assets =[
-  './',
-  './index.html',
-  './style.css',
-  './script.js',
-  'https://cdn.tailwindcss.com'
-];
+const CACHE_NAME = 'mercier-v5';
 
 self.addEventListener('install', e => {
   self.skipWaiting();
-  e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(assets)));
 });
 
 self.addEventListener('activate', e => {
@@ -22,20 +14,9 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Nova Estratégia de Cache: Stale-While-Revalidate
+// NOVO: Estratégia "Internet Primeiro". Nunca mais teremos problema de cache!
 self.addEventListener('fetch', e => {
   e.respondWith(
-    caches.match(e.request).then(cachedResponse => {
-      const fetchPromise = fetch(e.request).then(networkResponse => {
-        // Guarda a versão mais atualizada silenciosamente
-        caches.open(CACHE_NAME).then(cache => {
-          cache.put(e.request, networkResponse.clone());
-        });
-        return networkResponse;
-      }).catch(() => cachedResponse); // Se estiver sem internet, usa o cache
-      
-      // Retorna o cache IMEDIATAMENTE se existir, enquanto a rede atualiza no fundo
-      return cachedResponse || fetchPromise;
-    })
+    fetch(e.request).catch(() => caches.match(e.request))
   );
 });
