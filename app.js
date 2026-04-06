@@ -12,15 +12,16 @@ const firebaseConfig = {
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// BLINDAGEM DE ERROS FATAL
 window.addEventListener('error', function(e) { 
     console.error("Erro interno blindado:", e.message);
 });
 
-let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[], tarefasEquipe=[], proximoID=255, notasMelhoria="", notasEstoque="", cestoItensTemporario=[], filtrandoNaoEnviados=false, filtrandoVendidos=false, cpfValido=true;
+// AQUI ESTÃO TODAS AS LISTAS DE DADOS DA EMPRESA
+let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[], tarefasEquipe=[], historicoAtividades=[];
+let proximoID=255, notasMelhoria="", notasEstoque="", cestoItensTemporario=[], filtrandoNaoEnviados=false, filtrandoVendidos=false, cpfValido=true;
 let deepLinkVerificado = false;
 
-// --- SISTEMA DE LOGIN DISCRETO & FILTRO MINHAS TAREFAS ---
+// --- SISTEMA DE LOGIN E FOCO ---
 let usuarioAtual = "";
 try { usuarioAtual = localStorage.getItem('mercier_user') || ""; } catch(e) {}
 let modoMinhasTarefas = false;
@@ -64,62 +65,96 @@ function toggleModoMinhasTarefas() {
 const esc = function(str) { return (str || "").toString().replace(/[&<>'"]/g, function(tag) { return ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag] || tag); }); };
 const removeAcentos = function(str) { return str.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); };
 
-// A "ARMADURA" CONTRA TRAVAMENTOS DO FIREBASE
+// A "ARMADURA" CONTRA TRAVAMENTOS
 const safeArray = function(data) {
     if (!data) return[];
     try {
         let arr = Array.isArray(data) ? data : Object.values(data);
         return arr.filter(function(item) { return item && typeof item === 'object'; });
-    } catch (e) {
-        return[];
-    }
+    } catch (e) { return[]; }
 };
 
 const statusEl = document.getElementById('status-db');
 db.ref('.info/connected').on('value', function(snap) {
-    if (snap.val() === true) console.log("Conectado!");
-    else console.log("Tentando...");
+    if (snap.val() === true) console.log("Conectado!"); else console.log("Tentando...");
 });
 
-// NOTIFICAÇÃO NATIVA DO NAVEGADOR
-let primeiraCarga = true;
-let ultimasTarefas =[];
+// =========================================================================
+// MÁGICA 3: O DIÁRIO DE BORDO E AUDITORIA (LOG DE ATIVIDADES)
+// =========================================================================
+function registrarAcao(icone, acao, detalhe) {
+    const quem = usuarioAtual || "SISTEMA";
+    const agora = new Date();
+    const dataHora = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
 
-function solicitarPermissaoNotificacao() {
-    if (!("Notification" in window)) {
-        alert("Este aparelho/navegador não suporta notificações do sistema.");
+    historicoAtividades.unshift({
+        uid: Date.now() + Math.random(),
+        dataHora: dataHora,
+        usuario: quem,
+        acao: acao,
+        detalhe: detalhe,
+        icone: icone
+    });
+
+    // Mantém só os últimos 150 registros para o banco de dados não ficar pesado!
+    if(historicoAtividades.length > 150) {
+        historicoAtividades = historicoAtividades.slice(0, 150);
+    }
+    salvarColecao('historico', historicoAtividades);
+}
+
+function togglePainelHistorico() {
+    const painel = document.getElementById('painel-historico');
+    const overlay = document.getElementById('overlay-historico');
+    const badge = document.getElementById('badge-historico');
+
+    if(painel.classList.contains('translate-x-full')) {
+        painel.classList.remove('translate-x-full');
+        overlay.classList.remove('hidden');
+        if(badge) badge.classList.add('hidden'); // Limpa a bolinha vermelha
+    } else {
+        painel.classList.add('translate-x-full');
+        overlay.classList.add('hidden');
+    }
+}
+
+function renderHistorico() {
+    const lista = document.getElementById('lista-historico');
+    if(!lista) return;
+
+    if(historicoAtividades.length === 0) {
+        lista.innerHTML = '<span class="text-slate-400 text-[10px] font-bold text-center uppercase block mt-10">Nenhuma atividade registrada ainda.</span>';
         return;
     }
-    Notification.requestPermission().then(function (permission) {
-        if (permission === "granted") {
-            alert("🔔 Notificações ativadas! Você será avisado quando o aplicativo estiver aberto em segundo plano.");
-        } else {
-            alert("⚠️ Permissão negada para notificações.");
-        }
-    });
-}
 
-function dispararNotificacaoNativa(titulo, corpo) {
-    if (Notification.permission === 'granted') {
-        if (navigator.serviceWorker) {
-            navigator.serviceWorker.ready.then(function(registration) {
-                registration.showNotification(titulo, {
-                    body: corpo,
-                    icon: 'https://cdn-icons-png.flaticon.com/512/2972/2972161.png',
-                    vibrate:[200, 100, 200]
-                });
-            });
-        } else {
-            new Notification(titulo, { body: corpo });
-        }
+    lista.innerHTML = historicoAtividades.map(function(h) {
+        return `
+        <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex gap-3 items-start transition-all hover:bg-slate-50">
+            <div class="bg-slate-100 p-2 rounded-lg text-lg">${h.icone}</div>
+            <div class="flex flex-col flex-1">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="text-[9px] font-black uppercase text-slate-700 bg-slate-200 px-1.5 py-0.5 rounded">${esc(h.usuario)}</span>
+                    <span class="text-[8px] font-bold text-slate-400">${h.dataHora}</span>
+                </div>
+                <span class="text-[11px] font-black uppercase text-slate-800 leading-tight">${esc(h.acao)}</span>
+                <span class="text-[9px] font-bold text-slate-500 uppercase mt-0.5 leading-snug">${esc(h.detalhe)}</span>
+            </div>
+        </div>`;
+    }).join('');
+    
+    // Se chegou coisa nova e o painel ta fechado, acende o sininho vermelho!
+    const painel = document.getElementById('painel-historico');
+    const badge = document.getElementById('badge-historico');
+    if(painel && painel.classList.contains('translate-x-full') && badge) {
+        badge.classList.remove('hidden');
     }
 }
+
 
 // SINCRONIZAÇÃO DE DADOS (BLINDADA)
 db.ref('dados').on('value', function(s) {
     try {
         const d = s.val() || {};
-        
         pedidos = safeArray(d.pedidos);
         fornecedores = safeArray(d.fornecedores);
         estoque = safeArray(d.estoque);
@@ -127,42 +162,25 @@ db.ref('dados').on('value', function(s) {
         tarefas = safeArray(d.tarefas);
         assistencias = safeArray(d.assistencias);
         tarefasEquipe = safeArray(d.tarefasEquipe);
+        historicoAtividades = safeArray(d.historico); // Lendo o histórico!
         
         proximoID = d.proximoID || 255;
         notasMelhoria = d.notasMelhoria || "";
         notasEstoque = d.notasEstoque || "";
 
-        // Lógica da Notificação Nativa (Se tiver tarefa nova para o usuário logado)
-        if (!primeiraCarga && usuarioAtual) {
-            const novasTarefas = tarefasEquipe.filter(function(t) { 
-                return !ultimasTarefas.some(function(ut) { return ut.uid === t.uid; }); 
-            });
-            novasTarefas.forEach(function(t) {
-                if (t.responsavel === usuarioAtual) {
-                    const mapaPrazo = { "AGORA": "🚨 AGORA", "IMEDIATO": "⚡ 1 DIA", "IMPORTANTE": "⚠️ 2 DIAS", "REGULAR": "📅 3 DIAS", "TRANQUILO": "☕ + DIAS", "": "Sem prazo" };
-                    dispararNotificacaoNativa(`Nova Tarefa Designada!`, `📌 ${t.descricao}\n🗓️ Prazo: ${mapaPrazo[t.prazo || ""]}`);
-                }
-            });
-        }
-        ultimasTarefas = [...tarefasEquipe];
-        primeiraCarga = false;
-
         if(statusEl) { statusEl.innerText = "ONLINE"; statusEl.className = "status-online"; }
-        
         const elMelhorias = document.getElementById('texto-melhorias');
         if(elMelhorias) elMelhorias.value = notasMelhoria;
-        
         const elEstoqueNotas = document.getElementById('estoque-notas-gerais');
         if(elEstoqueNotas) elEstoqueNotas.value = notasEstoque;
 
-        atualizarSelectsFornecedores();
-        atualizarSugestoes();
+        atualizarSelectsFornecedores(); 
+        atualizarSugestoes(); 
         renderAll();
         
         if(!deepLinkVerificado && tarefasEquipe.length > 0) {
             const urlParams = new URLSearchParams(window.location.search);
             const tarefaId = urlParams.get('tarefa');
-            
             if(tarefaId) {
                 switchTab('equipe');
                 setTimeout(function() {
@@ -181,11 +199,9 @@ db.ref('dados').on('value', function(s) {
         }
     } catch (err) {
         if(statusEl) { statusEl.innerText = "ERRO DE LEITURA"; statusEl.className = "status-offline"; }
-        console.error("Erro critico na sincronizacao: ", err);
+        console.error("Erro critico: ", err);
     }
-}, function(error) {
-    if(statusEl) { statusEl.innerText = "ERRO DE ACESSO"; statusEl.className = "status-offline"; }
-});
+}, function(error) { if(statusEl) { statusEl.innerText = "ERRO DE ACESSO"; statusEl.className = "status-offline"; } });
 
 function salvarColecao(colecao, dados) { db.ref('dados/' + colecao).set(dados); }
 
@@ -197,7 +213,8 @@ async function getProximoID() {
 
 function renderAll(){ 
     renderPedidos(); renderTarefas(); renderFornecedores(); 
-    renderEstoque(); renderCatalogo(); renderAssistencias(); renderQuadroEquipe();
+    renderEstoque(); renderCatalogo(); renderAssistencias(); renderQuadroEquipe(); 
+    renderHistorico(); // Atualiza a tela lateral do sininho
 }
 
 function activeInlineEdit(element, uid, field, listType) {
@@ -256,9 +273,19 @@ function renderPedidos() {
         return `<tr class="${p.classe}"><td><input type="checkbox" class="ped-check" value="${x.uid}"></td><td><div class="flex flex-col gap-1 items-center"><span class="font-black text-[9px]">${p.dias}D</span><select onchange="updPed(${x.uid},'prazo',this.value)" class="select-prazo-tabela"><option value="15" ${x.prazo=='15'?'selected':''}>15C</option><option value="20" ${x.prazo=='20'?'selected':''}>20C</option><option value="30" ${x.prazo=='30'?'selected':''}>30C</option><option value="30-util" ${x.prazo=='30-util'?'selected':''}>30U</option><option value="40-util" ${x.prazo=='40-util'?'selected':''}>40U</option></select></div></td><td class="text-[10px] text-slate-400 font-black">${esc(x.idDoc)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'cliente', 'pedidos')" class="editable-cell uppercase">${esc(x.cliente)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'dataPedido', 'pedidos')" class="editable-cell text-[10px]">${esc(x.dataPedido)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'qtd', 'pedidos')" class="editable-cell text-center font-black">${esc(x.qtd)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'pedidos')" class="editable-cell uppercase">${esc(x.produto)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'medida', 'pedidos')" class="editable-cell uppercase">${esc(x.medida)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'cor', 'pedidos')" class="editable-cell uppercase">${esc(x.cor)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'custo', 'pedidos')" class="editable-cell">${esc(x.custo)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'fornecedor', 'pedidos')" class="editable-cell font-black text-blue-800 uppercase text-[10px]">${esc(x.fornecedor)}</td><td><button onclick="cycleStatus(${x.uid})" class="status-badge ${sCls} text-white">${esc(x.status)}</button></td><td><button onclick="togPed(${x.uid},'whatsEnviado')" class="status-badge ${x.whatsEnviado?'btn-sim':'btn-nao'}">${x.whatsEnviado?'SIM':'NÃO'}</button></td><td><button onclick="togPed(${x.uid},'confirmado')" class="status-badge ${x.confirmado?'btn-sim':'btn-nao'}">${x.confirmado?'SIM':'NÃO'}</button></td><td class="text-center flex gap-1 justify-center"><button onclick="copyText('${x.qtd}x ${esc(x.produto)} ${esc(x.cor)} (${esc(x.idDoc)})', this)">📋</button><button onclick="dupPed(${x.uid})">➕</button><button onclick="gerarAssistenciaRapida(${x.uid})">🛠️</button><button onclick="excluirPedido(${x.uid})" class="text-red-500 font-black">✕</button></td></tr>`;
     }).join('');
 }
-function adicionarItemAoCesto() { const p = document.getElementById('m_produto').value.trim().toUpperCase(); if(!p) return alert("INFORME PRODUTO!"); cestoItensTemporario.push({ uid: Date.now(), q: document.getElementById('m_qtd').value || 1, p, m: document.getElementById('m_medida').value || "-", c: document.getElementById('m_cor').value.toUpperCase() || "-", v: document.getElementById('m_custo').value || "R$ 0,00" }); renderCesto(); document.getElementById('m_produto').value = ""; }
+function adicionarItemAoCesto() { const p = document.getElementById('m_produto').value.trim().toUpperCase(); if(!p) return alert("INFORME PRODUTO!"); cestoItensTemporario.push({ uid: Date.now(), q: document.getElementById('m_qtd').value || 1, p: p, m: document.getElementById('m_medida').value || "-", c: document.getElementById('m_cor').value.toUpperCase() || "-", v: document.getElementById('m_custo').value || "R$ 0,00" }); renderCesto(); document.getElementById('m_produto').value = ""; }
 function renderCesto() { document.getElementById('cesto-itens').innerHTML = cestoItensTemporario.map(function(item, idx) { return `<div class="item-cesto"><span>${item.q}x</span><span>${esc(item.p)}</span><button onclick="cestoItensTemporario.splice(${idx},1); renderCesto();" class="text-red-500 font-bold ml-2">✕</button></div>`; }).join(''); }
-async function cadastrarManual() { const cli = document.getElementById('m_cliente').value.trim().toUpperCase(); const forn = document.getElementById('m_fornecedor_select').value; if(!cli || cestoItensTemporario.length === 0) return alert("FALTA DADOS!"); const nId = await getProximoID(); const idDoc = "ID#" + nId.toString().padStart(4, '0'); cestoItensTemporario.forEach(function(i) { pedidos.unshift({ uid: Date.now()+Math.random(), idDoc: idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false }); }); cestoItensTemporario =[]; document.getElementById('m_cliente').value = ""; renderCesto(); salvarColecao('pedidos', pedidos); }
+async function cadastrarManual() { 
+    const cli = document.getElementById('m_cliente').value.trim().toUpperCase(); const forn = document.getElementById('m_fornecedor_select').value; 
+    if(!cli || cestoItensTemporario.length === 0) return alert("FALTA DADOS!"); 
+    const nId = await getProximoID(); const idDoc = "ID#" + nId.toString().padStart(4, '0'); 
+    cestoItensTemporario.forEach(function(i) { pedidos.unshift({ uid: Date.now()+Math.random(), idDoc: idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false }); }); 
+    
+    // AVISA O DIÁRIO DE BORDO
+    registrarAcao('📋', 'NOVO PEDIDO (SISTEMA)', `CÓDIGO: ${idDoc} | CLIENTE: ${cli}`);
+
+    cestoItensTemporario =[]; document.getElementById('m_cliente').value = ""; renderCesto(); salvarColecao('pedidos', pedidos); 
+}
 
 function autoSalvarNotasEstoque() { notasEstoque = document.getElementById('estoque-notas-gerais').value; db.ref('dados/notasEstoque').set(notasEstoque); }
 function renderEstoque() {
@@ -283,8 +310,26 @@ function renderEstoque() {
     tb.innerHTML = lista.map(function(x) { return `<tr><td class="text-[10px] text-slate-400 font-bold">${esc(x.data) || '-'}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'estoque')" class="editable-cell uppercase font-bold">${esc(x.produto)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'fabrica', 'estoque')" class="editable-cell text-blue-600 text-[10px] font-black uppercase">${esc(x.fabrica) || "-"}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'qtd', 'estoque')" class="editable-cell text-center">${esc(x.qtd)}</td><td><button onclick="cycleEstoqueStatus(${x.uid})" class="px-2 py-1 rounded text-[9px] font-black w-full text-center transition ${x.situacao === 'VENDIDO' ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}">${esc(x.situacao)}</button></td><td class="text-center flex gap-1 justify-center">${x.situacao === 'ESTOQUE' ? `<button onclick="darBaixaEstoque(${x.uid})" title="Dar Baixa">📉</button>` : ''}<button onclick="if(confirm('EXCLUIR?')){estoque=estoque.filter(function(y){return y.uid!=${x.uid};}); salvarColecao('estoque', estoque);}" class="text-red-500 font-black px-2">✕</button></td></tr>`; }).join('');
 }
 function cycleEstoqueStatus(u){ const x = estoque.find(function(y) { return y.uid == u; }); if(x) { x.situacao = x.situacao === 'ESTOQUE' ? 'VENDIDO' : 'ESTOQUE'; salvarColecao('estoque', estoque); } }
-function darBaixaEstoque(u) { const it = estoque.find(function(x) { return x.uid == u; }); if (!it) return; let qS = prompt(`SAÍDA DE "${it.produto}". QTD?`, "1"); if (!qS) return; qS = parseInt(qS); if (isNaN(qS) || qS <= 0 || qS > it.qtd) return alert("QTD INVÁLIDA!"); if (qS == it.qtd) { it.situacao = "VENDIDO"; it.data = new Date().toLocaleDateString('pt-BR'); } else { it.qtd -= qS; estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: it.produto, fabrica: it.fabrica, qtd: qS, situacao: "VENDIDO" }); } salvarColecao('estoque', estoque); }
-function cadastrarEstoque() { const p = document.getElementById('e_produto').value.toUpperCase().trim(), f = document.getElementById('e_fabrica_select').value, q = document.getElementById('e_qtd').value, s = document.getElementById('e_situacao').value; if (p) { estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: p, fabrica: f, qtd: parseInt(q), situacao: s }); salvarColecao('estoque', estoque); document.getElementById('e_produto').value = ""; } }
+function darBaixaEstoque(u) { 
+    const it = estoque.find(function(x) { return x.uid == u; }); if (!it) return; 
+    let qS = prompt(`SAÍDA DE "${it.produto}". QTD?`, "1"); if (!qS) return; qS = parseInt(qS); 
+    if (isNaN(qS) || qS <= 0 || qS > it.qtd) return alert("QTD INVÁLIDA!"); 
+    
+    registrarAcao('📉', 'BAIXOU NO ESTOQUE', `DEU BAIXA EM ${qS}x ${it.produto}`);
+
+    if (qS == it.qtd) { it.situacao = "VENDIDO"; it.data = new Date().toLocaleDateString('pt-BR'); } 
+    else { it.qtd -= qS; estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: it.produto, fabrica: it.fabrica, qtd: qS, situacao: "VENDIDO" }); } 
+    salvarColecao('estoque', estoque); 
+}
+function cadastrarEstoque() { 
+    const p = document.getElementById('e_produto').value.toUpperCase().trim(), f = document.getElementById('e_fabrica_select').value, q = document.getElementById('e_qtd').value, s = document.getElementById('e_situacao').value; 
+    if (p) { 
+        estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: p, fabrica: f, qtd: parseInt(q), situacao: s }); 
+        registrarAcao('📦', 'ADICIONOU AO ESTOQUE', `${q}x ${p} (${f})`);
+        salvarColecao('estoque', estoque); 
+        document.getElementById('e_produto').value = ""; 
+    } 
+}
 function toggleFiltroVendidos(){ filtrandoVendidos=!filtrandoVendidos; document.getElementById('btnFiltroVendidos').classList.toggle('bg-red-600'); document.getElementById('btnFiltroVendidos').classList.toggle('text-white'); renderEstoque(); }
 
 function renderAssistencias() { 
@@ -324,6 +369,7 @@ function cadastrarAssistencia(){
     const c=document.getElementById('as_cliente').value.toUpperCase().trim(), p=document.getElementById('as_produto').value.toUpperCase().trim(), f=document.getElementById('as_fabrica').value; 
     if(c&&p){ 
         assistencias.unshift({uid:Date.now(), data:new Date().toLocaleDateString('pt-BR'), cliente:c, produto:p, fabrica:f, status:"Aguardando"}); 
+        registrarAcao('🛠️', 'REGISTROU ASSISTÊNCIA', `CLIENTE: ${c} | DEFEITO: ${p}`);
         salvarColecao('assistencias', assistencias); document.getElementById('as_cliente').value=""; document.getElementById('as_produto').value=""; 
     } else { alert("PREENCHA O CLIENTE E O PRODUTO/DEFEITO!"); }
 }
@@ -436,8 +482,7 @@ function renderFiltrosEquipe() {
 function adicionarTarefaEquipe() {
     const desc = document.getElementById('eq_desc').value.trim().toUpperCase();
     const resp = document.getElementById('eq_resp').value;
-    const elPrazo = document.getElementById('eq_prazo');
-    const prazo = elPrazo ? elPrazo.value : ""; 
+    const prazo = document.getElementById('eq_prazo').value; 
     
     if(!desc) return alert("DIGITE A DESCRIÇÃO DA TAREFA!");
     
@@ -453,10 +498,14 @@ function adicionarTarefaEquipe() {
     };
     
     tarefasEquipe.push(novaTarefa); 
+    
+    // AVISA O DIÁRIO DE BORDO
+    registrarAcao('📌', 'CRIOU NOVA TAREFA', `PARA: ${resp} | TAREFA: ${desc}`);
+    
     salvarColecao('tarefasEquipe', tarefasEquipe);
     
     document.getElementById('eq_desc').value = "";
-    if(elPrazo) elPrazo.value = "";
+    document.getElementById('eq_prazo').value = "";
     
     renderQuadroEquipe();
     setTimeout(function() { notificarNoGrupoComPrint(novaTarefa, 'NOVA'); }, 300);
@@ -465,7 +514,12 @@ function adicionarTarefaEquipe() {
 function moverTarefaEquipe(uid, novaColuna) {
     const t = tarefasEquipe.find(function(x){ return x.uid == uid; });
     if(t && t.coluna !== novaColuna) {
+        const mapa = {"TODO":"A FAZER", "DOING":"EM ANDAMENTO", "DONE":"CONCLUÍDO"};
         t.coluna = novaColuna;
+        
+        // AVISA O DIÁRIO DE BORDO
+        registrarAcao('🔄', 'MOVEU A TAREFA', `${t.descricao} ➡️ ${mapa[novaColuna]}`);
+        
         salvarColecao('tarefasEquipe', tarefasEquipe);
         renderQuadroEquipe();
         if (novaColuna === 'DONE') {
@@ -475,7 +529,9 @@ function moverTarefaEquipe(uid, novaColuna) {
 }
 
 function excluirTarefaEquipe(uid) {
+    const t = tarefasEquipe.find(function(x){ return x.uid == uid; });
     if(confirm("EXCLUIR ESTA TAREFA DA EQUIPE?")) {
+        if(t) registrarAcao('🗑️', 'APAGOU TAREFA', `TAREFA: ${t.descricao}`);
         tarefasEquipe = tarefasEquipe.filter(function(x){ return x.uid != uid; });
         salvarColecao('tarefasEquipe', tarefasEquipe);
     }
@@ -534,6 +590,8 @@ function processarUploadImagem(event) {
                 texto: "📷 FOTO ANEXADA", anexo: base64Data, dataHora: strData
             });
 
+            registrarAcao('📎', 'ANEXOU FOTO', `NA TAREFA: ${t.descricao}`);
+
             salvarColecao('tarefasEquipe', tarefasEquipe);
             renderQuadroEquipe();
             event.target.value = ""; 
@@ -556,6 +614,9 @@ function adicionarComentarioInline(uid, inputElement) {
     const strData = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
 
     t.comentarios.push({ id: Date.now(), autor: usuarioAtual, texto: txt, dataHora: strData });
+    
+    registrarAcao('💬', 'COMENTOU NA TAREFA', `${t.descricao} | "${txt}"`);
+    
     salvarColecao('tarefasEquipe', tarefasEquipe);
     inputElement.value = ""; 
     
@@ -758,12 +819,20 @@ function addPagamentoLinha(){
 }
 function setP(b,v){ const p = b.parentElement; p.querySelectorAll('button').forEach(function(x){x.classList.remove('active');}); b.classList.add('active'); p.querySelector('.t-p-tipo').value=v; const s = p.querySelector('.t-p-parc'); if(v === 'CRÉDITO') s.classList.remove('hidden'); else s.classList.add('hidden'); }
 function calcTotalTirarPedido(){ let t=0; document.querySelectorAll('.t-v-desc').forEach(function(i){t+=parseMoney(i.value);}); document.getElementById('total-pedido-tarefa').innerText="Total: R$ "+t.toLocaleString('pt-BR',{minimumFractionDigits:2}); }
+
 function cadastrarTarefa(){
     const t = document.getElementById('t_tipo').value; let obj = { uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), tipo: t, status: "Não Iniciado" };
-    if(t === 'TIRAR PEDIDO'){ const cli = document.getElementById('t_nome').value; if(!cli) return alert("FALTA NOME DO CLIENTE!"); let total=0; document.querySelectorAll('.t-v-desc').forEach(function(i){total+=parseMoney(i.value);}); obj.descricao = "PEDIDO: " + cli.toUpperCase(); obj.detalhes = { cliente: cli.toUpperCase(), cpf: document.getElementById('t_cpf').value, contato: document.getElementById('t_contato').value, contato2: document.getElementById('t_contato2').value, cep: document.getElementById('t_cep').value, end: document.getElementById('t_end').value, bairro: document.getElementById('t_bairro').value, cidade: document.getElementById('t_cidade').value, num: document.getElementById('t_num').value, torre: document.getElementById('t_torre').value, obs: document.getElementById('t_obs').value, totalDesc:"R$ "+total.toLocaleString('pt-BR',{minimumFractionDigits:2}), produtos:[], pagamentos:[] }; document.querySelectorAll('.row-prod').forEach(function(row){ if(row.querySelector('.t-p-nome').value) obj.detalhes.produtos.push({ n: row.querySelector('.t-p-nome').value.toUpperCase(), o: row.querySelector('.t-v-orig').value, d: row.querySelector('.t-v-desc').value }); }); document.querySelectorAll('.row-pag').forEach(function(row){ const tipo = row.querySelector('.t-p-tipo').value; const parcelas = (tipo === 'CRÉDITO') ? row.querySelector('.t-p-parc').value : ""; obj.detalhes.pagamentos.push({ t: tipo + (parcelas ? " " + parcelas : ""), v: row.querySelector('.t-p-val').value, o: row.querySelector('.t-p-obs').value.toUpperCase() }); }); }
-    else { obj.descricao = (document.getElementById('t_raw') ? document.getElementById('t_raw').value : "").toUpperCase(); }
+    if(t === 'TIRAR PEDIDO'){ 
+        const cli = document.getElementById('t_nome').value; if(!cli) return alert("FALTA NOME DO CLIENTE!"); let total=0; document.querySelectorAll('.t-v-desc').forEach(function(i){total+=parseMoney(i.value);}); obj.descricao = "PEDIDO: " + cli.toUpperCase(); obj.detalhes = { cliente: cli.toUpperCase(), cpf: document.getElementById('t_cpf').value, contato: document.getElementById('t_contato').value, contato2: document.getElementById('t_contato2').value, cep: document.getElementById('t_cep').value, end: document.getElementById('t_end').value, bairro: document.getElementById('t_bairro').value, cidade: document.getElementById('t_cidade').value, num: document.getElementById('t_num').value, torre: document.getElementById('t_torre').value, obs: document.getElementById('t_obs').value, totalDesc:"R$ "+total.toLocaleString('pt-BR',{minimumFractionDigits:2}), produtos:[], pagamentos:[] }; document.querySelectorAll('.row-prod').forEach(function(row){ if(row.querySelector('.t-p-nome').value) obj.detalhes.produtos.push({ n: row.querySelector('.t-p-nome').value.toUpperCase(), o: row.querySelector('.t-v-orig').value, d: row.querySelector('.t-v-desc').value }); }); document.querySelectorAll('.row-pag').forEach(function(row){ const tipo = row.querySelector('.t-p-tipo').value; const parcelas = (tipo === 'CRÉDITO') ? row.querySelector('.t-p-parc').value : ""; obj.detalhes.pagamentos.push({ t: tipo + (parcelas ? " " + parcelas : ""), v: row.querySelector('.t-p-val').value, o: row.querySelector('.t-p-obs').value.toUpperCase() }); }); 
+        registrarAcao('📋', 'NOVA TAREFA DE PEDIDO', `CLIENTE: ${cli}`);
+    }
+    else { 
+        obj.descricao = (document.getElementById('t_raw') ? document.getElementById('t_raw').value : "").toUpperCase(); 
+        registrarAcao('📝', 'NOVA ANOTAÇÃO', obj.descricao);
+    }
     if(!obj.descricao) return; tarefas.unshift(obj); salvarColecao('tarefas', tarefas); mostrarCamposTarefa(t); renderTarefas();
 }
+
 function renderTarefas() { const tb=document.getElementById('tabelaTarefas'); if(!tb) return; const f=document.getElementById('filtro-tarefa-status').value; let lista=f==='TODAS'?tarefas:tarefas.filter(function(x){return x.status===f;}); tb.innerHTML=lista.map(function(x){ return `<tr onclick="verDetalhesTarefa(${x.uid})" class="hover:bg-slate-50 cursor-pointer border-b transition"><td>${esc(x.data)}</td><td class="font-black text-xs uppercase">${esc(x.descricao)}</td><td class="text-[10px] uppercase">${esc(x.tipo)}</td><td><button onclick="event.stopPropagation(); cycleTarefaStatus(${x.uid})" class="status-badge bg-slate-100">${esc(x.status)}</button></td><td class="text-center"><button onclick="event.stopPropagation(); if(confirm('Excluir?')){tarefas=tarefas.filter(y=>y.uid!=${x.uid});salvarColecao('tarefas', tarefas);}" class="text-red-400 hover:text-red-600 font-black text-lg">✕</button></td></tr>`; }).join(''); }
 
 function verDetalhesTarefa(uid){
@@ -842,5 +911,7 @@ style.innerHTML = `
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+@keyframes fadeIn { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
 `;
 document.head.appendChild(style);
