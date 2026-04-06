@@ -96,7 +96,6 @@ function registrarAcao(icone, acao, detalhe) {
         icone: icone
     });
 
-    // Mantém só os últimos 150 registros para o banco de dados não ficar pesado!
     if(historicoAtividades.length > 150) {
         historicoAtividades = historicoAtividades.slice(0, 150);
     }
@@ -151,7 +150,7 @@ function renderHistorico() {
 }
 
 
-// SINCRONIZAÇÃO DE DADOS (BLINDADA)
+// SINCRONIZAÇÃO DE DADOS
 db.ref('dados').on('value', function(s) {
     try {
         const d = s.val() || {};
@@ -162,7 +161,7 @@ db.ref('dados').on('value', function(s) {
         tarefas = safeArray(d.tarefas);
         assistencias = safeArray(d.assistencias);
         tarefasEquipe = safeArray(d.tarefasEquipe);
-        historicoAtividades = safeArray(d.historico); // Lendo o histórico!
+        historicoAtividades = safeArray(d.historico); 
         
         proximoID = d.proximoID || 255;
         notasMelhoria = d.notasMelhoria || "";
@@ -214,7 +213,7 @@ async function getProximoID() {
 function renderAll(){ 
     renderPedidos(); renderTarefas(); renderFornecedores(); 
     renderEstoque(); renderCatalogo(); renderAssistencias(); renderQuadroEquipe(); 
-    renderHistorico(); // Atualiza a tela lateral do sininho
+    renderHistorico(); 
 }
 
 function activeInlineEdit(element, uid, field, listType) {
@@ -281,10 +280,10 @@ async function cadastrarManual() {
     const nId = await getProximoID(); const idDoc = "ID#" + nId.toString().padStart(4, '0'); 
     cestoItensTemporario.forEach(function(i) { pedidos.unshift({ uid: Date.now()+Math.random(), idDoc: idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false }); }); 
     
-    // AVISA O DIÁRIO DE BORDO
-    registrarAcao('📋', 'NOVO PEDIDO (SISTEMA)', `CÓDIGO: ${idDoc} | CLIENTE: ${cli}`);
-
-    cestoItensTemporario =[]; document.getElementById('m_cliente').value = ""; renderCesto(); salvarColecao('pedidos', pedidos); 
+    salvarColecao('pedidos', pedidos); // SALVA PRIMEIRO!
+    registrarAcao('📋', 'NOVO PEDIDO', `CÓDIGO: ${idDoc} | CLIENTE: ${cli}`); // REGISTRA DEPOIS
+    
+    cestoItensTemporario =[]; document.getElementById('m_cliente').value = ""; renderCesto(); 
 }
 
 function autoSalvarNotasEstoque() { notasEstoque = document.getElementById('estoque-notas-gerais').value; db.ref('dados/notasEstoque').set(notasEstoque); }
@@ -310,23 +309,25 @@ function renderEstoque() {
     tb.innerHTML = lista.map(function(x) { return `<tr><td class="text-[10px] text-slate-400 font-bold">${esc(x.data) || '-'}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'estoque')" class="editable-cell uppercase font-bold">${esc(x.produto)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'fabrica', 'estoque')" class="editable-cell text-blue-600 text-[10px] font-black uppercase">${esc(x.fabrica) || "-"}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'qtd', 'estoque')" class="editable-cell text-center">${esc(x.qtd)}</td><td><button onclick="cycleEstoqueStatus(${x.uid})" class="px-2 py-1 rounded text-[9px] font-black w-full text-center transition ${x.situacao === 'VENDIDO' ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}">${esc(x.situacao)}</button></td><td class="text-center flex gap-1 justify-center">${x.situacao === 'ESTOQUE' ? `<button onclick="darBaixaEstoque(${x.uid})" title="Dar Baixa">📉</button>` : ''}<button onclick="if(confirm('EXCLUIR?')){estoque=estoque.filter(function(y){return y.uid!=${x.uid};}); salvarColecao('estoque', estoque);}" class="text-red-500 font-black px-2">✕</button></td></tr>`; }).join('');
 }
 function cycleEstoqueStatus(u){ const x = estoque.find(function(y) { return y.uid == u; }); if(x) { x.situacao = x.situacao === 'ESTOQUE' ? 'VENDIDO' : 'ESTOQUE'; salvarColecao('estoque', estoque); } }
+
 function darBaixaEstoque(u) { 
     const it = estoque.find(function(x) { return x.uid == u; }); if (!it) return; 
     let qS = prompt(`SAÍDA DE "${it.produto}". QTD?`, "1"); if (!qS) return; qS = parseInt(qS); 
     if (isNaN(qS) || qS <= 0 || qS > it.qtd) return alert("QTD INVÁLIDA!"); 
     
-    registrarAcao('📉', 'BAIXOU NO ESTOQUE', `DEU BAIXA EM ${qS}x ${it.produto}`);
-
     if (qS == it.qtd) { it.situacao = "VENDIDO"; it.data = new Date().toLocaleDateString('pt-BR'); } 
     else { it.qtd -= qS; estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: it.produto, fabrica: it.fabrica, qtd: qS, situacao: "VENDIDO" }); } 
-    salvarColecao('estoque', estoque); 
+    
+    salvarColecao('estoque', estoque); // SALVA PRIMEIRO
+    registrarAcao('📉', 'BAIXOU NO ESTOQUE', `DEU BAIXA EM ${qS}x ${it.produto}`); // REGISTRA DEPOIS
 }
+
 function cadastrarEstoque() { 
     const p = document.getElementById('e_produto').value.toUpperCase().trim(), f = document.getElementById('e_fabrica_select').value, q = document.getElementById('e_qtd').value, s = document.getElementById('e_situacao').value; 
     if (p) { 
         estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: p, fabrica: f, qtd: parseInt(q), situacao: s }); 
-        registrarAcao('📦', 'ADICIONOU AO ESTOQUE', `${q}x ${p} (${f})`);
-        salvarColecao('estoque', estoque); 
+        salvarColecao('estoque', estoque); // SALVA PRIMEIRO
+        registrarAcao('📦', 'ADICIONOU AO ESTOQUE', `${q}x ${p} (${f})`); // REGISTRA DEPOIS
         document.getElementById('e_produto').value = ""; 
     } 
 }
@@ -369,8 +370,9 @@ function cadastrarAssistencia(){
     const c=document.getElementById('as_cliente').value.toUpperCase().trim(), p=document.getElementById('as_produto').value.toUpperCase().trim(), f=document.getElementById('as_fabrica').value; 
     if(c&&p){ 
         assistencias.unshift({uid:Date.now(), data:new Date().toLocaleDateString('pt-BR'), cliente:c, produto:p, fabrica:f, status:"Aguardando"}); 
-        registrarAcao('🛠️', 'REGISTROU ASSISTÊNCIA', `CLIENTE: ${c} | DEFEITO: ${p}`);
-        salvarColecao('assistencias', assistencias); document.getElementById('as_cliente').value=""; document.getElementById('as_produto').value=""; 
+        salvarColecao('assistencias', assistencias); // SALVA PRIMEIRO
+        registrarAcao('🛠️', 'REGISTROU ASSISTÊNCIA', `CLIENTE: ${c} | DEFEITO: ${p}`); // REGISTRA DEPOIS
+        document.getElementById('as_cliente').value=""; document.getElementById('as_produto').value=""; 
     } else { alert("PREENCHA O CLIENTE E O PRODUTO/DEFEITO!"); }
 }
 
@@ -499,10 +501,8 @@ function adicionarTarefaEquipe() {
     
     tarefasEquipe.push(novaTarefa); 
     
-    // AVISA O DIÁRIO DE BORDO
-    registrarAcao('📌', 'CRIOU NOVA TAREFA', `PARA: ${resp} | TAREFA: ${desc}`);
-    
-    salvarColecao('tarefasEquipe', tarefasEquipe);
+    salvarColecao('tarefasEquipe', tarefasEquipe); // SALVA PRIMEIRO
+    registrarAcao('📌', 'CRIOU NOVA TAREFA', `PARA: ${resp} | TAREFA: ${desc}`); // LOG DEPOIS
     
     document.getElementById('eq_desc').value = "";
     document.getElementById('eq_prazo').value = "";
@@ -517,10 +517,9 @@ function moverTarefaEquipe(uid, novaColuna) {
         const mapa = {"TODO":"A FAZER", "DOING":"EM ANDAMENTO", "DONE":"CONCLUÍDO"};
         t.coluna = novaColuna;
         
-        // AVISA O DIÁRIO DE BORDO
-        registrarAcao('🔄', 'MOVEU A TAREFA', `${t.descricao} ➡️ ${mapa[novaColuna]}`);
+        salvarColecao('tarefasEquipe', tarefasEquipe); // SALVA PRIMEIRO
+        registrarAcao('🔄', 'MOVEU A TAREFA', `${t.descricao} ➡️ ${mapa[novaColuna]}`); // LOG DEPOIS
         
-        salvarColecao('tarefasEquipe', tarefasEquipe);
         renderQuadroEquipe();
         if (novaColuna === 'DONE') {
             setTimeout(function() { notificarNoGrupoComPrint(t, 'CONCLUIDA'); }, 300);
@@ -531,9 +530,9 @@ function moverTarefaEquipe(uid, novaColuna) {
 function excluirTarefaEquipe(uid) {
     const t = tarefasEquipe.find(function(x){ return x.uid == uid; });
     if(confirm("EXCLUIR ESTA TAREFA DA EQUIPE?")) {
-        if(t) registrarAcao('🗑️', 'APAGOU TAREFA', `TAREFA: ${t.descricao}`);
         tarefasEquipe = tarefasEquipe.filter(function(x){ return x.uid != uid; });
-        salvarColecao('tarefasEquipe', tarefasEquipe);
+        salvarColecao('tarefasEquipe', tarefasEquipe); // SALVA PRIMEIRO
+        if(t) registrarAcao('🗑️', 'APAGOU TAREFA', `TAREFA: ${t.descricao}`); // LOG DEPOIS
     }
 }
 
@@ -590,9 +589,9 @@ function processarUploadImagem(event) {
                 texto: "📷 FOTO ANEXADA", anexo: base64Data, dataHora: strData
             });
 
-            registrarAcao('📎', 'ANEXOU FOTO', `NA TAREFA: ${t.descricao}`);
-
-            salvarColecao('tarefasEquipe', tarefasEquipe);
+            salvarColecao('tarefasEquipe', tarefasEquipe); // SALVA PRIMEIRO
+            registrarAcao('📎', 'ANEXOU FOTO', `NA TAREFA: ${t.descricao}`); // LOG DEPOIS
+            
             renderQuadroEquipe();
             event.target.value = ""; 
         };
@@ -615,9 +614,9 @@ function adicionarComentarioInline(uid, inputElement) {
 
     t.comentarios.push({ id: Date.now(), autor: usuarioAtual, texto: txt, dataHora: strData });
     
-    registrarAcao('💬', 'COMENTOU NA TAREFA', `${t.descricao} | "${txt}"`);
+    salvarColecao('tarefasEquipe', tarefasEquipe); // SALVA PRIMEIRO
+    registrarAcao('💬', 'COMENTOU NA TAREFA', `${t.descricao} | "${txt}"`); // LOG DEPOIS
     
-    salvarColecao('tarefasEquipe', tarefasEquipe);
     inputElement.value = ""; 
     
     setTimeout(function() {
@@ -645,9 +644,7 @@ function renderQuadroEquipe() {
     const colTodo = document.getElementById('col-todo');
     const colDoing = document.getElementById('col-doing');
     const colDone = document.getElementById('col-done');
-    if(!colTodo) return;
-    
-    ['TODO', 'DOING', 'DONE'].forEach(function(col) {
+    if(!colTodo) return;['TODO', 'DOING', 'DONE'].forEach(function(col) {
         const container = document.getElementById('col-' + col.toLowerCase() + '-container');
         const content = document.getElementById('col-' + col.toLowerCase());
         const btn = document.getElementById('btn-toggle-' + col.toLowerCase());
@@ -824,11 +821,14 @@ function cadastrarTarefa(){
     const t = document.getElementById('t_tipo').value; let obj = { uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), tipo: t, status: "Não Iniciado" };
     if(t === 'TIRAR PEDIDO'){ 
         const cli = document.getElementById('t_nome').value; if(!cli) return alert("FALTA NOME DO CLIENTE!"); let total=0; document.querySelectorAll('.t-v-desc').forEach(function(i){total+=parseMoney(i.value);}); obj.descricao = "PEDIDO: " + cli.toUpperCase(); obj.detalhes = { cliente: cli.toUpperCase(), cpf: document.getElementById('t_cpf').value, contato: document.getElementById('t_contato').value, contato2: document.getElementById('t_contato2').value, cep: document.getElementById('t_cep').value, end: document.getElementById('t_end').value, bairro: document.getElementById('t_bairro').value, cidade: document.getElementById('t_cidade').value, num: document.getElementById('t_num').value, torre: document.getElementById('t_torre').value, obs: document.getElementById('t_obs').value, totalDesc:"R$ "+total.toLocaleString('pt-BR',{minimumFractionDigits:2}), produtos:[], pagamentos:[] }; document.querySelectorAll('.row-prod').forEach(function(row){ if(row.querySelector('.t-p-nome').value) obj.detalhes.produtos.push({ n: row.querySelector('.t-p-nome').value.toUpperCase(), o: row.querySelector('.t-v-orig').value, d: row.querySelector('.t-v-desc').value }); }); document.querySelectorAll('.row-pag').forEach(function(row){ const tipo = row.querySelector('.t-p-tipo').value; const parcelas = (tipo === 'CRÉDITO') ? row.querySelector('.t-p-parc').value : ""; obj.detalhes.pagamentos.push({ t: tipo + (parcelas ? " " + parcelas : ""), v: row.querySelector('.t-p-val').value, o: row.querySelector('.t-p-obs').value.toUpperCase() }); }); 
-        registrarAcao('📋', 'NOVA TAREFA DE PEDIDO', `CLIENTE: ${cli}`);
+        
+        salvarColecao('tarefas', tarefas); // SALVA PRIMEIRO
+        registrarAcao('📋', 'NOVA TAREFA DE PEDIDO', `CLIENTE: ${cli}`); // LOG DEPOIS
     }
     else { 
         obj.descricao = (document.getElementById('t_raw') ? document.getElementById('t_raw').value : "").toUpperCase(); 
-        registrarAcao('📝', 'NOVA ANOTAÇÃO', obj.descricao);
+        salvarColecao('tarefas', tarefas); // SALVA PRIMEIRO
+        registrarAcao('📝', 'NOVA ANOTAÇÃO', obj.descricao); // LOG DEPOIS
     }
     if(!obj.descricao) return; tarefas.unshift(obj); salvarColecao('tarefas', tarefas); mostrarCamposTarefa(t); renderTarefas();
 }
