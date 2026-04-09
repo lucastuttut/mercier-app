@@ -150,7 +150,7 @@ function renderHistorico() {
 }
 
 
-// SINCRONIZAÇÃO DE DADOS
+// SINCRONIZAÇÃO DE DADOS (BLINDADA)
 db.ref('dados').on('value', function(s) {
     try {
         const d = s.val() || {};
@@ -280,8 +280,8 @@ async function cadastrarManual() {
     const nId = await getProximoID(); const idDoc = "ID#" + nId.toString().padStart(4, '0'); 
     cestoItensTemporario.forEach(function(i) { pedidos.unshift({ uid: Date.now()+Math.random(), idDoc: idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false }); }); 
     
-    salvarColecao('pedidos', pedidos); // SALVA PRIMEIRO!
-    registrarAcao('📋', 'NOVO PEDIDO', `CÓDIGO: ${idDoc} | CLIENTE: ${cli}`); // REGISTRA DEPOIS
+    salvarColecao('pedidos', pedidos); 
+    registrarAcao('📋', 'NOVO PEDIDO', `CÓDIGO: ${idDoc} | CLIENTE: ${cli}`); 
     
     cestoItensTemporario =[]; document.getElementById('m_cliente').value = ""; renderCesto(); 
 }
@@ -318,16 +318,16 @@ function darBaixaEstoque(u) {
     if (qS == it.qtd) { it.situacao = "VENDIDO"; it.data = new Date().toLocaleDateString('pt-BR'); } 
     else { it.qtd -= qS; estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: it.produto, fabrica: it.fabrica, qtd: qS, situacao: "VENDIDO" }); } 
     
-    salvarColecao('estoque', estoque); // SALVA PRIMEIRO
-    registrarAcao('📉', 'BAIXOU NO ESTOQUE', `DEU BAIXA EM ${qS}x ${it.produto}`); // REGISTRA DEPOIS
+    salvarColecao('estoque', estoque); 
+    registrarAcao('📉', 'BAIXOU NO ESTOQUE', `DEU BAIXA EM ${qS}x ${it.produto}`); 
 }
 
 function cadastrarEstoque() { 
     const p = document.getElementById('e_produto').value.toUpperCase().trim(), f = document.getElementById('e_fabrica_select').value, q = document.getElementById('e_qtd').value, s = document.getElementById('e_situacao').value; 
     if (p) { 
         estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: p, fabrica: f, qtd: parseInt(q), situacao: s }); 
-        salvarColecao('estoque', estoque); // SALVA PRIMEIRO
-        registrarAcao('📦', 'ADICIONOU AO ESTOQUE', `${q}x ${p} (${f})`); // REGISTRA DEPOIS
+        salvarColecao('estoque', estoque); 
+        registrarAcao('📦', 'ADICIONOU AO ESTOQUE', `${q}x ${p} (${f})`); 
         document.getElementById('e_produto').value = ""; 
     } 
 }
@@ -370,8 +370,8 @@ function cadastrarAssistencia(){
     const c=document.getElementById('as_cliente').value.toUpperCase().trim(), p=document.getElementById('as_produto').value.toUpperCase().trim(), f=document.getElementById('as_fabrica').value; 
     if(c&&p){ 
         assistencias.unshift({uid:Date.now(), data:new Date().toLocaleDateString('pt-BR'), cliente:c, produto:p, fabrica:f, status:"Aguardando"}); 
-        salvarColecao('assistencias', assistencias); // SALVA PRIMEIRO
-        registrarAcao('🛠️', 'REGISTROU ASSISTÊNCIA', `CLIENTE: ${c} | DEFEITO: ${p}`); // REGISTRA DEPOIS
+        salvarColecao('assistencias', assistencias); 
+        registrarAcao('🛠️', 'REGISTROU ASSISTÊNCIA', `CLIENTE: ${c} | DEFEITO: ${p}`); 
         document.getElementById('as_cliente').value=""; document.getElementById('as_produto').value=""; 
     } else { alert("PREENCHA O CLIENTE E O PRODUTO/DEFEITO!"); }
 }
@@ -403,6 +403,33 @@ let colsMinimizadas = { "TODO": false, "DOING": false, "DONE": false };
 function toggleColunaKanban(coluna) {
     colsMinimizadas[coluna] = !colsMinimizadas[coluna];
     renderQuadroEquipe();
+}
+
+// ATUALIZADO: ENVIO DE E-MAIL EM LOTE CONSERTADO (ENCODE CORRETO)
+function gerarEmailLote() {
+    const checks = document.querySelectorAll('.ped-check:checked'); 
+    if (checks.length === 0) return alert("SELECIONE PEDIDOS!");
+    
+    const selecionados = Array.from(checks).map(function(c) { return pedidos.find(function(p) { return p.uid == c.value; }); }).filter(function(p) { return p; });
+    const grupos = {}; 
+    selecionados.forEach(function(p) { if (!grupos[p.fornecedor]) grupos[p.fornecedor] = []; grupos[p.fornecedor].push(p); });
+    
+    for (const fab in grupos) {
+        const email = (fornecedores.find(function(f) { return f.nome === fab; }) || {}).email || "";
+        let corpo = `Olá, segue pedido para fábrica ${fab}:\n\n`;
+        
+        grupos[fab].forEach(function(p, idx) { 
+            corpo += `Qtde: ${String(p.qtd).padStart(2, '0')} - ${p.produto}\n`;
+            if (p.medida && p.medida !== "-") corpo += `MEDIDA: ${p.medida}\n`;
+            corpo += `COR/TECIDO: ${p.cor}\n`;
+            corpo += `REF: ${p.idDoc}\n`;
+            if (idx < grupos[fab].length - 1) corpo += `\n--------------------------\n\n`; 
+        });
+        
+        corpo += `\nForma de pagamento: 30/60/90.\n\nIDs para controle interno, favor desconsiderar.\n\nFavor confirmar o recebimento e nos enviar o documento de confirmação dos itens acima para conferência.\n\nAtenciosamente,\nLucas Mercier.`;
+        
+        window.open(`mailto:${email}?subject=${encodeURIComponent('PEDIDO - MERCIER DESIGN - ' + fab)}&body=${encodeURIComponent(corpo)}`);
+    }
 }
 
 async function notificarNoGrupoComPrint(tarefa, tipoAcao) {
@@ -500,9 +527,8 @@ function adicionarTarefaEquipe() {
     };
     
     tarefasEquipe.push(novaTarefa); 
-    
-    salvarColecao('tarefasEquipe', tarefasEquipe); // SALVA PRIMEIRO
-    registrarAcao('📌', 'CRIOU NOVA TAREFA', `PARA: ${resp} | TAREFA: ${desc}`); // LOG DEPOIS
+    salvarColecao('tarefasEquipe', tarefasEquipe); 
+    registrarAcao('📌', 'CRIOU NOVA TAREFA', `PARA: ${resp} | TAREFA: ${desc}`); 
     
     document.getElementById('eq_desc').value = "";
     document.getElementById('eq_prazo').value = "";
@@ -517,8 +543,8 @@ function moverTarefaEquipe(uid, novaColuna) {
         const mapa = {"TODO":"A FAZER", "DOING":"EM ANDAMENTO", "DONE":"CONCLUÍDO"};
         t.coluna = novaColuna;
         
-        salvarColecao('tarefasEquipe', tarefasEquipe); // SALVA PRIMEIRO
-        registrarAcao('🔄', 'MOVEU A TAREFA', `${t.descricao} ➡️ ${mapa[novaColuna]}`); // LOG DEPOIS
+        salvarColecao('tarefasEquipe', tarefasEquipe); 
+        registrarAcao('🔄', 'MOVEU A TAREFA', `${t.descricao} ➡️ ${mapa[novaColuna]}`); 
         
         renderQuadroEquipe();
         if (novaColuna === 'DONE') {
@@ -530,9 +556,9 @@ function moverTarefaEquipe(uid, novaColuna) {
 function excluirTarefaEquipe(uid) {
     const t = tarefasEquipe.find(function(x){ return x.uid == uid; });
     if(confirm("EXCLUIR ESTA TAREFA DA EQUIPE?")) {
+        if(t) registrarAcao('🗑️', 'APAGOU TAREFA', `TAREFA: ${t.descricao}`); 
         tarefasEquipe = tarefasEquipe.filter(function(x){ return x.uid != uid; });
-        salvarColecao('tarefasEquipe', tarefasEquipe); // SALVA PRIMEIRO
-        if(t) registrarAcao('🗑️', 'APAGOU TAREFA', `TAREFA: ${t.descricao}`); // LOG DEPOIS
+        salvarColecao('tarefasEquipe', tarefasEquipe); 
     }
 }
 
@@ -589,8 +615,8 @@ function processarUploadImagem(event) {
                 texto: "📷 FOTO ANEXADA", anexo: base64Data, dataHora: strData
             });
 
-            salvarColecao('tarefasEquipe', tarefasEquipe); // SALVA PRIMEIRO
-            registrarAcao('📎', 'ANEXOU FOTO', `NA TAREFA: ${t.descricao}`); // LOG DEPOIS
+            salvarColecao('tarefasEquipe', tarefasEquipe); 
+            registrarAcao('📎', 'ANEXOU FOTO', `NA TAREFA: ${t.descricao}`); 
             
             renderQuadroEquipe();
             event.target.value = ""; 
@@ -614,8 +640,8 @@ function adicionarComentarioInline(uid, inputElement) {
 
     t.comentarios.push({ id: Date.now(), autor: usuarioAtual, texto: txt, dataHora: strData });
     
-    salvarColecao('tarefasEquipe', tarefasEquipe); // SALVA PRIMEIRO
-    registrarAcao('💬', 'COMENTOU NA TAREFA', `${t.descricao} | "${txt}"`); // LOG DEPOIS
+    salvarColecao('tarefasEquipe', tarefasEquipe); 
+    registrarAcao('💬', 'COMENTOU NA TAREFA', `${t.descricao} | "${txt}"`); 
     
     inputElement.value = ""; 
     
@@ -644,7 +670,9 @@ function renderQuadroEquipe() {
     const colTodo = document.getElementById('col-todo');
     const colDoing = document.getElementById('col-doing');
     const colDone = document.getElementById('col-done');
-    if(!colTodo) return;['TODO', 'DOING', 'DONE'].forEach(function(col) {
+    if(!colTodo) return;
+    
+    ['TODO', 'DOING', 'DONE'].forEach(function(col) {
         const container = document.getElementById('col-' + col.toLowerCase() + '-container');
         const content = document.getElementById('col-' + col.toLowerCase());
         const btn = document.getElementById('btn-toggle-' + col.toLowerCase());
@@ -822,13 +850,13 @@ function cadastrarTarefa(){
     if(t === 'TIRAR PEDIDO'){ 
         const cli = document.getElementById('t_nome').value; if(!cli) return alert("FALTA NOME DO CLIENTE!"); let total=0; document.querySelectorAll('.t-v-desc').forEach(function(i){total+=parseMoney(i.value);}); obj.descricao = "PEDIDO: " + cli.toUpperCase(); obj.detalhes = { cliente: cli.toUpperCase(), cpf: document.getElementById('t_cpf').value, contato: document.getElementById('t_contato').value, contato2: document.getElementById('t_contato2').value, cep: document.getElementById('t_cep').value, end: document.getElementById('t_end').value, bairro: document.getElementById('t_bairro').value, cidade: document.getElementById('t_cidade').value, num: document.getElementById('t_num').value, torre: document.getElementById('t_torre').value, obs: document.getElementById('t_obs').value, totalDesc:"R$ "+total.toLocaleString('pt-BR',{minimumFractionDigits:2}), produtos:[], pagamentos:[] }; document.querySelectorAll('.row-prod').forEach(function(row){ if(row.querySelector('.t-p-nome').value) obj.detalhes.produtos.push({ n: row.querySelector('.t-p-nome').value.toUpperCase(), o: row.querySelector('.t-v-orig').value, d: row.querySelector('.t-v-desc').value }); }); document.querySelectorAll('.row-pag').forEach(function(row){ const tipo = row.querySelector('.t-p-tipo').value; const parcelas = (tipo === 'CRÉDITO') ? row.querySelector('.t-p-parc').value : ""; obj.detalhes.pagamentos.push({ t: tipo + (parcelas ? " " + parcelas : ""), v: row.querySelector('.t-p-val').value, o: row.querySelector('.t-p-obs').value.toUpperCase() }); }); 
         
-        salvarColecao('tarefas', tarefas); // SALVA PRIMEIRO
-        registrarAcao('📋', 'NOVA TAREFA DE PEDIDO', `CLIENTE: ${cli}`); // LOG DEPOIS
+        salvarColecao('tarefas', tarefas); 
+        registrarAcao('📋', 'NOVA TAREFA DE PEDIDO', `CLIENTE: ${cli}`); 
     }
     else { 
         obj.descricao = (document.getElementById('t_raw') ? document.getElementById('t_raw').value : "").toUpperCase(); 
-        salvarColecao('tarefas', tarefas); // SALVA PRIMEIRO
-        registrarAcao('📝', 'NOVA ANOTAÇÃO', obj.descricao); // LOG DEPOIS
+        salvarColecao('tarefas', tarefas); 
+        registrarAcao('📝', 'NOVA ANOTAÇÃO', obj.descricao); 
     }
     if(!obj.descricao) return; tarefas.unshift(obj); salvarColecao('tarefas', tarefas); mostrarCamposTarefa(t); renderTarefas();
 }
@@ -872,16 +900,30 @@ function atualizarSelectsFornecedores(){
 function atualizarSugestoes(){ const n=[...new Set(pedidos.map(function(p){ return p.cliente; }))].sort(); if(document.getElementById('listaSugestaoClientes')) document.getElementById('listaSugestaoClientes').innerHTML=n.map(function(x) { return `<option value="${esc(x)}">`; }).join(''); }
 async function dupPed(u){ const x=pedidos.find(function(y){ return y.uid==u; }); const nId=await getProximoID(); const idDoc="ID#"+nId.toString().padStart(4,'0'); pedidos.unshift({...x, uid:Date.now()+Math.random(), idDoc}); salvarColecao('pedidos', pedidos); }
 function gerarAssistenciaRapida(u){ const p=pedidos.find(function(x){ return x.uid==u; }); if(p){ document.getElementById('as_cliente').value=p.cliente; document.getElementById('as_produto').value=p.produto+" (DEFEITO)"; document.getElementById('as_fabrica').value=p.fornecedor; switchTab('assistencia'); }}
+
 function gerarEmailLote() {
-    const checks = document.querySelectorAll('.ped-check:checked'); if (checks.length === 0) return alert("SELECIONE PEDIDOS!");
+    const checks = document.querySelectorAll('.ped-check:checked'); 
+    if (checks.length === 0) return alert("SELECIONE PEDIDOS!");
+    
     const selecionados = Array.from(checks).map(function(c) { return pedidos.find(function(p) { return p.uid == c.value; }); }).filter(function(p) { return p; });
-    const grupos = {}; selecionados.forEach(function(p) { if (!grupos[p.fornecedor]) grupos[p.fornecedor] = []; grupos[p.fornecedor].push(p); });
+    const grupos = {}; 
+    selecionados.forEach(function(p) { if (!grupos[p.fornecedor]) grupos[p.fornecedor] = []; grupos[p.fornecedor].push(p); });
+    
     for (const fab in grupos) {
         const email = (fornecedores.find(function(f) { return f.nome === fab; }) || {}).email || "";
-        let corpo = `Olá, segue pedido para fábrica ${fab}:%0D%0A%0D%0A`;
-        grupos[fab].forEach(function(p, idx) { corpo += `Qtde: ${String(p.qtd).padStart(2, '0')} - ${p.produto}%0D%0A${p.medida !== "-" ? `MEDIDA: ${p.medida}%0D%0A` : ""}COR/TECIDO: ${p.cor}%0D%0AREF: ${p.idDoc}%0D%0A${idx < grupos[fab].length - 1 ? `%0D%0A--------------------------%0D%0A` : ""}`; });
-        corpo += `%0D%0AForma de pagamento: 30/60/90.%0D%0A%0D%0AIDs para controle interno, favor desconsiderar.%0D%0A%0D%0AFavor confirmar o recebimento e nos enviar o documento de confirmação dos itens acima para conferência.%0D%0A%0D%0AAtenciosamente,%0D%0ALucas Mercier.`;
-        window.open(`mailto:${email}?subject=${encodeURIComponent('PEDIDO - MERCIER DESIGN - '+fab)}&body=${corpo}`);
+        let corpo = `Olá, segue pedido para fábrica ${fab}:\n\n`;
+        
+        grupos[fab].forEach(function(p, idx) { 
+            corpo += `Qtde: ${String(p.qtd).padStart(2, '0')} - ${p.produto}\n`;
+            if (p.medida && p.medida !== "-") corpo += `MEDIDA: ${p.medida}\n`;
+            corpo += `COR/TECIDO: ${p.cor}\n`;
+            corpo += `REF: ${p.idDoc}\n`;
+            if (idx < grupos[fab].length - 1) corpo += `\n--------------------------\n\n`; 
+        });
+        
+        corpo += `\nForma de pagamento: 30/60/90.\n\nIDs para controle interno, favor desconsiderar.\n\nFavor confirmar o recebimento e nos enviar o documento de confirmação dos itens acima para conferência.\n\nAtenciosamente,\nLucas Mercier.`;
+        
+        window.open(`mailto:${email}?subject=${encodeURIComponent('PEDIDO - MERCIER DESIGN - ' + fab)}&body=${encodeURIComponent(corpo)}`);
     }
 }
 
