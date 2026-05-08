@@ -832,4 +832,47 @@ function l_i(l, v){ return `<div class="border p-2 rounded text-[10px] font-bold
 function switchTab(t){ window.scrollTo(0,0); document.querySelectorAll('main').forEach(function(x){x.classList.add('hidden');}); document.getElementById('view-'+t).classList.remove('hidden'); document.querySelectorAll('nav button').forEach(function(x){x.classList.remove('tab-active');}); document.getElementById('tab-'+t).classList.add('tab-active'); }
 function cycleStatus(u){ const x=pedidos.find(function(y){ return y.uid==u; }); const s=["Não Iniciado","Em Andamento","Feito"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('tarefas', tarefas); }
 function cycleTarefaStatus(u){ const x=tarefas.find(function(y){ return y.uid==u; }); const s=["Não Iniciado","Em Andamento","Feito"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('tarefas', tarefas); }
-function cycleAssisStatus(u){ const x=assistencias.find(function(y){ return y.uid==u; }); const s=["A
+function cycleAssisStatus(u){ const x=assistencias.find(function(y){ return y.uid==u; }); const s=["Aguardando","Peça Solicitada","Concluído"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('assistencias', assistencias); }
+function togglePainelSugestoes(){ const p=document.getElementById('painel-sugestoes'); p.style.display=p.style.display==='flex'?'none':'flex'; }
+function autoSalvarNotas(){ notasMelhoria=document.getElementById('texto-melhorias').value; db.ref('dados/notasMelhoria').set(notasMelhoria); }
+function marcarTodos(v){ document.querySelectorAll('.ped-check').forEach(function(c){c.checked=v;}); }
+function toggleFiltroNaoEnviado(){ filtrandoNaoEnviados=!filtrandoNaoEnviados; document.getElementById('btnFiltroNaoEnviado').classList.toggle('bg-red-600'); document.getElementById('btnFiltroNaoEnviado').classList.toggle('text-white'); renderPedidos(); }
+function updPed(u,c,v){ pedidos.find(function(x){ return x.uid==u; })[c]=v; salvarColecao('pedidos', pedidos); }
+function togPed(u,c){ const x=pedidos.find(function(y){ return y.uid==u; }); if(x) x[c]=!x[c]; salvarColecao('pedidos', pedidos); }
+function excluirPedido(u){ if(confirm("EXCLUIR?")){ pedidos=pedidos.filter(function(x){ return x.uid!=u; }); salvarColecao('pedidos', pedidos); } }
+function atualizarSelectsFornecedores(){ 
+    const h = fornecedores.map(function(f) { return `<option value="${esc(f.nome)}">${esc(f.nome)}</option>`; }).join(''); 
+    if(document.getElementById('m_fornecedor_select')) document.getElementById('m_fornecedor_select').innerHTML = h || "<option>...</option>"; 
+    if(document.getElementById('as_fabrica')) document.getElementById('as_fabrica').innerHTML = h || "<option>...</option>";
+    if(document.getElementById('e_fabrica_select')) document.getElementById('e_fabrica_select').innerHTML = h || "<option>...</option>";
+    if(document.getElementById('estoque-filtro-fabrica')) document.getElementById('estoque-filtro-fabrica').innerHTML = '<option value="TODAS">TODAS AS FÁBRICAS</option>' + h;
+}
+function atualizarSugestoes(){ const n=[...new Set(pedidos.map(function(p){ return p.cliente; }))].sort(); if(document.getElementById('listaSugestaoClientes')) document.getElementById('listaSugestaoClientes').innerHTML=n.map(function(x) { return `<option value="${esc(x)}">`; }).join(''); }
+async function dupPed(u){ const x=pedidos.find(function(y){ return y.uid==u; }); const nId=await getProximoID(); const idDoc="ID#"+nId.toString().padStart(4,'0'); pedidos.unshift({...x, uid:Date.now()+Math.random(), idDoc}); salvarColecao('pedidos', pedidos); }
+function gerarAssistenciaRapida(u){ const p=pedidos.find(function(x){ return x.uid==u; }); if(p){ document.getElementById('as_cliente').value=p.cliente; document.getElementById('as_produto').value=p.produto+" (DEFEITO)"; document.getElementById('as_fabrica').value=p.fornecedor; switchTab('assistencia'); }}
+
+const painelSugestoes = document.getElementById('painel-sugestoes');
+const dragHandle = document.getElementById('drag-handle');
+let isDragging = false, offsetX, offsetY;
+
+dragHandle.addEventListener('mousedown', function(e) {
+    isDragging = true; offsetX = e.clientX - painelSugestoes.getBoundingClientRect().left; offsetY = e.clientY - painelSugestoes.getBoundingClientRect().top;
+    painelSugestoes.style.bottom = 'auto'; painelSugestoes.style.right = 'auto';  
+});
+document.addEventListener('mousemove', function(e) {
+    if (!isDragging) return; painelSugestoes.style.left = (e.clientX - offsetX) + 'px'; painelSugestoes.style.top = (e.clientY - offsetY) + 'px';
+});
+document.addEventListener('mouseup', function() { isDragging = false; });
+
+mostrarCamposTarefa('SIMPLES');
+
+const style = document.createElement('style');
+style.innerHTML = `
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+@keyframes fadeIn { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
+`;
+document.head.appendChild(style);
