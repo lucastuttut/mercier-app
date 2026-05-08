@@ -1,3 +1,4 @@
+// CONFIGURAÇÃO FIREBASE
 const firebaseConfig = {
     apiKey: "AIzaSyA_fQSZJJcz5Wszw54W5EhMN9D5rNnjoCo",
     authDomain: "mercier-design.firebaseapp.com",
@@ -127,7 +128,7 @@ db.ref('dados').on('value', function(s) {
         atualizarSelectsFornecedores(); atualizarSugestoes(); renderAll();
         
         if(!deepLinkVerificado && tarefasEquipe.length > 0) {
-            const urlParams = new URLSearchParams(window.location.search);
+            const urlParams = newSearchParams(window.location.search);
             const tarefaId = urlParams.get('tarefa');
             if(tarefaId) {
                 switchTab('equipe');
@@ -208,7 +209,7 @@ function calcP(d, pr){
 }
 
 // =========================================================
-// MÁGICA 4: SUB-ABAS DE PEDIDOS (ATIVOS vs FINALIZADOS)
+// MÁGICA 4: SUB-ABAS DE PEDIDOS COM BOTÃO FINALIZAR (📦)
 // =========================================================
 function mudarVisaoPedidos(visao) {
     visaoPedidos = visao;
@@ -227,9 +228,26 @@ function mudarVisaoPedidos(visao) {
         btnFinais.classList.remove('border-transparent', 'text-slate-400');
         btnAtivos.classList.remove('border-blue-600', 'text-blue-600');
         btnAtivos.classList.add('border-transparent', 'text-slate-400');
-        if(btnFiltroNaoEnviados) btnFiltroNaoEnviados.style.display = 'none'; // Some com o filtro de não enviados
+        if(btnFiltroNaoEnviados) btnFiltroNaoEnviados.style.display = 'none'; 
     }
     renderPedidos();
+}
+
+// NOVA FUNÇÃO: Botão de Arquivar / Restaurar
+function togglePedidoFinalizado(u) {
+    const x = pedidos.find(function(y) { return y.uid == u; });
+    if (x) {
+        if (x.status === "Entregue/Finalizado") x.status = "Pedido na loja"; 
+        
+        x.finalizado = !x.finalizado;
+        salvarColecao('pedidos', pedidos);
+        
+        const acaoTxt = x.finalizado ? 'FINALIZOU PEDIDO' : 'RESTAUROU PEDIDO';
+        const icone = x.finalizado ? '📦' : '🔙';
+        registrarAcao(icone, acaoTxt, `CLIENTE: ${x.cliente}`);
+        
+        renderPedidos();
+    }
 }
 
 function renderPedidos() {
@@ -239,13 +257,11 @@ function renderPedidos() {
     
     let lista = pedidos.filter(function(x) { return removeAcentos((x.cliente||"").toLowerCase()).includes(b) || removeAcentos((x.produto||"").toLowerCase()).includes(b) || removeAcentos((x.idDoc||"").toLowerCase()).includes(b) || removeAcentos((x.fornecedor||"").toLowerCase()).includes(b); });
     
-    // Filtro da Sub-aba!
     if (visaoPedidos === 'ATIVOS') {
-        lista = lista.filter(function(x) { return x.status !== "Entregue/Finalizado"; });
+        lista = lista.filter(function(x) { return !x.finalizado && x.status !== "Entregue/Finalizado"; });
         if(filtrandoNaoEnviados) lista=lista.filter(function(x){ return x.status==="Não enviado"; });
     } else {
-        // Aba Finalizados
-        lista = lista.filter(function(x) { return x.status === "Entregue/Finalizado"; });
+        lista = lista.filter(function(x) { return x.finalizado || x.status === "Entregue/Finalizado"; });
     }
 
     document.getElementById('contador').innerText=lista.length+" PEDIDOS";
@@ -256,15 +272,20 @@ function renderPedidos() {
         let sCls = "bg-blue-600";
         if(x.status === "Não enviado") sCls = "bg-red-600";
         else if(x.status === "Pedido na loja") sCls = "bg-green-700";
-        else if(x.status === "Entregue/Finalizado") sCls = "bg-slate-700"; // Cor do Finalizado!
+        
+        if (x.finalizado || x.status === "Entregue/Finalizado") sCls = "bg-slate-500 opacity-70"; 
 
-        return `<tr class="${p.classe}"><td><input type="checkbox" class="ped-check" value="${x.uid}"></td><td><div class="flex flex-col gap-1 items-center"><span class="font-black text-[9px]">${p.dias}D</span><select onchange="updPed(${x.uid},'prazo',this.value)" class="select-prazo-tabela"><option value="15" ${x.prazo=='15'?'selected':''}>15C</option><option value="20" ${x.prazo=='20'?'selected':''}>20C</option><option value="30" ${x.prazo=='30'?'selected':''}>30C</option><option value="30-util" ${x.prazo=='30-util'?'selected':''}>30U</option><option value="40-util" ${x.prazo=='40-util'?'selected':''}>40U</option></select></div></td><td class="text-[10px] text-slate-400 font-black">${esc(x.idDoc)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'cliente', 'pedidos')" class="editable-cell uppercase">${esc(x.cliente)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'dataPedido', 'pedidos')" class="editable-cell text-[10px]">${esc(x.dataPedido)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'qtd', 'pedidos')" class="editable-cell text-center font-black">${esc(x.qtd)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'pedidos')" class="editable-cell uppercase">${esc(x.produto)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'medida', 'pedidos')" class="editable-cell uppercase">${esc(x.medida)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'cor', 'pedidos')" class="editable-cell uppercase">${esc(x.cor)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'custo', 'pedidos')" class="editable-cell">${esc(x.custo)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'fornecedor', 'pedidos')" class="editable-cell font-black text-blue-800 uppercase text-[10px]">${esc(x.fornecedor)}</td><td><button onclick="cycleStatus(${x.uid})" class="status-badge ${sCls} text-white">${esc(x.status)}</button></td><td><button onclick="togPed(${x.uid},'whatsEnviado')" class="status-badge ${x.whatsEnviado?'btn-sim':'btn-nao'}">${x.whatsEnviado?'SIM':'NÃO'}</button></td><td><button onclick="togPed(${x.uid},'confirmado')" class="status-badge ${x.confirmado?'btn-sim':'btn-nao'}">${x.confirmado?'SIM':'NÃO'}</button></td><td class="text-center flex gap-1 justify-center"><button onclick="copyText('${x.qtd}x ${esc(x.produto)} ${esc(x.cor)} (${esc(x.idDoc)})', this)">📋</button><button onclick="dupPed(${x.uid})">➕</button><button onclick="gerarAssistenciaRapida(${x.uid})">🛠️</button><button onclick="excluirPedido(${x.uid})" class="text-red-500 font-black">✕</button></td></tr>`;
+        const btnFinalizar = (x.finalizado || x.status === "Entregue/Finalizado") 
+            ? `<button onclick="togglePedidoFinalizado(${x.uid})" title="Restaurar aos Ativos" class="text-blue-500 font-black text-sm">🔙</button>`
+            : `<button onclick="togglePedidoFinalizado(${x.uid})" title="Finalizar/Arquivar Pedido" class="text-green-600 font-black text-sm">📦</button>`;
+
+        return `<tr class="${p.classe}"><td><input type="checkbox" class="ped-check" value="${x.uid}"></td><td><div class="flex flex-col gap-1 items-center"><span class="font-black text-[9px]">${p.dias}D</span><select onchange="updPed(${x.uid},'prazo',this.value)" class="select-prazo-tabela"><option value="15" ${x.prazo=='15'?'selected':''}>15C</option><option value="20" ${x.prazo=='20'?'selected':''}>20C</option><option value="30" ${x.prazo=='30'?'selected':''}>30C</option><option value="30-util" ${x.prazo=='30-util'?'selected':''}>30U</option><option value="40-util" ${x.prazo=='40-util'?'selected':''}>40U</option></select></div></td><td class="text-[10px] text-slate-400 font-black">${esc(x.idDoc)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'cliente', 'pedidos')" class="editable-cell uppercase">${esc(x.cliente)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'dataPedido', 'pedidos')" class="editable-cell text-[10px]">${esc(x.dataPedido)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'qtd', 'pedidos')" class="editable-cell text-center font-black">${esc(x.qtd)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'pedidos')" class="editable-cell uppercase">${esc(x.produto)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'medida', 'pedidos')" class="editable-cell uppercase">${esc(x.medida)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'cor', 'pedidos')" class="editable-cell uppercase">${esc(x.cor)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'custo', 'pedidos')" class="editable-cell">${esc(x.custo)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'fornecedor', 'pedidos')" class="editable-cell font-black text-blue-800 uppercase text-[10px]">${esc(x.fornecedor)}</td><td><button onclick="cycleStatus(${x.uid})" class="status-badge ${sCls} text-white">${esc(x.status)}</button></td><td><button onclick="togPed(${x.uid},'whatsEnviado')" class="status-badge ${x.whatsEnviado?'btn-sim':'btn-nao'}">${x.whatsEnviado?'SIM':'NÃO'}</button></td><td><button onclick="togPed(${x.uid},'confirmado')" class="status-badge ${x.confirmado?'btn-sim':'btn-nao'}">${x.confirmado?'SIM':'NÃO'}</button></td><td class="text-center flex gap-1.5 justify-center items-center"><button onclick="copyText('${x.qtd}x ${esc(x.produto)} ${esc(x.cor)} (${esc(x.idDoc)})', this)" title="Copiar">📋</button>${btnFinalizar}<button onclick="dupPed(${x.uid})" title="Duplicar">➕</button><button onclick="gerarAssistenciaRapida(${x.uid})" title="Assistência">🛠️</button><button onclick="excluirPedido(${x.uid})" class="text-red-500 font-black" title="Excluir">✕</button></td></tr>`;
     }).join('');
 }
 
 function cycleStatus(u){ 
     const x=pedidos.find(function(y){ return y.uid==u; }); 
-    const s=["Não enviado","Pedido enviado","Aguardando fábrica","Pedido na loja", "Entregue/Finalizado"]; // NOVO STATUS ADICIONADO AQUI!
+    const s=["Não enviado","Pedido enviado","Aguardando fábrica","Pedido na loja"]; 
     x.status=s[(s.indexOf(x.status)+1)%s.length]; 
     salvarColecao('pedidos', pedidos); 
 }
@@ -275,7 +296,7 @@ async function cadastrarManual() {
     const cli = document.getElementById('m_cliente').value.trim().toUpperCase(); const forn = document.getElementById('m_fornecedor_select').value; 
     if(!cli || cestoItensTemporario.length === 0) return alert("FALTA DADOS!"); 
     const nId = await getProximoID(); const idDoc = "ID#" + nId.toString().padStart(4, '0'); 
-    cestoItensTemporario.forEach(function(i) { pedidos.unshift({ uid: Date.now()+Math.random(), idDoc: idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false }); }); 
+    cestoItensTemporario.forEach(function(i) { pedidos.unshift({ uid: Date.now()+Math.random(), idDoc: idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false, finalizado: false }); }); 
     salvarColecao('pedidos', pedidos); registrarAcao('📋', 'NOVO PEDIDO', `CÓDIGO: ${idDoc} | CLIENTE: ${cli}`); cestoItensTemporario =[]; document.getElementById('m_cliente').value = ""; renderCesto(); 
 }
 
@@ -354,7 +375,10 @@ function renderAssistencias() {
 }
 function cadastrarAssistencia(){ 
     const c=document.getElementById('as_cliente').value.toUpperCase().trim(), p=document.getElementById('as_produto').value.toUpperCase().trim(), f=document.getElementById('as_fabrica').value; 
-    if(c&&p){ assistencias.unshift({uid:Date.now(), data:new Date().toLocaleDateString('pt-BR'), cliente:c, produto:p, fabrica:f, status:"Aguardando"}); salvarColecao('assistencias', assistencias); registrarAcao('🛠️', 'REGISTROU ASSISTÊNCIA', `CLIENTE: ${c} | DEFEITO: ${p}`); document.getElementById('as_cliente').value=""; document.getElementById('as_produto').value=""; } else { alert("PREENCHA O CLIENTE E O PRODUTO/DEFEITO!"); }
+    if(c&&p){ 
+        assistencias.unshift({uid:Date.now(), data:new Date().toLocaleDateString('pt-BR'), cliente:c, produto:p, fabrica:f, status:"Aguardando"}); 
+        salvarColecao('assistencias', assistencias); registrarAcao('🛠️', 'REGISTROU ASSISTÊNCIA', `CLIENTE: ${c} | DEFEITO: ${p}`); document.getElementById('as_cliente').value=""; document.getElementById('as_produto').value=""; 
+    } else { alert("PREENCHA O CLIENTE E O PRODUTO/DEFEITO!"); }
 }
 
 function renderFornecedores() { const tb = document.getElementById('tabelaFornecedores'); if(!tb) return; tb.innerHTML = fornecedores.map(function(f, i) { return `<tr><td class="font-bold uppercase">${esc(f.nome)}</td><td class="lowercase text-blue-600">${esc(f.email)}</td><td class="text-center"><button onclick="fornecedores.splice(${i},1); salvarColecao('fornecedores', fornecedores);" class="text-red-500 font-black">✕</button></td></tr>`; }).join(''); }
@@ -381,50 +405,79 @@ const telefonesEquipe = {
 
 let colsMinimizadas = { "TODO": false, "DOING": false, "DONE": false };
 
-function toggleColunaKanban(coluna) { colsMinimizadas[coluna] = !colsMinimizadas[coluna]; renderQuadroEquipe(); }
+function toggleColunaKanban(coluna) {
+    colsMinimizadas[coluna] = !colsMinimizadas[coluna];
+    renderQuadroEquipe();
+}
 
 async function notificarNoGrupoComPrint(tarefa, tipoAcao) {
     const quem = usuarioAtual || "A equipe";
     const baseUrl = window.location.href.split('?')[0];
     const linkAcesso = `${baseUrl}?tarefa=${tarefa.uid}`;
     
-    const mapaPrazo = { "AGORA": "🚨 AGORA (Urgente)", "IMEDIATO": "⚡ 1 DIA", "IMPORTANTE": "⚠️ 2 DIAS", "REGULAR": "📅 3 DIAS", "TRANQUILO": "☕ + DIAS", "": "Sem prazo" };
+    const mapaPrazo = {
+        "AGORA": "🚨 AGORA (Urgente)", "IMEDIATO": "⚡ 1 DIA", "IMPORTANTE": "⚠️ 2 DIAS", "REGULAR": "📅 3 DIAS", "TRANQUILO": "☕ + DIAS", "": "Sem prazo"
+    };
 
     let msg = "";
-    if (tipoAcao === 'NOVA') { msg = `📢 *NOVA TAREFA*\nDesignada para: *${tarefa.responsavel}*\nCriada por: ${quem}\n\n📌 *${tarefa.descricao}*\n🗓️ Prazo: ${mapaPrazo[tarefa.prazo || ""]}\n\n🔗 *Acessar no sistema:*\n${linkAcesso}`; } 
-    else if (tipoAcao === 'CONCLUIDA') { msg = `✅ *TAREFA CONCLUÍDA*\nFinalizada por: *${quem}*\n\n📌 *${tarefa.descricao}*\n👤 Resp: ${tarefa.responsavel}\n\n🔗 *Ver histórico no sistema:*\n${linkAcesso}`; }
+    if (tipoAcao === 'NOVA') {
+        msg = `📢 *NOVA TAREFA*\nDesignada para: *${tarefa.responsavel}*\nCriada por: ${quem}\n\n📌 *${tarefa.descricao}*\n🗓️ Prazo: ${mapaPrazo[tarefa.prazo || ""]}\n\n🔗 *Acessar no sistema:*\n${linkAcesso}`;
+    } else if (tipoAcao === 'CONCLUIDA') {
+        msg = `✅ *TAREFA CONCLUÍDA*\nFinalizada por: *${quem}*\n\n📌 *${tarefa.descricao}*\n👤 Resp: ${tarefa.responsavel}\n\n🔗 *Ver histórico no sistema:*\n${linkAcesso}`;
+    }
 
     if(confirm(`Deseja notificar no WhatsApp da loja e tentar COPIAR A IMAGEM do cartão automaticamente?`)) {
         if(tarefa.minimizada) minimizarTarefaEquipe(tarefa.uid);
+
         const cardElement = document.getElementById('card-' + tarefa.uid);
+        
         if (cardElement && typeof html2canvas !== 'undefined') {
             try {
                 const canvas = await html2canvas(cardElement, { scale: 2, backgroundColor: null });
                 canvas.toBlob(async function(blob) {
                     try {
                         if(typeof ClipboardItem !== 'undefined') {
-                            const item = new ClipboardItem({ "image/png": blob }); await navigator.clipboard.write([item]);
+                            const item = new ClipboardItem({ "image/png": blob });
+                            await navigator.clipboard.write([item]);
                             alert("📸 A FOTO DA TAREFA FOI COPIADA!\n\nO WhatsApp será aberto agora. Basta você dar um COLAR (Ctrl+V) antes de enviar para anexar o print.");
-                        } else { alert("⚠️ Seu navegador antigo não suporta copiar a foto. O WhatsApp abrirá apenas com o texto."); }
-                    } catch (err) { alert("⚠️ O seu navegador bloqueou a cópia automática da foto. O WhatsApp será aberto apenas com o texto."); }
+                        } else {
+                            alert("⚠️ Seu navegador antigo não suporta copiar a foto. O WhatsApp abrirá apenas com o texto.");
+                        }
+                    } catch (err) {
+                        alert("⚠️ O seu navegador bloqueou a cópia automática da foto. O WhatsApp será aberto apenas com o texto.");
+                    }
                     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
                 }, "image/png");
                 return; 
-            } catch (error) { console.error("Erro html2canvas: ", error); }
+            } catch (error) {
+                console.error("Erro html2canvas: ", error);
+            }
         }
         window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
     }
 }
 
 let filtrosEquipeAtivos =[];
-function toggleFiltroEquipe(nome) { if(nome === 'TODOS') { filtrosEquipeAtivos =[]; } else { if(filtrosEquipeAtivos.includes(nome)) filtrosEquipeAtivos = filtrosEquipeAtivos.filter(function(x){ return x !== nome; }); else filtrosEquipeAtivos.push(nome); } renderFiltrosEquipe(); renderQuadroEquipe(); }
+function toggleFiltroEquipe(nome) {
+    if(nome === 'TODOS') { filtrosEquipeAtivos =[]; } 
+    else { if(filtrosEquipeAtivos.includes(nome)) filtrosEquipeAtivos = filtrosEquipeAtivos.filter(function(x){ return x !== nome; }); else filtrosEquipeAtivos.push(nome); }
+    renderFiltrosEquipe(); renderQuadroEquipe();
+}
 
 function renderFiltrosEquipe() {
-    const div = document.getElementById('filtros-equipe'); if(!div) return;
-    if(modoMinhasTarefas) { div.style.opacity = '0.3'; div.style.pointerEvents = 'none'; } else { div.style.opacity = '1'; div.style.pointerEvents = 'auto'; }
+    const div = document.getElementById('filtros-equipe');
+    if(!div) return;
+    
+    if(modoMinhasTarefas) {
+        div.style.opacity = '0.3'; div.style.pointerEvents = 'none';
+    } else {
+        div.style.opacity = '1'; div.style.pointerEvents = 'auto';
+    }
+
     let html = `<button onclick="toggleFiltroEquipe('TODOS')" class="px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition border-2 ${filtrosEquipeAtivos.length === 0 ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'}">🌟 TODOS</button>`;
     Object.keys(coresEquipe).forEach(function(nome) {
-        const corAtiva = coresEquipe[nome].split(' ')[1]; const isAtivo = filtrosEquipeAtivos.includes(nome);
+        const corAtiva = coresEquipe[nome].split(' ')[1]; 
+        const isAtivo = filtrosEquipeAtivos.includes(nome);
         const style = isAtivo ? `${coresEquipe[nome]} border-2 border-transparent shadow-sm` : `bg-white ${corAtiva} border-2 border-slate-200 hover:border-slate-300`;
         html += `<button onclick="toggleFiltroEquipe('${nome}')" class="px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition ${style}">${nome}</button>`;
     });
@@ -432,53 +485,125 @@ function renderFiltrosEquipe() {
 }
 
 function adicionarTarefaEquipe() {
-    const desc = document.getElementById('eq_desc').value.trim().toUpperCase(); const resp = document.getElementById('eq_resp').value; const prazo = document.getElementById('eq_prazo').value; 
+    const desc = document.getElementById('eq_desc').value.trim().toUpperCase();
+    const resp = document.getElementById('eq_resp').value;
+    const prazo = document.getElementById('eq_prazo').value; 
+    
     if(!desc) return alert("DIGITE A DESCRIÇÃO DA TAREFA!");
+    
     const novaTarefa = { uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), descricao: desc, responsavel: resp, prazo: prazo, coluna: "TODO", comentarios:[], minimizada: false };
-    tarefasEquipe.push(novaTarefa); salvarColecao('tarefasEquipe', tarefasEquipe); registrarAcao('📌', 'CRIOU NOVA TAREFA', `PARA: ${resp} | TAREFA: ${desc}`); 
-    document.getElementById('eq_desc').value = ""; document.getElementById('eq_prazo').value = ""; renderQuadroEquipe(); setTimeout(function() { notificarNoGrupoComPrint(novaTarefa, 'NOVA'); }, 300);
+    
+    tarefasEquipe.push(novaTarefa); 
+    salvarColecao('tarefasEquipe', tarefasEquipe); 
+    registrarAcao('📌', 'CRIOU NOVA TAREFA', `PARA: ${resp} | TAREFA: ${desc}`); 
+    
+    document.getElementById('eq_desc').value = ""; document.getElementById('eq_prazo').value = "";
+    
+    renderQuadroEquipe();
+    setTimeout(function() { notificarNoGrupoComPrint(novaTarefa, 'NOVA'); }, 300);
 }
 
 function moverTarefaEquipe(uid, novaColuna) {
     const t = tarefasEquipe.find(function(x){ return x.uid == uid; });
     if(t && t.coluna !== novaColuna) {
-        const mapa = {"TODO":"A FAZER", "DOING":"EM ANDAMENTO", "DONE":"CONCLUÍDO"}; t.coluna = novaColuna;
-        salvarColecao('tarefasEquipe', tarefasEquipe); registrarAcao('🔄', 'MOVEU A TAREFA', `${t.descricao} ➡️ ${mapa[novaColuna]}`); renderQuadroEquipe();
+        const mapa = {"TODO":"A FAZER", "DOING":"EM ANDAMENTO", "DONE":"CONCLUÍDO"};
+        t.coluna = novaColuna;
+        
+        salvarColecao('tarefasEquipe', tarefasEquipe); 
+        registrarAcao('🔄', 'MOVEU A TAREFA', `${t.descricao} ➡️ ${mapa[novaColuna]}`); 
+        
+        renderQuadroEquipe();
         if (novaColuna === 'DONE') { setTimeout(function() { notificarNoGrupoComPrint(t, 'CONCLUIDA'); }, 300); }
     }
 }
 
-function excluirTarefaEquipe(uid) { const t = tarefasEquipe.find(function(x){ return x.uid == uid; }); if(confirm("EXCLUIR ESTA TAREFA DA EQUIPE?")) { if(t) registrarAcao('🗑️', 'APAGOU TAREFA', `TAREFA: ${t.descricao}`); tarefasEquipe = tarefasEquipe.filter(function(x){ return x.uid != uid; }); salvarColecao('tarefasEquipe', tarefasEquipe); } }
-function minimizarTarefaEquipe(uid) { const t = tarefasEquipe.find(function(x){ return x.uid == uid; }); if(t) { t.minimizada = !t.minimizada; salvarColecao('tarefasEquipe', tarefasEquipe); renderQuadroEquipe(); } }
+function excluirTarefaEquipe(uid) {
+    const t = tarefasEquipe.find(function(x){ return x.uid == uid; });
+    if(confirm("EXCLUIR ESTA TAREFA DA EQUIPE?")) {
+        if(t) registrarAcao('🗑️', 'APAGOU TAREFA', `TAREFA: ${t.descricao}`); 
+        tarefasEquipe = tarefasEquipe.filter(function(x){ return x.uid != uid; });
+        salvarColecao('tarefasEquipe', tarefasEquipe); 
+    }
+}
+
+function minimizarTarefaEquipe(uid) {
+    const t = tarefasEquipe.find(function(x){ return x.uid == uid; });
+    if(t) {
+        t.minimizada = !t.minimizada; 
+        salvarColecao('tarefasEquipe', tarefasEquipe);
+        renderQuadroEquipe();
+    }
+}
 
 let uidUploadPendente = null;
-function acionarUploadImagem(uid) { if(!usuarioAtual) return alert("Por favor, selecione quem você é no topo da tela antes de anexar imagens!"); uidUploadPendente = uid; document.getElementById('file-upload-global').click(); }
+
+function acionarUploadImagem(uid) {
+    if(!usuarioAtual) return alert("Por favor, selecione quem você é no topo da tela antes de anexar imagens!");
+    uidUploadPendente = uid;
+    document.getElementById('file-upload-global').click();
+}
+
 function processarUploadImagem(event) {
-    const file = event.target.files[0]; if(!file || !uidUploadPendente) return;
-    const t = tarefasEquipe.find(function(x){ return x.uid == uidUploadPendente; }); if(!t) return;
+    const file = event.target.files[0];
+    if(!file || !uidUploadPendente) return;
+
+    const t = tarefasEquipe.find(function(x){ return x.uid == uidUploadPendente; });
+    if(!t) return;
+
     const reader = new FileReader();
     reader.onload = function(e) {
         const img = new Image();
         img.onload = function() {
-            const canvas = document.createElement('canvas'); const MAX_WIDTH = 800; const MAX_HEIGHT = 800; let width = img.width; let height = img.height;
-            if (width > height) { if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } } else { if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; } }
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 800; const MAX_HEIGHT = 800;
+            let width = img.width; let height = img.height;
+
+            if (width > height) { if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } } 
+            else { if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; } }
+            
             canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
             const base64Data = canvas.toDataURL('image/jpeg', 0.6); 
-            t.comentarios = safeArray(t.comentarios); const agora = new Date(); const strData = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+
+            t.comentarios = safeArray(t.comentarios);
+            const agora = new Date();
+            const strData = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+
             t.comentarios.push({ id: Date.now(), autor: usuarioAtual, texto: "📷 FOTO ANEXADA", anexo: base64Data, dataHora: strData });
-            salvarColecao('tarefasEquipe', tarefasEquipe); registrarAcao('📎', 'ANEXOU FOTO', `NA TAREFA: ${t.descricao}`); renderQuadroEquipe(); event.target.value = ""; 
-        }; img.src = e.target.result;
-    }; reader.readAsDataURL(file);
+
+            salvarColecao('tarefasEquipe', tarefasEquipe); 
+            registrarAcao('📎', 'ANEXOU FOTO', `NA TAREFA: ${t.descricao}`); 
+            
+            renderQuadroEquipe();
+            event.target.value = ""; 
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
 }
 
 function adicionarComentarioInline(uid, inputElement) {
     if(!usuarioAtual) return alert("Por favor, selecione quem você é no topo da tela antes de comentar!");
-    const txt = inputElement.value.trim().toUpperCase(); if(!txt) return;
-    const t = tarefasEquipe.find(function(x){ return x.uid == uid; }); if(!t) return;
-    t.comentarios = safeArray(t.comentarios); const agora = new Date(); const strData = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+    const txt = inputElement.value.trim().toUpperCase();
+    if(!txt) return;
+
+    const t = tarefasEquipe.find(function(x){ return x.uid == uid; });
+    if(!t) return;
+
+    t.comentarios = safeArray(t.comentarios);
+    const agora = new Date();
+    const strData = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+
     t.comentarios.push({ id: Date.now(), autor: usuarioAtual, texto: txt, dataHora: strData });
-    salvarColecao('tarefasEquipe', tarefasEquipe); registrarAcao('💬', 'COMENTOU NA TAREFA', `${t.descricao} | "${txt}"`); inputElement.value = ""; 
-    setTimeout(function() { const chatBox = document.getElementById('chat-' + uid); if(chatBox) chatBox.scrollTop = chatBox.scrollHeight; }, 100);
+    
+    salvarColecao('tarefasEquipe', tarefasEquipe); 
+    registrarAcao('💬', 'COMENTOU NA TAREFA', `${t.descricao} | "${txt}"`); 
+    
+    inputElement.value = ""; 
+    
+    setTimeout(function() {
+        const chatBox = document.getElementById('chat-' + uid);
+        if(chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+    }, 100);
 }
 
 function dragTarefa(ev, uid) { ev.dataTransfer.setData("text/plain", uid); setTimeout(function(){ ev.target.classList.add('opacity-40'); }, 10); }
@@ -497,23 +622,52 @@ function getBadgePrazo(prazo) {
 }
 
 function renderQuadroEquipe() {
-    const colTodo = document.getElementById('col-todo'); const colDoing = document.getElementById('col-doing'); const colDone = document.getElementById('col-done'); if(!colTodo) return;['TODO', 'DOING', 'DONE'].forEach(function(col) {
-        const container = document.getElementById('col-' + col.toLowerCase() + '-container'); const content = document.getElementById('col-' + col.toLowerCase()); const btn = document.getElementById('btn-toggle-' + col.toLowerCase());
+    const colTodo = document.getElementById('col-todo');
+    const colDoing = document.getElementById('col-doing');
+    const colDone = document.getElementById('col-done');
+    if(!colTodo) return;
+    
+    ['TODO', 'DOING', 'DONE'].forEach(function(col) {
+        const container = document.getElementById('col-' + col.toLowerCase() + '-container');
+        const content = document.getElementById('col-' + col.toLowerCase());
+        const btn = document.getElementById('btn-toggle-' + col.toLowerCase());
+        
         if(container && content && btn) {
-            if(colsMinimizadas[col]) { container.classList.remove('min-h-[500px]'); container.classList.add('h-fit', 'pb-0'); content.classList.add('hidden'); btn.innerText = '➕'; } 
-            else { container.classList.add('min-h-[500px]'); container.classList.remove('h-fit', 'pb-0'); content.classList.remove('hidden'); btn.innerText = '➖'; }
+            if(colsMinimizadas[col]) {
+                container.classList.remove('min-h-[500px]');
+                container.classList.add('h-fit', 'pb-0');
+                content.classList.add('hidden');
+                btn.innerText = '➕';
+            } else {
+                container.classList.add('min-h-[500px]');
+                container.classList.remove('h-fit', 'pb-0');
+                content.classList.remove('hidden');
+                btn.innerText = '➖';
+            }
         }
     });
 
-    let cTodo = 0, cDoing = 0, cDone = 0; let htmlTodo = "", htmlDoing = "", htmlDone = "";
+    let cTodo = 0, cDoing = 0, cDone = 0;
+    let htmlTodo = "", htmlDoing = "", htmlDone = "";
+
     const pesoPrazo = { "AGORA": 1, "IMEDIATO": 2, "IMPORTANTE": 3, "REGULAR": 4, "TRANQUILO": 5, "": 6 };
-    let tarefasOrdenadas =[...tarefasEquipe].sort(function(a, b) { let pA = pesoPrazo[a.prazo || ""] || 6; let pB = pesoPrazo[b.prazo || ""] || 6; if (pA !== pB) return pA - pB; return b.uid - a.uid; });
+    
+    let tarefasOrdenadas =[...tarefasEquipe].sort(function(a, b) {
+        let pA = pesoPrazo[a.prazo || ""] || 6;
+        let pB = pesoPrazo[b.prazo || ""] || 6;
+        if (pA !== pB) return pA - pB; 
+        return b.uid - a.uid; 
+    });
 
     tarefasOrdenadas.forEach(function(t) {
         if (modoMinhasTarefas && usuarioAtual && t.responsavel !== usuarioAtual) return;
         if (!modoMinhasTarefas && filtrosEquipeAtivos.length > 0 && !filtrosEquipeAtivos.includes(t.responsavel)) return;
-        const cor = coresEquipe[t.responsavel] || "bg-slate-100 text-slate-700 border-slate-300"; const corBorda = cor.split(' ')[2]; 
-        const arrComent = safeArray(t.comentarios); let comentariosHtml = "";
+
+        const cor = coresEquipe[t.responsavel] || "bg-slate-100 text-slate-700 border-slate-300";
+        const corBorda = cor.split(' ')[2]; 
+        
+        const arrComent = safeArray(t.comentarios);
+        let comentariosHtml = "";
         if (arrComent.length > 0) {
             comentariosHtml = arrComent.map(function(c) {
                 const cCor = coresEquipe[c.autor] ? coresEquipe[c.autor].split(' ')[1] : "text-slate-600"; 
@@ -522,33 +676,83 @@ function renderQuadroEquipe() {
             }).join('');
         }
         
-        const isMin = t.minimizada || false; const badgePrazo = getBadgePrazo(t.prazo);
+        const isMin = t.minimizada || false;
+        const badgePrazo = getBadgePrazo(t.prazo);
+
         const btnMover = "text-slate-300 hover:text-blue-500 font-black text-xl p-1 bg-slate-50 hover:bg-blue-50 rounded-lg transition-colors";
         const btnVoltar = "text-slate-300 hover:text-slate-500 font-black text-xl p-1 bg-slate-50 hover:bg-slate-200 rounded-lg transition-colors";
         const btnConcluir = "text-slate-300 hover:text-green-500 font-black text-xl p-1 ml-1 bg-slate-50 hover:bg-green-50 rounded-lg transition-colors";
 
         const card = `
             <div id="card-${t.uid}" draggable="true" ondragstart="dragTarefa(event, ${t.uid})" ondragend="dragEndTarefa(event)" class="bg-white p-3.5 rounded-2xl shadow-sm border-t-4 ${corBorda} flex flex-col gap-2 transition hover:shadow-md cursor-grab active:cursor-grabbing relative overflow-hidden">
-                <div class="flex justify-between items-start"><div class="flex flex-col gap-1 items-start"><span class="${cor} px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">${esc(t.responsavel)}</span>${badgePrazo}</div><div class="flex gap-1 items-center"><button onclick="minimizarTarefaEquipe(${t.uid})" class="text-slate-400 hover:text-slate-800 font-black text-[12px] mr-2 bg-slate-100 px-3 py-1 rounded-lg transition shadow-sm" title="Minimizar/Expandir">${isMin ? '➕' : '➖'}</button>${t.coluna === 'TODO' ? `<button onclick="moverTarefaEquipe(${t.uid}, 'DOING')" class="${btnMover}" title="Mover p/ Em Andamento">➡️</button>` : ''}${t.coluna === 'DOING' ? `<button onclick="moverTarefaEquipe(${t.uid}, 'TODO')" class="${btnVoltar}" title="Voltar p/ Fazer">⬅️</button> <button onclick="moverTarefaEquipe(${t.uid}, 'DONE')" class="${btnConcluir}" title="Concluir">✅</button>` : ''}${t.coluna === 'DONE' ? `<button onclick="moverTarefaEquipe(${t.uid}, 'DOING')" class="${btnVoltar}" title="Voltar p/ Em Andamento">⬅️</button>` : ''}<button onclick="excluirTarefaEquipe(${t.uid})" class="text-slate-200 hover:text-red-500 font-black text-lg ml-3 p-1" title="Excluir">✕</button></div></div>
-                ${!isMin ? `<span class="text-sm font-black uppercase text-slate-800 leading-snug mt-1">${esc(t.descricao)}</span><span class="text-[8px] font-black text-slate-300 border-b border-slate-100 pb-2">Criado em: ${t.data}</span><div class="mt-1 flex flex-col gap-1.5">${arrComent.length > 0 ? `<div id="chat-${t.uid}" class="bg-slate-50 p-2 rounded-lg max-h-48 overflow-y-auto shadow-inner custom-scrollbar">${comentariosHtml}</div>` : ''}<div class="flex gap-1 mt-1 items-center"><input type="text" placeholder="Responder..." onkeydown="if(event.key==='Enter') { adicionarComentarioInline(${t.uid}, this); }" class="flex-1 bg-white border border-slate-200 p-2 text-[10px] font-bold rounded-xl outline-blue-500 uppercase placeholder:text-slate-300 shadow-sm"><button onclick="acionarUploadImagem(${t.uid})" class="bg-slate-100 text-slate-400 hover:text-blue-600 px-2 rounded-xl font-black text-[12px] transition h-full border border-slate-200" title="Anexar Imagem">📎</button><button onclick="adicionarComentarioInline(${t.uid}, this.previousElementSibling.previousElementSibling)" class="bg-blue-100 hover:bg-blue-600 hover:text-white text-blue-600 px-3 rounded-xl font-black text-[12px] transition h-full border border-transparent">➤</button></div></div>` : `<span class="text-[11px] font-black uppercase text-slate-800 leading-snug mt-1 truncate border-t pt-2">${esc(t.descricao)}</span>`}
+                
+                <div class="flex justify-between items-start">
+                    <div class="flex flex-col gap-1 items-start">
+                        <span class="${cor} px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">${esc(t.responsavel)}</span>
+                        ${badgePrazo}
+                    </div>
+                    <div class="flex gap-1 items-center">
+                        <button onclick="minimizarTarefaEquipe(${t.uid})" class="text-slate-400 hover:text-slate-800 font-black text-[12px] mr-2 bg-slate-100 px-3 py-1 rounded-lg transition shadow-sm" title="Minimizar/Expandir">${isMin ? '➕' : '➖'}</button>
+                        ${t.coluna === 'TODO' ? `<button onclick="moverTarefaEquipe(${t.uid}, 'DOING')" class="${btnMover}" title="Mover p/ Em Andamento">➡️</button>` : ''}
+                        ${t.coluna === 'DOING' ? `<button onclick="moverTarefaEquipe(${t.uid}, 'TODO')" class="${btnVoltar}" title="Voltar p/ Fazer">⬅️</button> <button onclick="moverTarefaEquipe(${t.uid}, 'DONE')" class="${btnConcluir}" title="Concluir">✅</button>` : ''}
+                        ${t.coluna === 'DONE' ? `<button onclick="moverTarefaEquipe(${t.uid}, 'DOING')" class="${btnVoltar}" title="Voltar p/ Em Andamento">⬅️</button>` : ''}
+                        <button onclick="excluirTarefaEquipe(${t.uid})" class="text-slate-200 hover:text-red-500 font-black text-lg ml-3 p-1" title="Excluir">✕</button>
+                    </div>
+                </div>
+
+                ${!isMin ? `
+                <span class="text-sm font-black uppercase text-slate-800 leading-snug mt-1">${esc(t.descricao)}</span>
+                <span class="text-[8px] font-black text-slate-300 border-b border-slate-100 pb-2">Criado em: ${t.data}</span>
+
+                <div class="mt-1 flex flex-col gap-1.5">
+                    ${arrComent.length > 0 ? `<div id="chat-${t.uid}" class="bg-slate-50 p-2 rounded-lg max-h-48 overflow-y-auto shadow-inner custom-scrollbar">${comentariosHtml}</div>` : ''}
+                    <div class="flex gap-1 mt-1 items-center">
+                        <input type="text" placeholder="Responder..." onkeydown="if(event.key==='Enter') { adicionarComentarioInline(${t.uid}, this); }" class="flex-1 bg-white border border-slate-200 p-2 text-[10px] font-bold rounded-xl outline-blue-500 uppercase placeholder:text-slate-300 shadow-sm">
+                        <button onclick="acionarUploadImagem(${t.uid})" class="bg-slate-100 text-slate-400 hover:text-blue-600 px-2 rounded-xl font-black text-[12px] transition h-full border border-slate-200" title="Anexar Imagem">📎</button>
+                        <button onclick="adicionarComentarioInline(${t.uid}, this.previousElementSibling.previousElementSibling)" class="bg-blue-100 hover:bg-blue-600 hover:text-white text-blue-600 px-3 rounded-xl font-black text-[12px] transition h-full border border-transparent">➤</button>
+                    </div>
+                </div>
+                ` : `<span class="text-[11px] font-black uppercase text-slate-800 leading-snug mt-1 truncate border-t pt-2">${esc(t.descricao)}</span>`}
             </div>
         `;
-        if(t.coluna === 'TODO') { htmlTodo += card; cTodo++; } else if(t.coluna === 'DOING') { htmlDoing += card; cDoing++; } else if(t.coluna === 'DONE') { htmlDone += card; cDone++; }
+
+        if(t.coluna === 'TODO') { htmlTodo += card; cTodo++; }
+        else if(t.coluna === 'DOING') { htmlDoing += card; cDoing++; }
+        else if(t.coluna === 'DONE') { htmlDone += card; cDone++; }
     });
 
     if(document.getElementById('col-todo')) document.getElementById('col-todo').innerHTML = htmlTodo || '<span class="text-[10px] font-bold text-slate-400 text-center mt-6 uppercase">Limpo 🎉</span>';
     if(document.getElementById('col-doing')) document.getElementById('col-doing').innerHTML = htmlDoing || '<span class="text-[10px] font-bold text-slate-400 text-center mt-6 uppercase">Nada em andamento</span>';
     if(document.getElementById('col-done')) document.getElementById('col-done').innerHTML = htmlDone || '<span class="text-[10px] font-bold text-slate-400 text-center mt-6 uppercase">Nenhuma conclusão</span>';
+    
     if(document.getElementById('count-todo')) document.getElementById('count-todo').innerText = cTodo;
     if(document.getElementById('count-doing')) document.getElementById('count-doing').innerText = cDoing;
     if(document.getElementById('count-done')) document.getElementById('count-done').innerText = cDone;
-    tarefasEquipe.forEach(function(t) { const chatBox = document.getElementById('chat-' + t.uid); if(chatBox) chatBox.scrollTop = chatBox.scrollHeight; });
+    
+    tarefasEquipe.forEach(function(t) {
+        const chatBox = document.getElementById('chat-' + t.uid);
+        if(chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+    });
 }
 
 function processarFichaWhatsApp(texto) {
     if(!texto) return;
-    const mNome = texto.match(/Nome(?: Completo)?\s*[:\-]?\s*(.+)/i); const mCpf = texto.match(/CPF\s*[:\-]?\s*([\d\.\-]+)/i); const mCep = texto.match(/CEP\s*[:\-]?\s*([\d\.\-]+)/i); const mEnd = texto.match(/Endere[çc]o\s*[:\-]?\s*(.+)/i); const mContato = texto.match(/(?:^|\n)\s*Contato(?: 1)?\s*[:\-]?\s*(.+)/i); const mContato2 = texto.match(/(?:^|\n)\s*Contato\s*2\s*[:\-]?\s*(.+)/i); const mNum = texto.match(/(?:^|\n)\s*N(?:[°ºoúu]mero)?\s*[:\-]?\s*([A-Za-z0-9]+)/i); const mObs = texto.match(/(?:OBS|OBSERVA[CÇ][AÃ]O)(?:ES)?\s*[:\-]?\s*([\s\S]+)/i);
-    if (mNome) document.getElementById('t_nome').value = mNome[1].trim().toUpperCase(); if (mEnd) document.getElementById('t_end').value = mEnd[1].trim().toUpperCase(); if (mContato) document.getElementById('t_contato').value = mContato[1].trim().toUpperCase(); if (mContato2) document.getElementById('t_contato2').value = mContato2[1].trim().toUpperCase(); if (mNum) document.getElementById('t_num').value = mNum[1].trim().toUpperCase(); if (mObs) document.getElementById('t_obs').value = mObs[1].trim().toUpperCase();
+    const mNome = texto.match(/Nome(?: Completo)?\s*[:\-]?\s*(.+)/i);
+    const mCpf = texto.match(/CPF\s*[:\-]?\s*([\d\.\-]+)/i);
+    const mCep = texto.match(/CEP\s*[:\-]?\s*([\d\.\-]+)/i);
+    const mEnd = texto.match(/Endere[çc]o\s*[:\-]?\s*(.+)/i);
+    const mContato = texto.match(/(?:^|\n)\s*Contato(?: 1)?\s*[:\-]?\s*(.+)/i);
+    const mContato2 = texto.match(/(?:^|\n)\s*Contato\s*2\s*[:\-]?\s*(.+)/i);
+    const mNum = texto.match(/(?:^|\n)\s*N(?:[°ºoúu]mero)?\s*[:\-]?\s*([A-Za-z0-9]+)/i);
+    const mObs = texto.match(/(?:OBS|OBSERVA[CÇ][AÃ]O)(?:ES)?\s*[:\-]?\s*([\s\S]+)/i);
+
+    if (mNome) document.getElementById('t_nome').value = mNome[1].trim().toUpperCase();
+    if (mEnd) document.getElementById('t_end').value = mEnd[1].trim().toUpperCase();
+    if (mContato) document.getElementById('t_contato').value = mContato[1].trim().toUpperCase();
+    if (mContato2) document.getElementById('t_contato2').value = mContato2[1].trim().toUpperCase();
+    if (mNum) document.getElementById('t_num').value = mNum[1].trim().toUpperCase();
+    if (mObs) document.getElementById('t_obs').value = mObs[1].trim().toUpperCase();
+    
     if (mCpf) { let cpfInput = document.getElementById('t_cpf'); cpfInput.value = mCpf[1].trim(); maskCPF(cpfInput); }
     if (mCep) { let cepInput = document.getElementById('t_cep'); cepInput.value = mCep[1].trim(); buscarCEP(cepInput); }
 }
@@ -557,7 +761,11 @@ function mostrarCamposTarefa(t){
     const c=document.getElementById('container-campos-tarefa'); c.innerHTML="";
     if(t==='TIRAR PEDIDO'){
         c.innerHTML=`
-            <div class="col-span-1 md:col-span-4 mb-2 bg-indigo-50 p-4 rounded-xl border-2 border-dashed border-indigo-300 w-full"><label class="text-[10px] font-black text-indigo-800 uppercase mb-2 block flex items-center gap-2">✨ Cole a ficha do WhatsApp aqui:</label><textarea id="t_magic_box" oninput="processarFichaWhatsApp(this.value)" placeholder="Ficha de Cadastro&#10;Nome Completo:&#10;CPF:&#10;CEP:&#10;Endereço:&#10;N:&#10;Contato 1:&#10;Contato 2:&#10;OBS:" class="w-full border p-3 rounded-lg text-xs font-bold outline-indigo-500 h-24 resize-none shadow-inner"></textarea><p class="text-[9px] font-bold text-indigo-400 mt-1 uppercase">O sistema tentará preencher os dados abaixo sozinho.</p></div>
+            <div class="col-span-1 md:col-span-4 mb-2 bg-indigo-50 p-4 rounded-xl border-2 border-dashed border-indigo-300 w-full">
+                <label class="text-[10px] font-black text-indigo-800 uppercase mb-2 block flex items-center gap-2">✨ Cole a ficha do WhatsApp aqui:</label>
+                <textarea id="t_magic_box" oninput="processarFichaWhatsApp(this.value)" placeholder="Ficha de Cadastro&#10;Nome Completo:&#10;CPF:&#10;CEP:&#10;Endereço:&#10;N:&#10;Contato 1:&#10;Contato 2:&#10;OBS:" class="w-full border p-3 rounded-lg text-xs font-bold outline-indigo-500 h-24 resize-none shadow-inner"></textarea>
+                <p class="text-[9px] font-bold text-indigo-400 mt-1 uppercase">O sistema tentará preencher os dados abaixo sozinho.</p>
+            </div>
             <input id="t_nome" placeholder="CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold md:col-span-2 w-full uppercase outline-indigo-500">
             <input id="t_cpf" placeholder="CPF" class="border-2 p-2 rounded-lg text-xs font-bold w-full outline-indigo-500" oninput="maskCPF(this)">
             <input id="t_contato" placeholder="CONTATO 1" class="border-2 p-2 rounded-lg text-xs font-bold w-full outline-indigo-500">
@@ -568,8 +776,15 @@ function mostrarCamposTarefa(t){
             <input id="t_cidade" placeholder="CIDADE" class="border-2 p-2 rounded-lg text-xs font-bold w-full uppercase outline-indigo-500">
             <input id="t_num" placeholder="NÚMERO" class="border-2 p-2 rounded-lg text-xs font-bold w-full outline-indigo-500">
             <input id="t_torre" placeholder="TORRE" class="border-2 p-2 rounded-lg text-xs font-bold w-full uppercase outline-indigo-500">
-            <div class="col-span-1 md:col-span-4 border-t mt-4 pt-4 w-full"><div id="lista-produtos-tarefa" class="flex flex-col gap-2 w-full"></div><button onclick="addProdutoLinha()" class="text-[10px] font-black text-blue-600 mt-2 uppercase hover:underline">+ MÓVEL</button><div id="total-pedido-tarefa" class="text-right text-indigo-600 font-black text-xs mt-1 uppercase italic">Total: R$ 0,00</div></div>
-            <div class="col-span-1 md:col-span-4 border-t mt-4 pt-4 w-full"><div id="lista-pagamentos-tarefa" class="flex flex-col gap-2 w-full"></div><button onclick="addPagamentoLinha()" class="text-[10px] font-black text-emerald-600 mt-2 uppercase hover:underline">+ PAGAMENTO</button></div>
+            <div class="col-span-1 md:col-span-4 border-t mt-4 pt-4 w-full">
+                <div id="lista-produtos-tarefa" class="flex flex-col gap-2 w-full"></div>
+                <button onclick="addProdutoLinha()" class="text-[10px] font-black text-blue-600 mt-2 uppercase hover:underline">+ MÓVEL</button>
+                <div id="total-pedido-tarefa" class="text-right text-indigo-600 font-black text-xs mt-1 uppercase italic">Total: R$ 0,00</div>
+            </div>
+            <div class="col-span-1 md:col-span-4 border-t mt-4 pt-4 w-full">
+                <div id="lista-pagamentos-tarefa" class="flex flex-col gap-2 w-full"></div>
+                <button onclick="addPagamentoLinha()" class="text-[10px] font-black text-emerald-600 mt-2 uppercase hover:underline">+ PAGAMENTO</button>
+            </div>
             <textarea id="t_obs" placeholder="OBSERVAÇÕES DO PEDIDO..." class="col-span-1 md:col-span-4 border-2 p-2 rounded-lg text-xs font-bold h-16 uppercase mt-2 w-full outline-indigo-500"></textarea>
         `;
         addProdutoLinha(); addPagamentoLinha();
@@ -588,17 +803,16 @@ function cadastrarTarefa(){
     const t = document.getElementById('t_tipo').value; let obj = { uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), tipo: t, status: "Não Iniciado" };
     if(t === 'TIRAR PEDIDO'){ 
         const cli = document.getElementById('t_nome').value; if(!cli) return alert("FALTA NOME DO CLIENTE!"); let total=0; document.querySelectorAll('.t-v-desc').forEach(function(i){total+=parseMoney(i.value);}); obj.descricao = "PEDIDO: " + cli.toUpperCase(); obj.detalhes = { cliente: cli.toUpperCase(), cpf: document.getElementById('t_cpf').value, contato: document.getElementById('t_contato').value, contato2: document.getElementById('t_contato2').value, cep: document.getElementById('t_cep').value, end: document.getElementById('t_end').value, bairro: document.getElementById('t_bairro').value, cidade: document.getElementById('t_cidade').value, num: document.getElementById('t_num').value, torre: document.getElementById('t_torre').value, obs: document.getElementById('t_obs').value, totalDesc:"R$ "+total.toLocaleString('pt-BR',{minimumFractionDigits:2}), produtos:[], pagamentos:[] }; document.querySelectorAll('.row-prod').forEach(function(row){ if(row.querySelector('.t-p-nome').value) obj.detalhes.produtos.push({ n: row.querySelector('.t-p-nome').value.toUpperCase(), o: row.querySelector('.t-v-orig').value, d: row.querySelector('.t-v-desc').value }); }); document.querySelectorAll('.row-pag').forEach(function(row){ const tipo = row.querySelector('.t-p-tipo').value; const parcelas = (tipo === 'CRÉDITO') ? row.querySelector('.t-p-parc').value : ""; obj.detalhes.pagamentos.push({ t: tipo + (parcelas ? " " + parcelas : ""), v: row.querySelector('.t-p-val').value, o: row.querySelector('.t-p-obs').value.toUpperCase() }); }); 
-        salvarColecao('tarefas', tarefas); 
-        registrarAcao('📋', 'NOVA TAREFA DE PEDIDO', `CLIENTE: ${cli}`); 
+        salvarColecao('tarefas', tarefas); registrarAcao('📋', 'NOVA TAREFA DE PEDIDO', `CLIENTE: ${cli}`); 
     }
     else { 
         obj.descricao = (document.getElementById('t_raw') ? document.getElementById('t_raw').value : "").toUpperCase(); 
-        salvarColecao('tarefas', tarefas); 
-        registrarAcao('📝', 'NOVA ANOTAÇÃO', obj.descricao); 
+        salvarColecao('tarefas', tarefas); registrarAcao('📝', 'NOVA ANOTAÇÃO', obj.descricao); 
     }
     if(!obj.descricao) return; tarefas.unshift(obj); salvarColecao('tarefas', tarefas); mostrarCamposTarefa(t); renderTarefas();
 }
 function renderTarefas() { const tb=document.getElementById('tabelaTarefas'); if(!tb) return; const f=document.getElementById('filtro-tarefa-status').value; let lista=f==='TODAS'?tarefas:tarefas.filter(function(x){return x.status===f;}); tb.innerHTML=lista.map(function(x){ return `<tr onclick="verDetalhesTarefa(${x.uid})" class="hover:bg-slate-50 cursor-pointer border-b transition"><td>${esc(x.data)}</td><td class="font-black text-xs uppercase">${esc(x.descricao)}</td><td class="text-[10px] uppercase">${esc(x.tipo)}</td><td><button onclick="event.stopPropagation(); cycleTarefaStatus(${x.uid})" class="status-badge bg-slate-100">${esc(x.status)}</button></td><td class="text-center"><button onclick="event.stopPropagation(); if(confirm('Excluir?')){tarefas=tarefas.filter(y=>y.uid!=${x.uid});salvarColecao('tarefas', tarefas);}" class="text-red-400 hover:text-red-600 font-black text-lg">✕</button></td></tr>`; }).join(''); }
+
 function verDetalhesTarefa(uid){
     const t=tarefas.find(function(x){ return x.uid==uid; }); if(!t) return; document.getElementById('modal-detalhes').style.display='flex'; const c=document.getElementById('detalhe-corpo');
     if(!t.detalhes){ c.innerHTML=`<div class="font-black uppercase">${esc(t.descricao)}</div>`; return; }
@@ -614,60 +828,8 @@ function verDetalhesTarefa(uid){
     c.innerHTML = h;
 }
 function l_i(l, v){ return `<div class="border p-2 rounded text-[10px] font-bold uppercase flex justify-between"><span>${l}: ${esc(v)}</span><button onclick="copyText('${esc(v)}', this)">📋</button></div>`; }
+
 function switchTab(t){ window.scrollTo(0,0); document.querySelectorAll('main').forEach(function(x){x.classList.add('hidden');}); document.getElementById('view-'+t).classList.remove('hidden'); document.querySelectorAll('nav button').forEach(function(x){x.classList.remove('tab-active');}); document.getElementById('tab-'+t).classList.add('tab-active'); }
-function togglePainelSugestoes(){ const p=document.getElementById('painel-sugestoes'); p.style.display=p.style.display==='flex'?'none':'flex'; }
-function autoSalvarNotas(){ notasMelhoria=document.getElementById('texto-melhorias').value; db.ref('dados/notasMelhoria').set(notasMelhoria); }
-function marcarTodos(v){ document.querySelectorAll('.ped-check').forEach(function(c){c.checked=v;}); }
-function toggleFiltroNaoEnviado(){ filtrandoNaoEnviados=!filtrandoNaoEnviados; document.getElementById('btnFiltroNaoEnviado').classList.toggle('bg-red-600'); document.getElementById('btnFiltroNaoEnviado').classList.toggle('text-white'); renderPedidos(); }
-function updPed(u,c,v){ pedidos.find(function(x){ return x.uid==u; })[c]=v; salvarColecao('pedidos', pedidos); }
-function togPed(u,c){ const x=pedidos.find(function(y){ return y.uid==u; }); if(x) x[c]=!x[c]; salvarColecao('pedidos', pedidos); }
-function excluirPedido(u){ if(confirm("EXCLUIR?")){ pedidos=pedidos.filter(function(x){ return x.uid!=u; }); salvarColecao('pedidos', pedidos); } }
-function atualizarSelectsFornecedores(){ 
-    const h = fornecedores.map(function(f) { return `<option value="${esc(f.nome)}">${esc(f.nome)}</option>`; }).join(''); 
-    if(document.getElementById('m_fornecedor_select')) document.getElementById('m_fornecedor_select').innerHTML = h || "<option>...</option>"; 
-    if(document.getElementById('as_fabrica')) document.getElementById('as_fabrica').innerHTML = h || "<option>...</option>";
-    if(document.getElementById('e_fabrica_select')) document.getElementById('e_fabrica_select').innerHTML = h || "<option>...</option>";
-    if(document.getElementById('estoque-filtro-fabrica')) document.getElementById('estoque-filtro-fabrica').innerHTML = '<option value="TODAS">TODAS AS FÁBRICAS</option>' + h;
-}
-function atualizarSugestoes(){ const n=[...new Set(pedidos.map(function(p){ return p.cliente; }))].sort(); if(document.getElementById('listaSugestaoClientes')) document.getElementById('listaSugestaoClientes').innerHTML=n.map(function(x) { return `<option value="${esc(x)}">`; }).join(''); }
-async function dupPed(u){ const x=pedidos.find(function(y){ return y.uid==u; }); const nId=await getProximoID(); const idDoc="ID#"+nId.toString().padStart(4,'0'); pedidos.unshift({...x, uid:Date.now()+Math.random(), idDoc}); salvarColecao('pedidos', pedidos); }
-function gerarAssistenciaRapida(u){ const p=pedidos.find(function(x){ return x.uid==u; }); if(p){ document.getElementById('as_cliente').value=p.cliente; document.getElementById('as_produto').value=p.produto+" (DEFEITO)"; document.getElementById('as_fabrica').value=p.fornecedor; switchTab('assistencia'); }}
-function cycleStatus(u){ 
-    const x=pedidos.find(function(y){ return y.uid==u; }); 
-    const s=["Não enviado","Pedido enviado","Aguardando fábrica","Pedido na loja", "Entregue/Finalizado"];
-    x.status=s[(s.indexOf(x.status)+1)%s.length]; 
-    salvarColecao('pedidos', pedidos); 
-}
+function cycleStatus(u){ const x=pedidos.find(function(y){ return y.uid==u; }); const s=["Não Iniciado","Em Andamento","Feito"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('tarefas', tarefas); }
 function cycleTarefaStatus(u){ const x=tarefas.find(function(y){ return y.uid==u; }); const s=["Não Iniciado","Em Andamento","Feito"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('tarefas', tarefas); }
-function cycleAssisStatus(u){ const x=assistencias.find(function(y){ return y.uid==u; }); const s=["Aguardando","Peça Solicitada","Concluído"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('assistencias', assistencias); }
-
-const painelSugestoes = document.getElementById('painel-sugestoes');
-const dragHandle = document.getElementById('drag-handle');
-let isDragging = false, offsetX, offsetY;
-
-dragHandle.addEventListener('mousedown', function(e) {
-    isDragging = true;
-    offsetX = e.clientX - painelSugestoes.getBoundingClientRect().left;
-    offsetY = e.clientY - painelSugestoes.getBoundingClientRect().top;
-    painelSugestoes.style.bottom = 'auto'; 
-    painelSugestoes.style.right = 'auto';  
-});
-document.addEventListener('mousemove', function(e) {
-    if (!isDragging) return;
-    painelSugestoes.style.left = (e.clientX - offsetX) + 'px';
-    painelSugestoes.style.top = (e.clientY - offsetY) + 'px';
-});
-document.addEventListener('mouseup', function() { isDragging = false; });
-
-mostrarCamposTarefa('SIMPLES');
-
-const style = document.createElement('style');
-style.innerHTML = `
-.custom-scrollbar::-webkit-scrollbar { width: 4px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-.animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
-@keyframes fadeIn { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
-`;
-document.head.appendChild(style);
+function cycleAssisStatus(u){ const x=assistencias.find(function(y){ return y.uid==u; }); const s=["A
