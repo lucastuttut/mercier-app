@@ -260,3 +260,73 @@
         </div>
 
         <div class="card-premium p-4 mb-4 bg-slate-50 flex flex-wrap gap-4 items-center uppercase border border-slate-200">
+            <div class="flex-1 min-w-[300px]">
+                <input type="text" id="busca-assistencia" onkeyup="renderAssistencias()" placeholder="🔍 BUSCAR ASSISTÊNCIA (CLIENTE, DEFEITO)..." class="border-2 p-2.5 rounded-xl text-xs font-bold w-full outline-orange-500">
+            </div>
+            <select id="filtro-assistencia-status" onchange="renderAssistencias()" class="border-2 p-2.5 rounded-xl text-xs font-bold bg-white w-48 outline-orange-500 cursor-pointer">
+                <option value="TODAS">TODOS OS STATUS</option>
+                <option value="Aguardando">AGUARDANDO</option>
+                <option value="Peça Solicitada">PEÇA SOLICITADA</option>
+                <option value="Concluído">CONCLUÍDO</option>
+            </select>
+            <span id="contador-assistencia" class="text-[10px] font-black bg-slate-900 text-white px-4 py-2 rounded-lg uppercase">0 ASSISTÊNCIAS</span>
+        </div>
+
+        <div class="card-premium overflow-hidden">
+            <table class="w-full text-left border-collapse table-fixed">
+                <thead>
+                    <tr class="bg-slate-50 text-[10px] uppercase text-slate-500 border-b">
+                        <th width="90">Data</th>
+                        <th>Cliente</th>
+                        <th>Produto / Defeito</th>
+                        <th width="150">Fábrica</th>
+                        <th width="140" class="text-center">Status</th>
+                        <th width="80" class="text-center">Ação</th>
+                    </tr>
+                </thead>
+                <tbody id="tabelaAssistencias"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- ABA CATÁLOGO -->
+    <main id="view-catalogo" class="hidden p-6 max-w-[1200px] mx-auto">
+        <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-3 shadow-lg"><input id="cat_nome" placeholder="NOME DO MÓVEL" class="border-2 p-2.5 rounded-lg flex-1 font-bold uppercase outline-blue-500"><button onclick="cadastrarCatalogo()" class="bg-blue-600 text-white px-10 py-2.5 rounded-lg font-black text-xs uppercase shadow hover:bg-blue-700 transition">Salvar</button></div>
+        <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50 text-[10px] uppercase"><th>Nome do Item</th><th class="text-center" width="100">Remover</th></tr></thead><tbody id="tabelaCatalogo"></tbody></table></div>
+    </main>
+
+    <!-- ABA FÁBRICAS -->
+    <main id="view-fornecedores" class="hidden max-w-4xl mx-auto p-6">
+        <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-3 shadow-lg"><input id="f_nome" placeholder="NOME DA FÁBRICA" class="border-2 p-2.5 rounded-lg flex-1 font-bold uppercase outline-blue-500"><input id="f_email" placeholder="EMAIL" class="border-2 p-2.5 rounded-lg flex-1 font-bold lowercase outline-blue-500"><button onclick="cadastrarFornecedor()" class="bg-blue-600 text-white px-10 py-2.5 rounded font-black text-xs uppercase hover:bg-blue-700 transition">Salvar</button></div>
+        <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50 text-[10px] uppercase"><th>Fábrica</th><th>E-mail</th><th class="text-center" width="100">Remover</th></tr></thead><tbody id="tabelaFornecedores"></tbody></table></div>
+    </main>
+
+    <!-- MODAIS E BLOCOS ESCONDIDOS -->
+    <div id="modal-detalhes" class="modal-overlay" onclick="if(event.target==this) this.style.display='none'"><div class="card-premium w-full max-w-2xl bg-white overflow-hidden flex flex-col max-h-[90vh] shadow-2xl"><div class="bg-indigo-600 p-5 text-white font-black flex justify-between items-center uppercase text-sm tracking-widest"><span>📄 Resumo Detalhado</span><button onclick="document.getElementById('modal-detalhes').style.display='none'" class="text-xl">✕</button></div><div id="detalhe-corpo" class="p-8 overflow-y-auto space-y-4 bg-white text-slate-800"></div></div></div>
+    <div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()">💡</div>
+    <div id="painel-sugestoes"><div id="drag-handle" class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase cursor-move"><span>💡 Bloco de Notas</span><button onclick="togglePainelSugestoes()">✕</button></div><textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" oninput="autoSalvarNotas()"></textarea></div>
+
+    <input type="file" id="file-upload-global" accept="image/*" class="hidden" onchange="processarUploadImagem(event)">
+
+    <datalist id="listaSugestaoProdutos"></datalist>
+    <datalist id="listaSugestaoClientes"></datalist>
+
+    <!-- OVERLAY E PAINEL DO DIÁRIO DE BORDO -->
+    <div id="overlay-historico" onclick="togglePainelHistorico()" class="fixed inset-0 bg-slate-900/50 z-[90] hidden backdrop-blur-sm transition-opacity"></div>
+    <div id="painel-historico" class="fixed top-0 right-0 h-full w-80 max-w-[90vw] bg-slate-50 shadow-2xl transform translate-x-full transition-transform duration-300 z-[100] flex flex-col border-l border-slate-200">
+        <div class="bg-slate-800 p-5 text-white font-black flex justify-between items-center uppercase text-sm shadow-md z-10">
+            <span class="flex items-center gap-2">🔔 Diário de Bordo</span>
+            <button onclick="togglePainelHistorico()" class="text-xl hover:text-slate-300 transition">✕</button>
+        </div>
+        <div id="lista-historico" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 custom-scrollbar relative"></div>
+    </div>
+
+    <script src="app.js?v=99999"></script>
+    <script>
+        window.addEventListener('error', function(e) {
+            const errEl = document.getElementById('error-log');
+            if(errEl) { errEl.classList.remove('hidden'); errEl.innerText += " ERRO DE SISTEMA: " + e.message; }
+        });
+    </script>
+</body>
+</html>
