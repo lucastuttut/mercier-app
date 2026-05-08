@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mercier Design - Gestão Cloud</title>
     
+    <!-- COMANDO PARA DESTRUIR O CACHE ANTIGO QUE ESTAVA TRAVANDO A TELA -->
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(function(registrations) {
@@ -20,7 +21,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
-    <link rel="stylesheet" href="style.css?v=99999">
+    <link rel="stylesheet" href="style.css?v=35000">
     <meta name="theme-color" content="#0f172a">
 </head>
 <body class="bg-slate-100 overflow-x-hidden">
@@ -61,7 +62,7 @@
         <button onclick="switchTab('fornecedores')" id="tab-fornecedores" class="py-4 text-xs font-black uppercase whitespace-nowrap">🏭 Fábricas</button>
     </nav>
 
-    <!-- ABA PEDIDOS -->
+    <!-- ABA PEDIDOS (COM AS SUB ABAS) -->
     <main id="view-pedidos" class="max-w-[1950px] mx-auto p-4 md:p-6">
         <div class="mb-6">
             <div class="card-premium p-5 border-l-8 border-blue-600">
@@ -87,11 +88,16 @@
         </div>
 
         <div class="card-premium overflow-hidden">
+            
+            <!-- AS SUB-ABAS ESTÃO AQUI! -->
+            <div class="flex border-b bg-slate-50">
+                <button onclick="mudarVisaoPedidos('ATIVOS')" id="btn-visao-ativos" class="flex-1 py-4 text-xs font-black uppercase border-b-4 border-blue-600 text-blue-600 transition bg-white">Em Andamento</button>
+                <button onclick="mudarVisaoPedidos('FINALIZADOS')" id="btn-visao-finalizados" class="flex-1 py-4 text-xs font-black uppercase border-b-4 border-transparent text-slate-400 hover:text-slate-600 transition">Pedidos Finalizados</button>
+            </div>
+
             <div class="p-4 bg-white border-b flex flex-col md:flex-row justify-between items-center gap-4">
                 <input type="text" id="busca" onkeyup="renderPedidos()" placeholder="🔍 BUSCAR..." class="border-2 border-slate-100 px-5 py-2.5 rounded-2xl text-xs w-full md:w-96 font-bold uppercase outline-blue-500">
-                <div class="flex flex-wrap gap-2">
-                    <!-- NOVO: BOTÃO DE VER FINALIZADOS IGUAL AO DO ESTOQUE -->
-                    <button id="btnFiltroFinalizados" onclick="toggleFiltroFinalizados()" class="border-2 border-slate-400 px-4 py-2 rounded-lg text-[10px] font-black uppercase text-slate-500 hover:bg-slate-50 transition">📦 Ver Finalizados</button>
+                <div class="flex gap-2">
                     <button id="btnFiltroNaoEnviado" onclick="toggleFiltroNaoEnviado()" class="border-2 border-red-500 px-4 py-2 rounded-lg text-[10px] font-black uppercase text-red-600 hover:bg-red-50 transition">Não enviados</button>
                     <button onclick="gerarEmailLote()" class="bg-emerald-600 text-white px-5 py-2 rounded-lg text-[10px] font-black uppercase shadow hover:bg-emerald-700 transition">📧 Enviar Selecionados</button>
                 </div>
@@ -102,7 +108,8 @@
                     <thead class="bg-white">
                         <tr>
                             <th width="40"><input type="checkbox" onclick="marcarTodos(this.checked)"></th>
-                            <th width="65">Prazo</th><th width="80">ID</th><th width="200">Cliente</th><th width="90">Data</th><th width="45">Qtd</th><th>Móvel</th><th width="80">Medida</th><th width="100">Cor</th><th width="100">Custo</th><th width="110">Fábrica</th><th width="120">Status</th><th width="60">Whats</th><th width="60">Conf</th><th class="text-center" width="130">Ações</th>
+                            <th width="65">Prazo</th><th width="80">ID</th><th width="200">Cliente</th><th width="90">Data</th><th width="45">Qtd</th><th>Móvel</th><th width="80">Medida</th><th width="100">Cor</th><th width="100">Custo</th><th width="110">Fábrica</th><th width="120">Status</th><th width="60">Whats</th><th width="60">Conf</th>
+                            <th class="text-center" width="130">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="tabelaPedidos"></tbody>
@@ -303,6 +310,7 @@
 
     <!-- MODAIS E BLOCOS ESCONDIDOS -->
     <div id="modal-detalhes" class="modal-overlay" onclick="if(event.target==this) this.style.display='none'"><div class="card-premium w-full max-w-2xl bg-white overflow-hidden flex flex-col max-h-[90vh] shadow-2xl"><div class="bg-indigo-600 p-5 text-white font-black flex justify-between items-center uppercase text-sm tracking-widest"><span>📄 Resumo Detalhado</span><button onclick="document.getElementById('modal-detalhes').style.display='none'" class="text-xl">✕</button></div><div id="detalhe-corpo" class="p-8 overflow-y-auto space-y-4 bg-white text-slate-800"></div></div></div>
+    
     <div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()">💡</div>
     <div id="painel-sugestoes"><div id="drag-handle" class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase cursor-move"><span>💡 Bloco de Notas</span><button onclick="togglePainelSugestoes()">✕</button></div><textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" oninput="autoSalvarNotas()"></textarea></div>
 
@@ -318,10 +326,11 @@
             <span class="flex items-center gap-2">🔔 Diário de Bordo</span>
             <button onclick="togglePainelHistorico()" class="text-xl hover:text-slate-300 transition">✕</button>
         </div>
-        <div id="lista-historico" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 custom-scrollbar relative"></div>
+        <div id="lista-historico" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 custom-scrollbar relative">
+        </div>
     </div>
 
-    <script src="app.js?v=99999"></script>
+    <script src="app.js?v=35000"></script>
     <script>
         window.addEventListener('error', function(e) {
             const errEl = document.getElementById('error-log');
