@@ -18,10 +18,9 @@ let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistenci
 let proximoID=255, notasMelhoria="", notasEstoque="", cestoItensTemporario=[], filtrandoNaoEnviados=false, filtrandoVendidos=false, cpfValido=true;
 let deepLinkVerificado = false;
 
-// NOVO: Controle da Sub-aba de Pedidos
-let visaoPedidos = 'ATIVOS';
+// NOVO: Controle da Aba de Pedidos Finalizados
+let filtrandoFinalizados = false;
 
-// --- SISTEMA DE LOGIN E FOCO ---
 let usuarioAtual = "";
 try { usuarioAtual = localStorage.getItem('mercier_user') || ""; } catch(e) {}
 let modoMinhasTarefas = false;
@@ -210,42 +209,36 @@ function calcP(d, pr){
 }
 
 // =========================================================
-// MÁGICA 4: SUB-ABAS DE PEDIDOS COM BOTÃO FINALIZAR (📦)
+// MÁGICA 4: BOTÃO E FILTRO DE PEDIDOS FINALIZADOS (TIPO ESTOQUE)
 // =========================================================
-function mudarVisaoPedidos(visao) {
-    visaoPedidos = visao;
-    const btnAtivos = document.getElementById('btn-visao-ativos');
-    const btnFinais = document.getElementById('btn-visao-finalizados');
-    const btnFiltroNaoEnviados = document.getElementById('btnFiltroNaoEnviado');
-
-    if(visao === 'ATIVOS') {
-        btnAtivos.classList.add('border-blue-600', 'text-blue-600');
-        btnAtivos.classList.remove('border-transparent', 'text-slate-400');
-        btnFinais.classList.remove('border-blue-600', 'text-blue-600');
-        btnFinais.classList.add('border-transparent', 'text-slate-400');
-        if(btnFiltroNaoEnviados) btnFiltroNaoEnviados.style.display = 'block';
+function toggleFiltroFinalizados() {
+    filtrandoFinalizados = !filtrandoFinalizados;
+    const btn = document.getElementById('btnFiltroFinalizados');
+    if (filtrandoFinalizados) {
+        btn.classList.replace('text-slate-500', 'text-white');
+        btn.classList.replace('border-slate-400', 'border-slate-800');
+        btn.classList.add('bg-slate-800');
+        btn.innerText = "🔙 VER ATIVOS";
     } else {
-        btnFinais.classList.add('border-blue-600', 'text-blue-600');
-        btnFinais.classList.remove('border-transparent', 'text-slate-400');
-        btnAtivos.classList.remove('border-blue-600', 'text-blue-600');
-        btnAtivos.classList.add('border-transparent', 'text-slate-400');
-        if(btnFiltroNaoEnviados) btnFiltroNaoEnviados.style.display = 'none'; 
+        btn.classList.replace('text-white', 'text-slate-500');
+        btn.classList.replace('border-slate-800', 'border-slate-400');
+        btn.classList.remove('bg-slate-800');
+        btn.innerText = "📦 VER FINALIZADOS";
     }
     renderPedidos();
 }
 
-function togglePedidoFinalizado(u) {
+function arquivarPedido(u) {
     const x = pedidos.find(function(y) { return y.uid == u; });
     if (x) {
-        if (x.status === "Entregue/Finalizado") x.status = "Pedido na loja"; 
-        
         x.finalizado = !x.finalizado;
+        if (x.finalizado) {
+            x.status = "Entregue/Finalizado";
+        } else {
+            x.status = "Pedido na loja"; 
+        }
         salvarColecao('pedidos', pedidos);
-        
-        const acaoTxt = x.finalizado ? 'FINALIZOU PEDIDO' : 'RESTAUROU PEDIDO';
-        const icone = x.finalizado ? '📦' : '🔙';
-        registrarAcao(icone, acaoTxt, `CLIENTE: ${x.cliente}`);
-        
+        registrarAcao(x.finalizado ? '📦' : '🔙', x.finalizado ? 'ARQUIVOU PEDIDO' : 'RESTAUROU PEDIDO', `CLIENTE: ${x.cliente}`);
         renderPedidos();
     }
 }
@@ -257,11 +250,11 @@ function renderPedidos() {
     
     let lista = pedidos.filter(function(x) { return removeAcentos((x.cliente||"").toLowerCase()).includes(b) || removeAcentos((x.produto||"").toLowerCase()).includes(b) || removeAcentos((x.idDoc||"").toLowerCase()).includes(b) || removeAcentos((x.fornecedor||"").toLowerCase()).includes(b); });
     
-    if (visaoPedidos === 'ATIVOS') {
+    if (filtrandoFinalizados) {
+        lista = lista.filter(function(x) { return x.finalizado || x.status === "Entregue/Finalizado"; });
+    } else {
         lista = lista.filter(function(x) { return !x.finalizado && x.status !== "Entregue/Finalizado"; });
         if(filtrandoNaoEnviados) lista=lista.filter(function(x){ return x.status==="Não enviado"; });
-    } else {
-        lista = lista.filter(function(x) { return x.finalizado || x.status === "Entregue/Finalizado"; });
     }
 
     document.getElementById('contador').innerText=lista.length+" PEDIDOS";
@@ -275,11 +268,11 @@ function renderPedidos() {
         
         if (x.finalizado || x.status === "Entregue/Finalizado") sCls = "bg-slate-500 opacity-70"; 
 
-        const btnFinalizar = (x.finalizado || x.status === "Entregue/Finalizado") 
-            ? `<button onclick="togglePedidoFinalizado(${x.uid})" title="Restaurar aos Ativos" class="text-blue-500 font-black text-sm">🔙</button>`
-            : `<button onclick="togglePedidoFinalizado(${x.uid})" title="Finalizar/Arquivar Pedido" class="text-green-600 font-black text-sm">📦</button>`;
+        const btnArquivar = (x.finalizado || x.status === "Entregue/Finalizado") 
+            ? `<button onclick="arquivarPedido(${x.uid})" title="Restaurar aos Ativos" class="text-blue-500 font-black text-sm">🔙</button>`
+            : `<button onclick="arquivarPedido(${x.uid})" title="Arquivar Pedido" class="text-green-600 font-black text-sm">📦</button>`;
 
-        return `<tr class="${p.classe}"><td><input type="checkbox" class="ped-check" value="${x.uid}"></td><td><div class="flex flex-col gap-1 items-center"><span class="font-black text-[9px]">${p.dias}D</span><select onchange="updPed(${x.uid},'prazo',this.value)" class="select-prazo-tabela"><option value="15" ${x.prazo=='15'?'selected':''}>15C</option><option value="20" ${x.prazo=='20'?'selected':''}>20C</option><option value="30" ${x.prazo=='30'?'selected':''}>30C</option><option value="30-util" ${x.prazo=='30-util'?'selected':''}>30U</option><option value="40-util" ${x.prazo=='40-util'?'selected':''}>40U</option></select></div></td><td class="text-[10px] text-slate-400 font-black">${esc(x.idDoc)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'cliente', 'pedidos')" class="editable-cell uppercase">${esc(x.cliente)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'dataPedido', 'pedidos')" class="editable-cell text-[10px]">${esc(x.dataPedido)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'qtd', 'pedidos')" class="editable-cell text-center font-black">${esc(x.qtd)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'pedidos')" class="editable-cell uppercase">${esc(x.produto)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'medida', 'pedidos')" class="editable-cell uppercase">${esc(x.medida)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'cor', 'pedidos')" class="editable-cell uppercase">${esc(x.cor)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'custo', 'pedidos')" class="editable-cell">${esc(x.custo)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'fornecedor', 'pedidos')" class="editable-cell font-black text-blue-800 uppercase text-[10px]">${esc(x.fornecedor)}</td><td><button onclick="cycleStatus(${x.uid})" class="status-badge ${sCls} text-white">${esc(x.status)}</button></td><td><button onclick="togPed(${x.uid},'whatsEnviado')" class="status-badge ${x.whatsEnviado?'btn-sim':'btn-nao'}">${x.whatsEnviado?'SIM':'NÃO'}</button></td><td><button onclick="togPed(${x.uid},'confirmado')" class="status-badge ${x.confirmado?'btn-sim':'btn-nao'}">${x.confirmado?'SIM':'NÃO'}</button></td><td class="text-center flex gap-1.5 justify-center items-center"><button onclick="copyText('${x.qtd}x ${esc(x.produto)} ${esc(x.cor)} (${esc(x.idDoc)})', this)" title="Copiar">📋</button>${btnFinalizar}<button onclick="dupPed(${x.uid})" title="Duplicar">➕</button><button onclick="gerarAssistenciaRapida(${x.uid})" title="Assistência">🛠️</button><button onclick="excluirPedido(${x.uid})" class="text-red-500 font-black" title="Excluir">✕</button></td></tr>`;
+        return `<tr class="${p.classe}"><td><input type="checkbox" class="ped-check" value="${x.uid}"></td><td><div class="flex flex-col gap-1 items-center"><span class="font-black text-[9px]">${p.dias}D</span><select onchange="updPed(${x.uid},'prazo',this.value)" class="select-prazo-tabela"><option value="15" ${x.prazo=='15'?'selected':''}>15C</option><option value="20" ${x.prazo=='20'?'selected':''}>20C</option><option value="30" ${x.prazo=='30'?'selected':''}>30C</option><option value="30-util" ${x.prazo=='30-util'?'selected':''}>30U</option><option value="40-util" ${x.prazo=='40-util'?'selected':''}>40U</option></select></div></td><td class="text-[10px] text-slate-400 font-black">${esc(x.idDoc)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'cliente', 'pedidos')" class="editable-cell uppercase">${esc(x.cliente)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'dataPedido', 'pedidos')" class="editable-cell text-[10px]">${esc(x.dataPedido)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'qtd', 'pedidos')" class="editable-cell text-center font-black">${esc(x.qtd)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'pedidos')" class="editable-cell uppercase">${esc(x.produto)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'medida', 'pedidos')" class="editable-cell uppercase">${esc(x.medida)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'cor', 'pedidos')" class="editable-cell uppercase">${esc(x.cor)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'custo', 'pedidos')" class="editable-cell">${esc(x.custo)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'fornecedor', 'pedidos')" class="editable-cell font-black text-blue-800 uppercase text-[10px]">${esc(x.fornecedor)}</td><td><button onclick="cycleStatus(${x.uid})" class="status-badge ${sCls} text-white">${esc(x.status)}</button></td><td><button onclick="togPed(${x.uid},'whatsEnviado')" class="status-badge ${x.whatsEnviado?'btn-sim':'btn-nao'}">${x.whatsEnviado?'SIM':'NÃO'}</button></td><td><button onclick="togPed(${x.uid},'confirmado')" class="status-badge ${x.confirmado?'btn-sim':'btn-nao'}">${x.confirmado?'SIM':'NÃO'}</button></td><td class="text-center flex gap-1.5 justify-center items-center"><button onclick="copyText('${x.qtd}x ${esc(x.produto)} ${esc(x.cor)} (${esc(x.idDoc)})', this)" title="Copiar">📋</button>${btnArquivar}<button onclick="dupPed(${x.uid})" title="Duplicar">➕</button><button onclick="gerarAssistenciaRapida(${x.uid})" title="Assistência">🛠️</button><button onclick="excluirPedido(${x.uid})" class="text-red-500 font-black" title="Excluir">✕</button></td></tr>`;
     }).join('');
 }
 
@@ -626,6 +619,9 @@ function verDetalhesTarefa(uid){
 function l_i(l, v){ return `<div class="border p-2 rounded text-[10px] font-bold uppercase flex justify-between"><span>${l}: ${esc(v)}</span><button onclick="copyText('${esc(v)}', this)">📋</button></div>`; }
 
 function switchTab(t){ window.scrollTo(0,0); document.querySelectorAll('main').forEach(function(x){x.classList.add('hidden');}); document.getElementById('view-'+t).classList.remove('hidden'); document.querySelectorAll('nav button').forEach(function(x){x.classList.remove('tab-active');}); document.getElementById('tab-'+t).classList.add('tab-active'); }
+function cycleStatus(u){ const x=pedidos.find(function(y){ return y.uid==u; }); const s=["Não Iniciado","Em Andamento","Feito"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('tarefas', tarefas); }
+function cycleTarefaStatus(u){ const x=tarefas.find(function(y){ return y.uid==u; }); const s=["Não Iniciado","Em Andamento","Feito"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('tarefas', tarefas); }
+function cycleAssisStatus(u){ const x=assistencias.find(function(y){ return y.uid==u; }); const s=["Aguardando","Peça Solicitada","Concluído"]; x.status=s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('assistencias', assistencias); }
 function togglePainelSugestoes(){ const p=document.getElementById('painel-sugestoes'); p.style.display=p.style.display==='flex'?'none':'flex'; }
 function autoSalvarNotas(){ notasMelhoria=document.getElementById('texto-melhorias').value; db.ref('dados/notasMelhoria').set(notasMelhoria); }
 function marcarTodos(v){ document.querySelectorAll('.ped-check').forEach(function(c){c.checked=v;}); }
@@ -641,4 +637,31 @@ function atualizarSelectsFornecedores(){
     if(document.getElementById('estoque-filtro-fabrica')) document.getElementById('estoque-filtro-fabrica').innerHTML = '<option value="TODAS">TODAS AS FÁBRICAS</option>' + h;
 }
 function atualizarSugestoes(){ const n=[...new Set(pedidos.map(function(p){ return p.cliente; }))].sort(); if(document.getElementById('listaSugestaoClientes')) document.getElementById('listaSugestaoClientes').innerHTML=n.map(function(x) { return `<option value="${esc(x)}">`; }).join(''); }
-a
+async function dupPed(u){ const x=pedidos.find(function(y){ return y.uid==u; }); const nId=await getProximoID(); const idDoc="ID#"+nId.toString().padStart(4,'0'); pedidos.unshift({...x, uid:Date.now()+Math.random(), idDoc}); salvarColecao('pedidos', pedidos); }
+function gerarAssistenciaRapida(u){ const p=pedidos.find(function(x){ return x.uid==u; }); if(p){ document.getElementById('as_cliente').value=p.cliente; document.getElementById('as_produto').value=p.produto+" (DEFEITO)"; document.getElementById('as_fabrica').value=p.fornecedor; switchTab('assistencia'); }}
+
+const painelSugestoes = document.getElementById('painel-sugestoes');
+const dragHandle = document.getElementById('drag-handle');
+let isDragging = false, offsetX, offsetY;
+
+dragHandle.addEventListener('mousedown', function(e) {
+    isDragging = true; offsetX = e.clientX - painelSugestoes.getBoundingClientRect().left; offsetY = e.clientY - painelSugestoes.getBoundingClientRect().top;
+    painelSugestoes.style.bottom = 'auto'; painelSugestoes.style.right = 'auto';  
+});
+document.addEventListener('mousemove', function(e) {
+    if (!isDragging) return; painelSugestoes.style.left = (e.clientX - offsetX) + 'px'; painelSugestoes.style.top = (e.clientY - offsetY) + 'px';
+});
+document.addEventListener('mouseup', function() { isDragging = false; });
+
+mostrarCamposTarefa('SIMPLES');
+
+const style = document.createElement('style');
+style.innerHTML = `
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+@keyframes fadeIn { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
+`;
+document.head.appendChild(style);
