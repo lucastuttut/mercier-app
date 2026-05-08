@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mercier Design - Gestão Cloud</title>
     
-    <!-- COMANDO PARA DESTRUIR O CACHE ANTIGO QUE ESTAVA TRAVANDO A TELA -->
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(function(registrations) {
@@ -21,7 +20,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
-    <link rel="stylesheet" href="style.css?v=10000">
+    <link rel="stylesheet" href="style.css?v=25000">
     <meta name="theme-color" content="#0f172a">
 </head>
 <body class="bg-slate-100 overflow-x-hidden">
@@ -30,7 +29,6 @@
         <h1 class="text-2xl font-black tracking-tighter uppercase italic hidden sm:block">MERCIER <span class="text-blue-500">DESIGN</span></h1>
         
         <div class="flex items-center gap-3 ml-auto">
-            <!-- NOVO: BOTÃO DE NOTIFICAÇÃO (DIÁRIO DE BORDO) -->
             <button onclick="togglePainelHistorico()" class="relative bg-slate-800 border border-slate-600 w-10 h-10 rounded-xl text-lg flex items-center justify-center hover:bg-slate-700 transition shadow-inner" title="Diário de Bordo">
                 🔔
                 <span id="badge-historico" class="absolute -top-1 -right-1 flex h-3 w-3 hidden">
@@ -51,7 +49,6 @@
         </div>
     </header>
 
-    <!-- Dedo-duro de erros invisível -->
     <div id="error-log" class="text-red-500 font-bold text-xs text-center p-1 bg-red-100 hidden z-50 relative"></div>
 
     <nav class="bg-slate-900 text-slate-400 px-8 flex gap-8 shadow-md overflow-x-auto sticky top-[72px] z-40">
@@ -64,7 +61,7 @@
         <button onclick="switchTab('fornecedores')" id="tab-fornecedores" class="py-4 text-xs font-black uppercase whitespace-nowrap">🏭 Fábricas</button>
     </nav>
 
-    <!-- ABA PEDIDOS (LIMPA E EXPANDIDA) -->
+    <!-- ABA PEDIDOS -->
     <main id="view-pedidos" class="max-w-[1950px] mx-auto p-4 md:p-6">
         <div class="mb-6">
             <div class="card-premium p-5 border-l-8 border-blue-600">
@@ -90,6 +87,12 @@
         </div>
 
         <div class="card-premium overflow-hidden">
+            <!-- NOVO: SUB-ABAS DE PEDIDOS -->
+            <div class="flex border-b bg-slate-50">
+                <button onclick="mudarVisaoPedidos('ATIVOS')" id="btn-visao-ativos" class="flex-1 py-3 text-[10px] font-black uppercase border-b-4 border-blue-600 text-blue-600 transition">Em Andamento</button>
+                <button onclick="mudarVisaoPedidos('FINALIZADOS')" id="btn-visao-finalizados" class="flex-1 py-3 text-[10px] font-black uppercase border-b-4 border-transparent text-slate-400 hover:text-slate-600 transition">Entregues / Finalizados</button>
+            </div>
+
             <div class="p-4 bg-white border-b flex flex-col md:flex-row justify-between items-center gap-4">
                 <input type="text" id="busca" onkeyup="renderPedidos()" placeholder="🔍 BUSCAR..." class="border-2 border-slate-100 px-5 py-2.5 rounded-2xl text-xs w-full md:w-96 font-bold uppercase outline-blue-500">
                 <div class="flex gap-2">
@@ -302,37 +305,26 @@
         <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50 text-[10px] uppercase"><th>Fábrica</th><th>E-mail</th><th class="text-center" width="100">Remover</th></tr></thead><tbody id="tabelaFornecedores"></tbody></table></div>
     </main>
 
-    <!-- MODAIS E BLOCOS ESCONDIDOS -->
     <div id="modal-detalhes" class="modal-overlay" onclick="if(event.target==this) this.style.display='none'"><div class="card-premium w-full max-w-2xl bg-white overflow-hidden flex flex-col max-h-[90vh] shadow-2xl"><div class="bg-indigo-600 p-5 text-white font-black flex justify-between items-center uppercase text-sm tracking-widest"><span>📄 Resumo Detalhado</span><button onclick="document.getElementById('modal-detalhes').style.display='none'" class="text-xl">✕</button></div><div id="detalhe-corpo" class="p-8 overflow-y-auto space-y-4 bg-white text-slate-800"></div></div></div>
     
-    <!-- BLOCO DE NOTAS INFERIOR -->
-    <div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()">💡</div>
-    <div id="painel-sugestoes"><div id="drag-handle" class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase cursor-move"><span>💡 Bloco de Notas</span><button onclick="togglePainelSugestoes()">✕</button></div><textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" oninput="autoSalvarNotas()"></textarea></div>
-
-    <!-- UPLOAD INVISÍVEL -->
     <input type="file" id="file-upload-global" accept="image/*" class="hidden" onchange="processarUploadImagem(event)">
-
     <datalist id="listaSugestaoProdutos"></datalist>
     <datalist id="listaSugestaoClientes"></datalist>
 
-    <!-- OVERLAY E PAINEL DO DIÁRIO DE BORDO (NOVO) -->
     <div id="overlay-historico" onclick="togglePainelHistorico()" class="fixed inset-0 bg-slate-900/50 z-[90] hidden backdrop-blur-sm transition-opacity"></div>
     <div id="painel-historico" class="fixed top-0 right-0 h-full w-80 max-w-[90vw] bg-slate-50 shadow-2xl transform translate-x-full transition-transform duration-300 z-[100] flex flex-col border-l border-slate-200">
         <div class="bg-slate-800 p-5 text-white font-black flex justify-between items-center uppercase text-sm shadow-md z-10">
             <span class="flex items-center gap-2">🔔 Diário de Bordo</span>
             <button onclick="togglePainelHistorico()" class="text-xl hover:text-slate-300 transition">✕</button>
         </div>
-        <div id="lista-historico" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 custom-scrollbar relative">
-            <!-- Os logs vão aparecer aqui -->
-        </div>
+        <div id="lista-historico" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 custom-scrollbar relative"></div>
     </div>
 
-    <!-- SCRIPT INJETANDO VERSÃO ANTI CACHE -->
-    <script src="app.js?v=20000"></script>
+    <script src="app.js?v=25000"></script>
     <script>
         window.addEventListener('error', function(e) {
             const errEl = document.getElementById('error-log');
-            if(errEl) { errEl.classList.remove('hidden'); errEl.innerText += " ERRO DE SISTEMA: " + e.message; }
+            if(errEl) { errEl.classList.remove('hidden'); errEl.innerText += " ERRO: " + e.message; }
         });
     </script>
 </body>
