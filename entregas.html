@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda de Entregas - Mercier Design</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .glass-header { background: #0f172a; border-bottom: 4px solid #10b981; }
+        .card-entrega { transition: transform 0.2s, box-shadow 0.2s; }
+        .card-entrega:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen">
+
+    <!-- CABEÇALHO -->
+    <header class="glass-header text-white p-5 shadow-xl flex justify-between items-center sticky top-0 z-50">
+        <h1 class="text-2xl font-black tracking-tighter uppercase italic">MERCIER <span class="text-emerald-400">ENTREGAS</span></h1>
+        <div class="flex gap-4 items-center">
+            <span id="status-db" class="bg-slate-700 text-slate-300 px-3 py-1 rounded-lg text-xs font-bold">Conectando...</span>
+            <button onclick="window.close()" class="text-slate-400 hover:text-white text-sm font-bold uppercase transition">Voltar ao Sistema</button>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-4 md:p-8">
+        
+        <!-- CAIXA DE AGENDAMENTO -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8 border-l-8 border-emerald-500">
+            <h2 class="font-black uppercase text-emerald-600 mb-4 text-sm tracking-wider">🚚 Nova Entrega / Agendamento</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <!-- Data -->
+                <div class="md:col-span-1">
+                    <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Data da Entrega</label>
+                    <input type="date" id="ent_data" class="w-full border-2 border-slate-200 p-2.5 rounded-lg text-xs font-bold text-slate-700 outline-emerald-500 bg-slate-50">
+                </div>
+                <!-- Cliente com Autocompletar mágico -->
+                <div class="md:col-span-3">
+                    <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block flex justify-between">
+                        <span>Nome do Cliente</span>
+                        <span class="text-emerald-500 font-bold hidden" id="aviso-magico">✨ Autopreenchido do Pedido!</span>
+                    </label>
+                    <input list="listaClientes" id="ent_cliente" onblur="buscarDadosInteligentes()" placeholder="Digite o nome do cliente..." class="w-full border-2 border-slate-200 p-2.5 rounded-lg text-xs font-bold uppercase outline-emerald-500">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Endereço de Entrega</label>
+                    <textarea id="ent_endereco" rows="2" placeholder="Rua, Número, Bairro, Cidade..." class="w-full border-2 border-slate-200 p-2.5 rounded-lg text-xs font-bold uppercase outline-emerald-500 resize-none"></textarea>
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Produtos para Entregar</label>
+                    <textarea id="ent_produtos" rows="2" placeholder="Ex: 1x SOFÁ RETRÁTIL, 4x CADEIRAS..." class="w-full border-2 border-slate-200 p-2.5 rounded-lg text-xs font-bold uppercase outline-emerald-500 resize-none"></textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6 border-t pt-4">
+                <button onclick="limparFormulario()" class="px-6 py-2.5 rounded-lg text-xs font-black uppercase text-slate-500 hover:bg-slate-100 transition">Limpar</button>
+                <button onclick="salvarEntrega()" class="bg-emerald-600 text-white px-8 py-2.5 rounded-lg text-xs font-black uppercase shadow-lg hover:bg-emerald-700 transition transform hover:scale-105">Salvar Agendamento</button>
+            </div>
+        </div>
+
+        <!-- LISTA DE ENTREGAS AGENDADAS -->
+        <h2 class="font-black uppercase text-slate-700 mb-4 text-lg flex justify-between items-end">
+            Painel de Logística
+            <span id="cont-entregas" class="text-[10px] bg-slate-200 text-slate-600 px-3 py-1 rounded-full">0 Entregas Ativas</span>
+        </h2>
+        
+        <div id="grid-entregas" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Cartões de entrega injetados pelo JS -->
+        </div>
+
+    </main>
+
+    <datalist id="listaClientes"></datalist>
+
+    <script>
+        // CONFIGURAÇÃO FIREBASE (O Mesmo banco de dados!)
+        const firebaseConfig = {
+            apiKey: "AIzaSyA_fQSZJJcz5Wszw54W5EhMN9D5rNnjoCo",
+            authDomain: "mercier-design.firebaseapp.com",
+            projectId: "mercier-design",
+            storageBucket: "mercier-design.firebasestorage.app",
+            messagingSenderId: "1060891658513",
+            appId: "1:1060891658513:web:2eefd15227203af39064b0",
+            databaseURL: "https://mercier-design-default-rtdb.firebaseio.com/"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let entregas = [];
+        let tarefasBanco = []; // Para puxar os endereços
+        let pedidosBanco = []; // Para puxar os produtos
+        
+        // Garante que a data padrão seja hoje
+        document.getElementById('ent_data').valueAsDate = new Date();
+
+        const safeArray = function(data) {
+            if (!data) return [];
+            try { return Array.isArray(data) ? data.filter(Boolean) : Object.values(data).filter(Boolean); } 
+            catch (e) { return []; }
+        };
+
+        db.ref('.info/connected').on('value', function(snap) {
+            const el = document.getElementById('status-db');
+            if (snap.val() === true) {
+                el.innerText = "ONLINE"; el.className = "bg-emerald-500 text-white px-3 py-1 rounded-lg text-xs font-bold";
+            } else {
+                el.innerText = "OFFLINE"; el.className = "bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-bold";
+            }
+        });
+
+        db.ref('dados').on('value', function(s) {
+            const d = s.val() || {};
+            
+            // Lemos as entregas (nova lista) e também tarefas e pedidos (para a inteligência)
+            entregas = safeArray(d.entregas);
+            tarefasBanco = safeArray(d.tarefas);
+            pedidosBanco = safeArray(d.pedidos);
+
+            // Popula a lista de sugestão de clientes
+            const clientes = [...new Set(pedidosBanco.map(p => p.cliente))].sort();
+            document.getElementById('listaClientes').innerHTML = clientes.map(c => `<option value="${c}">`).join('');
+
+            renderEntregas();
+        });
+
+        // 🧠 A MÁGICA: Autopreenchimento de Endereço e Produtos
+        function buscarDadosInteligentes() {
+            const nome = document.getElementById('ent_cliente').value.toUpperCase().trim();
+            if(!nome) return;
+
+            const aviso = document.getElementById('aviso-magico');
+            let achouAlgo = false;
+
+            // Caça o endereço na última tarefa Tirar Pedido
+            const tarefa = tarefasBanco.find(t => t.detalhes && t.detalhes.cliente && t.detalhes.cliente.includes(nome));
+            const elEnd = document.getElementById('ent_endereco');
+            if(tarefa && !elEnd.value) {
+                const num = tarefa.detalhes.num ? `, ${tarefa.detalhes.num}` : '';
+                const bairro = tarefa.detalhes.bairro ? ` - ${tarefa.detalhes.bairro}` : '';
+                const cidade = tarefa.detalhes.cidade ? ` - ${tarefa.detalhes.cidade}` : '';
+                elEnd.value = `${tarefa.detalhes.end}${num}${bairro}${cidade}`.toUpperCase();
+                achouAlgo = true;
+            }
+
+            // Caça os produtos nos pedidos Ativos
+            const prods = pedidosBanco.filter(p => p.cliente && p.cliente.includes(nome) && !p.finalizado);
+            const elProd = document.getElementById('ent_produtos');
+            if(prods.length > 0 && !elProd.value) {
+                elProd.value = prods.map(p => `${p.qtd}x ${p.produto} ${p.cor}`).join('\n').toUpperCase();
+                achouAlgo = true;
+            }
+
+            if(achouAlgo) {
+                aviso.classList.remove('hidden');
+                setTimeout(() => aviso.classList.add('hidden'), 3000); // Some depois de 3s
+            }
+        }
+
+        function limparFormulario() {
+            document.getElementById('ent_cliente').value = "";
+            document.getElementById('ent_endereco').value = "";
+            document.getElementById('ent_produtos').value = "";
+            document.getElementById('ent_data').valueAsDate = new Date();
+        }
+
+        function salvarEntrega() {
+            const data = document.getElementById('ent_data').value;
+            const cliente = document.getElementById('ent_cliente').value.toUpperCase().trim();
+            const endereco = document.getElementById('ent_endereco').value.toUpperCase().trim();
+            const produtos = document.getElementById('ent_produtos').value.toUpperCase().trim();
+
+            if(!data || !cliente || !produtos) return alert("Preencha a Data, o Cliente e os Produtos no mínimo!");
+
+            // Formata a data para exibir bonitinho
+            const dStr = data.split('-').reverse().join('/');
+
+            entregas.push({
+                uid: Date.now(),
+                dataOrdem: data, // YYYY-MM-DD (para ordenar fácil)
+                dataExibicao: dStr,
+                cliente: cliente,
+                endereco: endereco || "Não informado",
+                produtos: produtos,
+                status: "Agendado" // Agendado, Em Rota, Entregue, Adiado
+            });
+
+            db.ref('dados/entregas').set(entregas);
+            limparFormulario();
+        }
+
+        function cycleStatusEntrega(uid) {
+            const t = entregas.find(x => x.uid == uid);
+            if(!t) return;
+            const s = ["Agendado", "Em Rota", "Entregue", "Adiado"];
+            t.status = s[(s.indexOf(t.status) + 1) % s.length];
+            db.ref('dados/entregas').set(entregas);
+        }
+
+        function excluirEntrega(uid) {
+            if(confirm("Deseja apagar este agendamento de entrega?")) {
+                entregas = entregas.filter(x => x.uid != uid);
+                db.ref('dados/entregas').set(entregas);
+            }
+        }
+
+        function abrirWhatsAppEntrega(cliente, end, prods) {
+            const msg = `🚚 *Aviso de Entrega - Mercier Design*\n\nOlá ${cliente}! O seu pedido está a caminho.\n\n📦 *Itens:*\n${prods}\n\n📍 *Endereço registrado:*\n${end}\n\nQualquer dúvida, estamos à disposição!`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+
+        function renderEntregas() {
+            const grid = document.getElementById('grid-entregas');
+            if(!grid) return;
+
+            // Ordena da data mais próxima para a mais longe. O que já foi Entregue vai pro final.
+            let lista = [...entregas].sort((a, b) => {
+                if(a.status === 'Entregue' && b.status !== 'Entregue') return 1;
+                if(b.status === 'Entregue' && a.status !== 'Entregue') return -1;
+                return new Date(a.dataOrdem) - new Date(b.dataOrdem);
+            });
+
+            document.getElementById('cont-entregas').innerText = `${lista.filter(x => x.status !== 'Entregue').length} Entregas Ativas`;
+
+            if(lista.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center p-10 text-slate-400 font-bold uppercase border-2 border-dashed rounded-2xl">Nenhuma entrega agendada.</div>`;
+                return;
+            }
+
+            grid.innerHTML = lista.map(e => {
+                // Cores do Status
+                let corStatus = "bg-slate-100 text-slate-600";
+                if(e.status === 'Agendado') corStatus = "bg-blue-100 text-blue-700 border-blue-200";
+                if(e.status === 'Em Rota') corStatus = "bg-orange-100 text-orange-700 border-orange-200";
+                if(e.status === 'Entregue') corStatus = "bg-green-100 text-green-700 border-green-200";
+                if(e.status === 'Adiado') corStatus = "bg-red-100 text-red-700 border-red-200";
+
+                const opacidade = e.status === 'Entregue' ? 'opacity-60' : 'opacity-100';
+
+                // Transforma quebras de linha em tags <br>
+                const prodsFormatados = e.produtos.replace(/\n/g, '<br>• ');
+
+                return `
+                <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between card-entrega ${opacidade}">
+                    <div>
+                        <div class="flex justify-between items-start mb-3">
+                            <span class="bg-slate-800 text-white px-2.5 py-1 rounded-md text-[10px] font-black tracking-widest">${e.dataExibicao}</span>
+                            <button onclick="cycleStatusEntrega(${e.uid})" class="${corStatus} border px-3 py-1 rounded-full text-[10px] font-black uppercase shadow-sm transition hover:scale-105">${e.status}</button>
+                        </div>
+                        <h3 class="font-black text-slate-800 text-sm uppercase leading-tight mb-2">${esc(e.cliente)}</h3>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase flex gap-1 items-start mb-3 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                            📍 <span>${esc(e.endereco)}</span>
+                        </p>
+                        <div class="text-[11px] font-bold text-slate-700 uppercase bg-emerald-50 p-3 rounded-xl border border-emerald-100 mb-4 leading-relaxed">
+                            <span class="text-emerald-700 text-[9px] block mb-1">PRODUTOS DA ENTREGA:</span>
+                            • ${prodsFormatados}
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end gap-2 border-t border-slate-100 pt-3">
+                        <button onclick="abrirWhatsAppEntrega('${esc(e.cliente)}', '${esc(e.endereco)}', '${esc(e.produtos)}')" class="bg-green-100 hover:bg-green-200 text-green-700 p-2 rounded-lg text-xs transition" title="Avisar cliente no WhatsApp">💬</button>
+                        <button onclick="excluirEntrega(${e.uid})" class="bg-red-50 hover:bg-red-100 text-red-500 p-2 rounded-lg text-xs transition" title="Excluir">🗑️</button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+    </script>
+</body>
+</html>
