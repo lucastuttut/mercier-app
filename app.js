@@ -18,7 +18,6 @@ let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistenci
 let proximoID=255, notasMelhoria="", notasEstoque="", cestoItensTemporario=[], filtrandoNaoEnviados=false, filtrandoVendidos=false, cpfValido=true;
 let deepLinkVerificado = false;
 
-// CONTROLE DA SUB-ABA DE PEDIDOS
 let visaoPedidos = 'ATIVOS';
 
 // --- SISTEMA DE LOGIN E FOCO ---
@@ -70,7 +69,6 @@ db.ref('.info/connected').on('value', function(snap) {
     if (snap.val() === true) console.log("Conectado!"); else console.log("Tentando...");
 });
 
-// --- DIÁRIO DE BORDO (HISTÓRICO) ---
 function registrarAcao(icone, acao, detalhe) {
     const quem = usuarioAtual || "SISTEMA";
     const agora = new Date();
@@ -107,7 +105,6 @@ function renderHistorico() {
     if(painel && painel.classList.contains('translate-x-full') && badge) { badge.classList.remove('hidden'); }
 }
 
-// SINCRONIZAÇÃO DE DADOS 
 db.ref('dados').on('value', function(s) {
     try {
         const d = s.val() || {};
@@ -168,7 +165,6 @@ function renderAll(){
     renderEstoque(); renderCatalogo(); renderAssistencias(); renderQuadroEquipe(); renderHistorico(); 
 }
 
-// --- FUNÇÕES UTILITÁRIAS ---
 function activeInlineEdit(element, uid, field, listType) {
     const originalValue = element.innerText;
     const input = document.createElement('input');
@@ -176,6 +172,7 @@ function activeInlineEdit(element, uid, field, listType) {
     input.className = "w-full p-1 text-xs font-bold border-2 border-blue-500 rounded bg-white text-black outline-none uppercase";
     if(field === 'custo') input.oninput = function() { let v = input.value.replace(/\D/g,""); v = (v/100).toFixed(2).replace(".",","); v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1."); input.value = "R$ " + v; };
     element.innerHTML = ''; element.appendChild(input); input.focus();
+    
     const save = function() {
         let newValue = input.value.toUpperCase().trim();
         if (newValue === "") newValue = "-";
@@ -212,7 +209,7 @@ function calcP(d, pr){
 }
 
 // =========================================================
-// ABA PEDIDOS: SUB-ABAS E ARQUIVAMENTO
+// MÁGICA: ABAS E BOTÃO DE ARQUIVAR/FINALIZAR PEDIDOS
 // =========================================================
 function mudarVisaoPedidos(visao) {
     visaoPedidos = visao;
@@ -252,16 +249,14 @@ function excluirPedido(uid) {
     if(!p) return;
 
     if(p.finalizado) {
-        // Se estiver Finalizado, a ação do X é Restaurar
         if(confirm("Deseja RETORNAR este pedido para a aba principal (Em Andamento)?")) {
             p.finalizado = false;
-            p.status = "Pedido na loja"; // Volta pro status normal
+            p.status = "Pedido na loja"; 
             salvarColecao('pedidos', pedidos);
             registrarAcao('🔙', 'RESTAUROU PEDIDO', `CLIENTE: ${p.cliente}`);
             renderPedidos();
         }
     } else {
-        // Se estiver em andamento, a ação do X é Excluir permanente
         if(confirm("EXCLUIR ESTE PEDIDO PERMANENTEMENTE?")) {
             pedidos = pedidos.filter(function(x) { return x.uid != uid; });
             salvarColecao('pedidos', pedidos);
@@ -330,7 +325,6 @@ async function cadastrarManual() {
     salvarColecao('pedidos', pedidos); registrarAcao('📋', 'NOVO PEDIDO', `CÓDIGO: ${idDoc} | CLIENTE: ${cli}`); cestoItensTemporario =[]; document.getElementById('m_cliente').value = ""; renderCesto(); 
 }
 
-// --- ABA ESTOQUE ---
 function autoSalvarNotasEstoque() { notasEstoque = document.getElementById('estoque-notas-gerais').value; db.ref('dados/notasEstoque').set(notasEstoque); }
 function renderEstoque() {
     const tb = document.getElementById('tabelaEstoque'); if(!tb) return;
@@ -358,7 +352,6 @@ function darBaixaEstoque(u) { const it = estoque.find(function(x) { return x.uid
 function cadastrarEstoque() { const p = document.getElementById('e_produto').value.toUpperCase().trim(), f = document.getElementById('e_fabrica_select').value, q = document.getElementById('e_qtd').value, s = document.getElementById('e_situacao').value; if (p) { estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: p, fabrica: f, qtd: parseInt(q), situacao: s }); salvarColecao('estoque', estoque); registrarAcao('📦', 'ADICIONOU AO ESTOQUE', `${q}x ${p} (${f})`); document.getElementById('e_produto').value = ""; } }
 function toggleFiltroVendidos(){ filtrandoVendidos=!filtrandoVendidos; document.getElementById('btnFiltroVendidos').classList.toggle('bg-red-600'); document.getElementById('btnFiltroVendidos').classList.toggle('text-white'); renderEstoque(); }
 
-// --- ABA ASSISTÊNCIA ---
 function renderAssistencias() { 
     const tb = document.getElementById('tabelaAssistencias'); 
     if(!tb) return;
@@ -400,16 +393,6 @@ function cadastrarAssistencia(){
     } else { alert("PREENCHA O CLIENTE E O PRODUTO/DEFEITO!"); }
 }
 
-function cycleAssisStatus(u){ 
-    const x=assistencias.find(function(y){ return y.uid==u; }); 
-    if(!x) return;
-    const s=["Aguardando","Peça Solicitada","Concluído"]; 
-    x.status=s[(s.indexOf(x.status)+1)%s.length]; 
-    salvarColecao('assistencias', assistencias); 
-    renderAssistencias();
-}
-
-// --- ABA CATÁLOGO E FORNECEDORES ---
 function renderFornecedores() { const tb = document.getElementById('tabelaFornecedores'); if(!tb) return; tb.innerHTML = fornecedores.map(function(f, i) { return `<tr><td class="font-bold uppercase">${esc(f.nome)}</td><td class="lowercase text-blue-600">${esc(f.email)}</td><td class="text-center"><button onclick="fornecedores.splice(${i},1); salvarColecao('fornecedores', fornecedores);" class="text-red-500 font-black">✕</button></td></tr>`; }).join(''); }
 function cadastrarFornecedor(){ const n=document.getElementById('f_nome').value.toUpperCase().trim(), e=document.getElementById('f_email').value.toLowerCase().trim(); if(n&&e){fornecedores.push({nome:n,email:e}); salvarColecao('fornecedores', fornecedores); document.getElementById('f_nome').value=""; document.getElementById('f_email').value="";}}
 function renderCatalogo() { const tb=document.getElementById('tabelaCatalogo'); if(!tb) return; tb.innerHTML=catalogo.map(function(c,i){ return `<tr><td class="uppercase">${esc(c.nome)}</td><td class="text-center"><button onclick="catalogo.splice(${i},1); salvarColecao('catalogo', catalogo);">✕</button></td></tr>`; }).join(''); }
@@ -433,6 +416,7 @@ const telefonesEquipe = {
 };
 
 let colsMinimizadas = { "TODO": false, "DOING": false, "DONE": false };
+
 function toggleColunaKanban(coluna) { colsMinimizadas[coluna] = !colsMinimizadas[coluna]; renderQuadroEquipe(); }
 
 async function notificarNoGrupoComPrint(tarefa, tipoAcao) {
@@ -597,13 +581,15 @@ function renderQuadroEquipe() {
     tarefasEquipe.forEach(function(t) { const chatBox = document.getElementById('chat-' + t.uid); if(chatBox) chatBox.scrollTop = chatBox.scrollHeight; });
 }
 
-// --- TAREFAS (TIRAR PEDIDO) ---
 function processarFichaWhatsApp(texto) {
     if(!texto) return;
     const mNome = texto.match(/Nome(?: Completo)?\s*[:\-]?\s*(.+)/i); const mCpf = texto.match(/CPF\s*[:\-]?\s*([\d\.\-]+)/i); const mCep = texto.match(/CEP\s*[:\-]?\s*([\d\.\-]+)/i); const mEnd = texto.match(/Endere[çc]o\s*[:\-]?\s*(.+)/i); const mContato = texto.match(/(?:^|\n)\s*Contato(?: 1)?\s*[:\-]?\s*(.+)/i); const mContato2 = texto.match(/(?:^|\n)\s*Contato\s*2\s*[:\-]?\s*(.+)/i); const mNum = texto.match(/(?:^|\n)\s*N(?:[°ºoúu]mero)?\s*[:\-]?\s*([A-Za-z0-9]+)/i); const mObs = texto.match(/(?:OBS|OBSERVA[CÇ][AÃ]O)(?:ES)?\s*[:\-]?\s*([\s\S]+)/i);
+    const mPrev = texto.match(/Previs[ãa]o(?: de Entrega)?\s*[:\-]?\s*([\d]{2}\/[\d]{2}\/[\d]{4})/i);
+
     if (mNome) document.getElementById('t_nome').value = mNome[1].trim().toUpperCase(); if (mEnd) document.getElementById('t_end').value = mEnd[1].trim().toUpperCase(); if (mContato) document.getElementById('t_contato').value = mContato[1].trim().toUpperCase(); if (mContato2) document.getElementById('t_contato2').value = mContato2[1].trim().toUpperCase(); if (mNum) document.getElementById('t_num').value = mNum[1].trim().toUpperCase(); if (mObs) document.getElementById('t_obs').value = mObs[1].trim().toUpperCase();
     if (mCpf) { let cpfInput = document.getElementById('t_cpf'); cpfInput.value = mCpf[1].trim(); maskCPF(cpfInput); }
     if (mCep) { let cepInput = document.getElementById('t_cep'); cepInput.value = mCep[1].trim(); buscarCEP(cepInput); }
+    if (mPrev) { let pts = mPrev[1].split('/'); if(pts.length === 3) document.getElementById('t_previsao').value = `${pts[2]}-${pts[1]}-${pts[0]}`; }
 }
 
 function mostrarCamposTarefa(t){
@@ -621,6 +607,10 @@ function mostrarCamposTarefa(t){
             <input id="t_cidade" placeholder="CIDADE" class="border-2 p-2 rounded-lg text-xs font-bold w-full uppercase outline-indigo-500">
             <input id="t_num" placeholder="NÚMERO" class="border-2 p-2 rounded-lg text-xs font-bold w-full outline-indigo-500">
             <input id="t_torre" placeholder="TORRE" class="border-2 p-2 rounded-lg text-xs font-bold w-full uppercase outline-indigo-500">
+            <div class="md:col-span-2 flex flex-col justify-center">
+                <label class="text-[9px] font-black text-slate-400 uppercase mb-1">Previsão de Entrega *</label>
+                <input type="date" id="t_previsao" class="border-2 p-2 rounded-lg text-xs font-bold w-full outline-indigo-500 bg-white text-slate-600">
+            </div>
             <div class="col-span-1 md:col-span-4 border-t mt-4 pt-4 w-full"><div id="lista-produtos-tarefa" class="flex flex-col gap-2 w-full"></div><button onclick="addProdutoLinha()" class="text-[10px] font-black text-blue-600 mt-2 uppercase hover:underline">+ MÓVEL</button><div id="total-pedido-tarefa" class="text-right text-indigo-600 font-black text-xs mt-1 uppercase italic">Total: R$ 0,00</div></div>
             <div class="col-span-1 md:col-span-4 border-t mt-4 pt-4 w-full"><div id="lista-pagamentos-tarefa" class="flex flex-col gap-2 w-full"></div><button onclick="addPagamentoLinha()" class="text-[10px] font-black text-emerald-600 mt-2 uppercase hover:underline">+ PAGAMENTO</button></div>
             <textarea id="t_obs" placeholder="OBSERVAÇÕES DO PEDIDO..." class="col-span-1 md:col-span-4 border-2 p-2 rounded-lg text-xs font-bold h-16 uppercase mt-2 w-full outline-indigo-500"></textarea>
@@ -628,6 +618,7 @@ function mostrarCamposTarefa(t){
         addProdutoLinha(); addPagamentoLinha();
     } else { c.innerHTML = `<input id="t_raw" placeholder="DESCRICAO..." class="border-2 p-2 rounded-lg text-xs font-bold col-span-4 uppercase w-full outline-indigo-500">`; }
 }
+
 function addProdutoLinha(){ const d = document.getElementById('lista-produtos-tarefa'); const r = document.createElement('div'); r.className = "flex flex-col md:flex-row gap-2 mb-2 items-start md:items-center row-prod bg-slate-50 p-3 rounded-lg border border-dashed w-full"; r.innerHTML = `<div class="flex justify-between w-full md:flex-1 gap-2"><input class="t-p-nome border-2 p-2 rounded text-xs font-bold flex-1 uppercase w-full outline-indigo-500" placeholder="MÓVEL"><button onclick="this.parentElement.parentElement.remove(); calcTotalTirarPedido();" class="text-red-500 font-black px-3 py-1 md:hidden bg-red-100 rounded-lg">✕</button></div><div class="flex w-full md:w-auto gap-2"><input class="t-v-orig border-2 p-2 rounded text-xs font-bold w-1/2 md:w-28 outline-indigo-500" placeholder="ORIGINAL" oninput="maskMoney(this)"><input class="t-v-desc border-2 p-2 rounded text-xs font-bold w-1/2 md:w-28 text-indigo-600 outline-indigo-500" placeholder="DESCONTO" oninput="maskMoney(this)"><button onclick="this.parentElement.parentElement.remove(); calcTotalTirarPedido();" class="text-red-500 font-black px-2 hidden md:block hover:text-red-700">✕</button></div>`; d.appendChild(r); }
 function addPagamentoLinha(){
     const d=document.getElementById('lista-pagamentos-tarefa'); let total=0; document.querySelectorAll('.t-v-desc').forEach(function(i){total+=parseMoney(i.value);}); let pago=0; document.querySelectorAll('.t-p-val').forEach(function(i){pago+=parseMoney(i.value);}); let saldo=total-pago; if(saldo<0) saldo=0;
@@ -637,10 +628,40 @@ function addPagamentoLinha(){
 }
 function setP(b,v){ const p = b.parentElement; p.querySelectorAll('button').forEach(function(x){x.classList.remove('active');}); b.classList.add('active'); p.querySelector('.t-p-tipo').value=v; const s = p.querySelector('.t-p-parc'); if(v === 'CRÉDITO') s.classList.remove('hidden'); else s.classList.add('hidden'); }
 function calcTotalTirarPedido(){ let t=0; document.querySelectorAll('.t-v-desc').forEach(function(i){t+=parseMoney(i.value);}); document.getElementById('total-pedido-tarefa').innerText="Total: R$ "+t.toLocaleString('pt-BR',{minimumFractionDigits:2}); }
+
 function cadastrarTarefa(){
     const t = document.getElementById('t_tipo').value; let obj = { uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), tipo: t, status: "Não Iniciado" };
     if(t === 'TIRAR PEDIDO'){ 
-        const cli = document.getElementById('t_nome').value; if(!cli) return alert("FALTA NOME DO CLIENTE!"); let total=0; document.querySelectorAll('.t-v-desc').forEach(function(i){total+=parseMoney(i.value);}); obj.descricao = "PEDIDO: " + cli.toUpperCase(); obj.detalhes = { cliente: cli.toUpperCase(), cpf: document.getElementById('t_cpf').value, contato: document.getElementById('t_contato').value, contato2: document.getElementById('t_contato2').value, cep: document.getElementById('t_cep').value, end: document.getElementById('t_end').value, bairro: document.getElementById('t_bairro').value, cidade: document.getElementById('t_cidade').value, num: document.getElementById('t_num').value, torre: document.getElementById('t_torre').value, obs: document.getElementById('t_obs').value, totalDesc:"R$ "+total.toLocaleString('pt-BR',{minimumFractionDigits:2}), produtos:[], pagamentos:[] }; document.querySelectorAll('.row-prod').forEach(function(row){ if(row.querySelector('.t-p-nome').value) obj.detalhes.produtos.push({ n: row.querySelector('.t-p-nome').value.toUpperCase(), o: row.querySelector('.t-v-orig').value, d: row.querySelector('.t-v-desc').value }); }); document.querySelectorAll('.row-pag').forEach(function(row){ const tipo = row.querySelector('.t-p-tipo').value; const parcelas = (tipo === 'CRÉDITO') ? row.querySelector('.t-p-parc').value : ""; obj.detalhes.pagamentos.push({ t: tipo + (parcelas ? " " + parcelas : ""), v: row.querySelector('.t-p-val').value, o: row.querySelector('.t-p-obs').value.toUpperCase() }); }); 
+        const cli = document.getElementById('t_nome').value; 
+        const elPrev = document.getElementById('t_previsao');
+        const prev = elPrev ? elPrev.value : "";
+        
+        if(!cli) return alert("FALTA NOME DO CLIENTE!"); 
+        if(!prev) return alert("FALTA A PREVISÃO DE ENTREGA!"); // BLOQUEIO ATIVADO 🚨
+
+        const prevFormatada = prev.split('-').reverse().join('/'); 
+
+        let total=0; document.querySelectorAll('.t-v-desc').forEach(function(i){total+=parseMoney(i.value);}); 
+        obj.descricao = "PEDIDO: " + cli.toUpperCase(); 
+        obj.detalhes = { 
+            cliente: cli.toUpperCase(), 
+            cpf: document.getElementById('t_cpf').value, 
+            contato: document.getElementById('t_contato').value, 
+            contato2: document.getElementById('t_contato2').value, 
+            cep: document.getElementById('t_cep').value, 
+            end: document.getElementById('t_end').value, 
+            bairro: document.getElementById('t_bairro').value, 
+            cidade: document.getElementById('t_cidade').value, 
+            num: document.getElementById('t_num').value, 
+            torre: document.getElementById('t_torre').value, 
+            obs: document.getElementById('t_obs').value, 
+            previsao: prevFormatada, // SALVANDO PREVISÃO
+            totalDesc:"R$ "+total.toLocaleString('pt-BR',{minimumFractionDigits:2}), 
+            produtos:[], pagamentos:[] 
+        }; 
+        document.querySelectorAll('.row-prod').forEach(function(row){ if(row.querySelector('.t-p-nome').value) obj.detalhes.produtos.push({ n: row.querySelector('.t-p-nome').value.toUpperCase(), o: row.querySelector('.t-v-orig').value, d: row.querySelector('.t-v-desc').value }); }); 
+        document.querySelectorAll('.row-pag').forEach(function(row){ const tipo = row.querySelector('.t-p-tipo').value; const parcelas = (tipo === 'CRÉDITO') ? row.querySelector('.t-p-parc').value : ""; obj.detalhes.pagamentos.push({ t: tipo + (parcelas ? " " + parcelas : ""), v: row.querySelector('.t-p-val').value, o: row.querySelector('.t-p-obs').value.toUpperCase() }); }); 
+        
         salvarColecao('tarefas', tarefas); registrarAcao('📋', 'NOVA TAREFA DE PEDIDO', `CLIENTE: ${cli}`); 
     }
     else { 
@@ -649,6 +670,7 @@ function cadastrarTarefa(){
     }
     if(!obj.descricao) return; tarefas.unshift(obj); salvarColecao('tarefas', tarefas); mostrarCamposTarefa(t); renderTarefas();
 }
+
 function renderTarefas() { const tb=document.getElementById('tabelaTarefas'); if(!tb) return; const f=document.getElementById('filtro-tarefa-status').value; let lista=f==='TODAS'?tarefas:tarefas.filter(function(x){return x.status===f;}); tb.innerHTML=lista.map(function(x){ return `<tr onclick="verDetalhesTarefa(${x.uid})" class="hover:bg-slate-50 cursor-pointer border-b transition"><td>${esc(x.data)}</td><td class="font-black text-xs uppercase">${esc(x.descricao)}</td><td class="text-[10px] uppercase">${esc(x.tipo)}</td><td><button onclick="event.stopPropagation(); cycleTarefaStatus(${x.uid})" class="status-badge bg-slate-100">${esc(x.status)}</button></td><td class="text-center"><button onclick="event.stopPropagation(); if(confirm('Excluir?')){tarefas=tarefas.filter(y=>y.uid!=${x.uid});salvarColecao('tarefas', tarefas);}" class="text-red-400 hover:text-red-600 font-black text-lg">✕</button></td></tr>`; }).join(''); }
 
 function verDetalhesTarefa(uid){
@@ -656,7 +678,7 @@ function verDetalhesTarefa(uid){
     if(!t.detalhes){ c.innerHTML=`<div class="font-black uppercase">${esc(t.descricao)}</div>`; return; }
     const d = t.detalhes; 
     let enderecoCompleto = `${d.end || ''}${d.num ? ', ' + d.num : ''}${d.torre ? ' - ' + d.torre : ''}${d.bairro ? ' - ' + d.bairro : ''}${d.cidade ? ' - ' + d.cidade : ''}`;
-    let h = `<div class="grid grid-cols-2 gap-2">${l_i("CLIENTE", d.cliente)}${l_i("CPF", d.cpf)}${l_i("CONTATO 1", d.contato)}${l_i("CONTATO 2", d.contato2 || "-")}${l_i("CEP", d.cep)}${l_i("ENDEREÇO", enderecoCompleto)}</div><div class="mt-4 font-black text-xs uppercase border-b text-blue-600">Móveis:</div>`;
+    let h = `<div class="grid grid-cols-2 gap-2">${l_i("CLIENTE", d.cliente)}${l_i("PREVISÃO", d.previsao || "NÃO INFORMADA")}${l_i("CPF", d.cpf)}${l_i("CONTATO 1", d.contato)}${l_i("CONTATO 2", d.contato2 || "-")}${l_i("CEP", d.cep)}${l_i("ENDEREÇO", enderecoCompleto)}</div><div class="mt-4 font-black text-xs uppercase border-b text-blue-600">Móveis:</div>`;
     const prods = safeArray(d.produtos);
     prods.forEach(function(p){ h += `<div class="text-xs font-bold border-b py-1 flex justify-between items-center"><span>${esc(p.n)} <span class="text-slate-400 line-through text-[10px] ml-1">${esc(p.o)}</span> <span class="text-indigo-600 ml-1">${esc(p.d)}</span></span><button onclick="copyText('${esc(p.n)} - De: ${esc(p.o)} Por: ${esc(p.d)}', this)">📋</button></div>`; });
     h += `<div class="mt-4 font-black text-xs uppercase border-b text-emerald-600">Pagamento:</div>`;
@@ -665,6 +687,7 @@ function verDetalhesTarefa(uid){
     if(d.obs && d.obs !== "") { h += `<div class="mt-4 font-black text-xs uppercase border-b text-orange-600">Observações:</div><div class="text-xs font-bold py-2 bg-slate-50 p-2 rounded mt-1">${esc(d.obs)}</div>`; }
     c.innerHTML = h;
 }
+
 function l_i(l, v){ return `<div class="border p-2 rounded text-[10px] font-bold uppercase flex justify-between"><span>${l}: ${esc(v)}</span><button onclick="copyText('${esc(v)}', this)">📋</button></div>`; }
 
 function switchTab(t){ window.scrollTo(0,0); document.querySelectorAll('main').forEach(function(x){x.classList.add('hidden');}); document.getElementById('view-'+t).classList.remove('hidden'); document.querySelectorAll('nav button').forEach(function(x){x.classList.remove('tab-active');}); document.getElementById('tab-'+t).classList.add('tab-active'); }
@@ -686,31 +709,6 @@ function atualizarSelectsFornecedores(){
 function atualizarSugestoes(){ const n=[...new Set(pedidos.map(function(p){ return p.cliente; }))].sort(); if(document.getElementById('listaSugestaoClientes')) document.getElementById('listaSugestaoClientes').innerHTML=n.map(function(x) { return `<option value="${esc(x)}">`; }).join(''); }
 async function dupPed(u){ const x=pedidos.find(function(y){ return y.uid==u; }); const nId=await getProximoID(); const idDoc="ID#"+nId.toString().padStart(4,'0'); pedidos.unshift({...x, uid:Date.now()+Math.random(), idDoc}); salvarColecao('pedidos', pedidos); }
 function gerarAssistenciaRapida(u){ const p=pedidos.find(function(x){ return x.uid==u; }); if(p){ document.getElementById('as_cliente').value=p.cliente; document.getElementById('as_produto').value=p.produto+" (DEFEITO)"; document.getElementById('as_fabrica').value=p.fornecedor; switchTab('assistencia'); }}
-function gerarEmailLote() {
-    const checks = document.querySelectorAll('.ped-check:checked'); 
-    if (checks.length === 0) return alert("SELECIONE PEDIDOS!");
-    
-    const selecionados = Array.from(checks).map(function(c) { return pedidos.find(function(p) { return p.uid == c.value; }); }).filter(function(p) { return p; });
-    const grupos = {}; 
-    selecionados.forEach(function(p) { if (!grupos[p.fornecedor]) grupos[p.fornecedor] = []; grupos[p.fornecedor].push(p); });
-    
-    for (const fab in grupos) {
-        const email = (fornecedores.find(function(f) { return f.nome === fab; }) || {}).email || "";
-        let corpo = `Olá, segue pedido para fábrica ${fab}:\n\n`;
-        
-        grupos[fab].forEach(function(p, idx) { 
-            corpo += `Qtde: ${String(p.qtd).padStart(2, '0')} - ${p.produto}\n`;
-            if (p.medida && p.medida !== "-") corpo += `MEDIDA: ${p.medida}\n`;
-            corpo += `COR/TECIDO: ${p.cor}\n`;
-            corpo += `REF: ${p.idDoc}\n`;
-            if (idx < grupos[fab].length - 1) corpo += `\n--------------------------\n\n`; 
-        });
-        
-        corpo += `\nForma de pagamento: 30/60/90.\n\nIDs para controle interno, favor desconsiderar.\n\nFavor confirmar o recebimento e nos enviar o documento de confirmação dos itens acima para conferência.\n\nAtenciosamente,\nLucas Mercier.`;
-        
-        window.open(`mailto:${email}?subject=${encodeURIComponent('PEDIDO - MERCIER DESIGN - ' + fab)}&body=${encodeURIComponent(corpo)}`);
-    }
-}
 
 const painelSugestoes = document.getElementById('painel-sugestoes');
 const dragHandle = document.getElementById('drag-handle');
