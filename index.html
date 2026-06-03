@@ -60,13 +60,14 @@
         <button onclick="switchTab('catalogo')" id="tab-catalogo" class="py-4 text-xs font-black uppercase whitespace-nowrap">📜 Catálogo</button>
         <button onclick="switchTab('fornecedores')" id="tab-fornecedores" class="py-4 text-xs font-black uppercase whitespace-nowrap">🏭 Fábricas</button>
         
-        <!-- NOVO: DIVISOR E LINKS PARA OS MÓDULOS EXTERNOS -->
+        <!-- DIVISOR E LINKS PARA OS MÓDULOS EXTERNOS -->
         <div class="w-px h-6 bg-slate-700 hidden md:block"></div>
+        <a href="calendario.html" target="_blank" class="py-4 text-xs font-black uppercase whitespace-nowrap text-amber-400 hover:text-amber-300 transition">📅 Calendário ↗</a>
         <a href="entregas.html" target="_blank" class="py-4 text-xs font-black uppercase whitespace-nowrap text-emerald-400 hover:text-emerald-300 transition">🚚 Entregas ↗</a>
         <a href="lembretes.html" target="_blank" class="py-4 text-xs font-black uppercase whitespace-nowrap text-rose-400 hover:text-rose-300 transition">⏰ Lembretes ↗</a>
     </nav>
 
-    <!-- ABA PEDIDOS -->
+    <!-- ABA PEDIDOS (LIMPA E EXPANDIDA) -->
     <main id="view-pedidos" class="max-w-[1950px] mx-auto p-4 md:p-6">
         <div class="mb-6">
             <div class="card-premium p-5 border-l-8 border-blue-600">
@@ -317,16 +318,20 @@
     <div id="painel-sugestoes"><div id="drag-handle" class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase cursor-move"><span>💡 Bloco de Notas</span><button onclick="togglePainelSugestoes()">✕</button></div><textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" oninput="autoSalvarNotas()"></textarea></div>
 
     <input type="file" id="file-upload-global" accept="image/*" class="hidden" onchange="processarUploadImagem(event)">
+
     <datalist id="listaSugestaoProdutos"></datalist>
     <datalist id="listaSugestaoClientes"></datalist>
 
+    <!-- OVERLAY E PAINEL DO DIÁRIO DE BORDO -->
     <div id="overlay-historico" onclick="togglePainelHistorico()" class="fixed inset-0 bg-slate-900/50 z-[90] hidden backdrop-blur-sm transition-opacity"></div>
     <div id="painel-historico" class="fixed top-0 right-0 h-full w-80 max-w-[90vw] bg-slate-50 shadow-2xl transform translate-x-full transition-transform duration-300 z-[100] flex flex-col border-l border-slate-200">
         <div class="bg-slate-800 p-5 text-white font-black flex justify-between items-center uppercase text-sm shadow-md z-10">
             <span class="flex items-center gap-2">🔔 Diário de Bordo</span>
             <button onclick="togglePainelHistorico()" class="text-xl hover:text-slate-300 transition">✕</button>
         </div>
-        <div id="lista-historico" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 custom-scrollbar relative"></div>
+        <div id="lista-historico" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 custom-scrollbar relative">
+            <!-- Os logs vão aparecer aqui -->
+        </div>
     </div>
 
     <script src="app.js?v=35000"></script>
