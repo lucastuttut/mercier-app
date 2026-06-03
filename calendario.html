@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendário Geral - Mercier Design</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .glass-header { background: #0f172a; border-bottom: 4px solid #f59e0b; }
+        .cell-hover:hover { background-color: #f8fafc; cursor: pointer; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen flex flex-col">
+
+    <header class="glass-header text-white p-5 shadow-xl flex justify-between items-center sticky top-0 z-50">
+        <h1 class="text-2xl font-black tracking-tighter uppercase italic">MERCIER <span class="text-amber-500">AGENDA</span></h1>
+        <div class="flex gap-4 items-center">
+            <span id="status-db" class="bg-slate-700 text-slate-300 px-3 py-1 rounded-lg text-xs font-bold">Conectando...</span>
+            <button onclick="window.close()" class="text-slate-400 hover:text-white text-sm font-bold uppercase transition">Voltar ao Sistema</button>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto w-full p-4 flex-1 flex flex-col mt-4">
+        
+        <!-- CONTROLES DO CALENDÁRIO -->
+        <div class="bg-white p-4 rounded-t-2xl shadow-sm border border-slate-200 flex justify-between items-center">
+            <button onclick="mudarMes(-1)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl font-black transition">◀ Anterior</button>
+            <h2 id="mes-ano-display" class="text-xl font-black uppercase text-slate-800 tracking-widest">MÊS ANO</h2>
+            <button onclick="mudarMes(1)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl font-black transition">Próximo ▶</button>
+        </div>
+
+        <!-- GRADE DO CALENDÁRIO -->
+        <div class="bg-white border-l border-r border-b border-slate-200 rounded-b-2xl shadow-sm flex-1 flex flex-col overflow-hidden">
+            <!-- Cabeçalho dos Dias -->
+            <div class="grid grid-cols-7 bg-slate-50 border-b border-slate-200 text-[10px] font-black text-slate-400 uppercase text-center py-2">
+                <div>DOM</div><div>SEG</div><div>TER</div><div>QUA</div><div>QUI</div><div>SEX</div><div>SAB</div>
+            </div>
+            
+            <!-- Dias -->
+            <div id="grid-dias" class="grid grid-cols-7 flex-1 auto-rows-fr">
+                <!-- Injetado via JS -->
+            </div>
+        </div>
+
+        <!-- LEGENDA -->
+        <div class="flex gap-4 mt-6 justify-center flex-wrap">
+            <span class="text-[10px] font-black uppercase text-slate-500 bg-white px-3 py-1.5 rounded-lg shadow-sm border border-slate-200">🚚 Entregas</span>
+            <span class="text-[10px] font-black uppercase text-slate-500 bg-white px-3 py-1.5 rounded-lg shadow-sm border border-slate-200">⏰ Lembretes</span>
+            <span class="text-[10px] font-black uppercase text-slate-500 bg-white px-3 py-1.5 rounded-lg shadow-sm border border-slate-200">📋 Prazo de Pedidos</span>
+        </div>
+    </main>
+
+    <!-- PAINEL MODAL: DETALHES DO DIA -->
+    <div id="modal-dia" class="fixed inset-0 bg-slate-900/60 z-50 hidden backdrop-blur-sm flex items-center justify-center p-4" onclick="if(event.target==this) fecharModalDia()">
+        <div class="bg-slate-50 rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[80vh] overflow-hidden">
+            <div class="bg-amber-500 p-5 text-white font-black flex justify-between items-center uppercase">
+                <span id="titulo-modal-dia">Acontecimentos do Dia</span>
+                <button onclick="fecharModalDia()" class="text-xl hover:text-amber-200 transition">✕</button>
+            </div>
+            <div id="lista-eventos-dia" class="p-6 overflow-y-auto custom-scrollbar flex flex-col gap-3">
+                <!-- Injetado via JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURAÇÃO FIREBASE (O Mesmo!)
+        const firebaseConfig = {
+            apiKey: "AIzaSyA_fQSZJJcz5Wszw54W5EhMN9D5rNnjoCo",
+            authDomain: "mercier-design.firebaseapp.com",
+            projectId: "mercier-design",
+            storageBucket: "mercier-design.firebasestorage.app",
+            messagingSenderId: "1060891658513",
+            appId: "1:1060891658513:web:2eefd15227203af39064b0",
+            databaseURL: "https://mercier-design-default-rtdb.firebaseio.com/"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let dataAtual = new Date();
+        let eventosDoMes = {}; // Guarda tudo agrupado por dia (Ex: "2026-06-15": [...])
+
+        const esc = function(str) { return (str || "").toString().replace(/[&<>'"]/g, function(tag) { return ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag] || tag); }); };
+        const safeArray = function(data) { if (!data) return []; try { return Array.isArray(data) ? data.filter(Boolean) : Object.values(data).filter(Boolean); } catch (e) { return []; } };
+
+        db.ref('.info/connected').on('value', function(snap) {
+            const el = document.getElementById('status-db');
+            if (snap.val() === true) { el.innerText = "ONLINE"; el.className = "bg-emerald-500 text-white px-3 py-1 rounded-lg text-xs font-bold"; } 
+            else { el.innerText = "OFFLINE"; el.className = "bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-bold"; }
+        });
+
+        // PUXANDO TODOS OS DADOS DA EMPRESA
+        db.ref('dados').on('value', function(s) {
+            const d = s.val() || {};
+            const entregas = safeArray(d.entregas);
+            const lembretes = safeArray(d.lembretes);
+            const pedidos = safeArray(d.pedidos);
+
+            eventosDoMes = {}; // Limpa para recalcular
+
+            // 1. Injeta Entregas
+            entregas.forEach(e => {
+                if(!e.dataOrdem) return;
+                if(!eventosDoMes[e.dataOrdem]) eventosDoMes[e.dataOrdem] = [];
+                
+                // Se a entrega foi concluída, ele mostra transparente
+                const op = e.status === "Entregue" ? "opacity-50" : "";
+                
+                eventosDoMes[e.dataOrdem].push({
+                    tipo: 'ENTREGA',
+                    icone: '🚚',
+                    cor: 'bg-emerald-100 text-emerald-800 border-emerald-200 ' + op,
+                    titulo: e.cliente,
+                    detalhe: `${e.status} | ${e.produtos}`
+                });
+            });
+
+            // 2. Injeta Lembretes
+            const corLemb = { "GERAL": "bg-yellow-100 text-yellow-800", "FINANCEIRO": "bg-emerald-100 text-emerald-800", "FABRICA": "bg-blue-100 text-blue-800", "CLIENTE": "bg-pink-100 text-pink-800" };
+            const iconLemb = { "GERAL": "🔔", "FINANCEIRO": "💰", "FABRICA": "🏭", "CLIENTE": "❤️" };
+            
+            lembretes.forEach(l => {
+                if(!l.dataOrdem) return;
+                if(!eventosDoMes[l.dataOrdem]) eventosDoMes[l.dataOrdem] = [];
+                
+                const op = l.concluido ? "opacity-50 line-through" : "";
+                const c = corLemb[l.categoria] || "bg-slate-100 text-slate-800";
+                const i = iconLemb[l.categoria] || "⏰";
+
+                eventosDoMes[l.dataOrdem].push({
+                    tipo: 'LEMBRETE',
+                    icone: i,
+                    cor: `${c} border-white ${op}`,
+                    titulo: l.titulo,
+                    detalhe: l.concluido ? "Concluído" : "Pendente"
+                });
+            });
+
+            // 3. Injeta Prazos de Pedidos (A Mágica da Matemática!)
+            pedidos.forEach(p => {
+                if(p.finalizado || p.status === "Entregue/Finalizado") return; // Ignora os já entregues
+                const dataPrazo = calcularDataExataDoPrazo(p.dataPedido, p.prazo);
+                if(dataPrazo) {
+                    if(!eventosDoMes[dataPrazo]) eventosDoMes[dataPrazo] = [];
+                    eventosDoMes[dataPrazo].push({
+                        tipo: 'PRAZO PEDIDO',
+                        icone: '📋',
+                        cor: 'bg-blue-100 text-blue-800 border-blue-200',
+                        titulo: `Prazo: ${p.cliente}`,
+                        detalhe: `${p.qtd}x ${p.produto} (${p.fornecedor})`
+                    });
+                }
+            });
+
+            renderCalendario();
+        });
+
+        // Função ninja que pega o "05/05/2026" e "30 Úteis" e devolve "2026-06-16"
+        function calcularDataExataDoPrazo(dataBR, pr) {
+            if(!dataBR) return null;
+            try {
+                const pA = dataBR.split("/"); 
+                let dF = new Date(pA[2], pA[1]-1, pA[0]); 
+                let spr = String(pr || "30");
+                
+                if(spr.includes("util")){ 
+                    let c=0; let limite = parseInt(spr);
+                    while(c < limite){ 
+                        dF.setDate(dF.getDate()+1); 
+                        if(dF.getDay()!==0 && dF.getDay()!==6) c++; 
+                    } 
+                } else { 
+                    dF.setDate(dF.getDate() + parseInt(spr)); 
+                }
+                
+                let y = dF.getFullYear();
+                let m = String(dF.getMonth() + 1).padStart(2, '0');
+                let d = String(dF.getDate()).padStart(2, '0');
+                return `${y}-${m}-${d}`;
+            } catch(e) { return null; }
+        }
+
+        function mudarMes(direcao) {
+            dataAtual.setMonth(dataAtual.getMonth() + direcao);
+            renderCalendario();
+        }
+
+        function renderCalendario() {
+            const ano = dataAtual.getFullYear();
+            const mes = dataAtual.getMonth(); // 0 a 11
+            
+            const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+            document.getElementById('mes-ano-display').innerText = `${nomesMeses[mes]} ${ano}`;
+
+            // Primeiro dia do mes e total de dias
+            const primeiroDia = new Date(ano, mes, 1).getDay(); // 0 (Dom) a 6 (Sab)
+            const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+
+            let html = "";
+
+            // Blocos vazios antes do dia 1
+            for (let i = 0; i < primeiroDia; i++) {
+                html += `<div class="border-b border-r border-slate-100 bg-slate-50 opacity-50 p-2 min-h-[100px]"></div>`;
+            }
+
+            // Dias do Mês
+            const hojeStr = new Date().toISOString().split('T')[0];
+
+            for (let dia = 1; dia <= diasNoMes; dia++) {
+                const mesStr = String(mes + 1).padStart(2, '0');
+                const diaStr = String(dia).padStart(2, '0');
+                const dataChave = `${ano}-${mesStr}-${diaStr}`;
+                
+                const isHoje = (dataChave === hojeStr);
+                const circleClass = isHoje ? "bg-amber-500 text-white shadow-md" : "text-slate-500";
+
+                let eventosHTML = "";
+                if(eventosDoMes[dataChave]) {
+                    // Pega até 3 eventos para não estourar o quadradinho, se tiver mais, põe "..."
+                    const mostrar = eventosDoMes[dataChave].slice(0, 3);
+                    const temMais = eventosDoMes[dataChave].length > 3;
+
+                    mostrar.forEach(ev => {
+                        eventosHTML += `<div class="${ev.cor} text-[9px] font-black truncate px-1.5 py-0.5 rounded border mb-1" title="${ev.titulo}">${ev.icone} ${esc(ev.titulo)}</div>`;
+                    });
+
+                    if(temMais) {
+                        eventosHTML += `<div class="text-[9px] font-black text-slate-400 text-center">+${eventosDoMes[dataChave].length - 3} itens</div>`;
+                    }
+                }
+
+                html += `
+                <div onclick="abrirDetalhesDia('${dataChave}', '${dia} de ${nomesMeses[mes]}')" class="border-b border-r border-slate-100 p-2 min-h-[100px] cell-hover transition flex flex-col gap-1">
+                    <div class="flex justify-end">
+                        <span class="w-6 h-6 flex items-center justify-center rounded-full text-xs font-black ${circleClass}">${dia}</span>
+                    </div>
+                    <div class="flex-1 mt-1 overflow-hidden">
+                        ${eventosHTML}
+                    </div>
+                </div>`;
+            }
+
+            document.getElementById('grid-dias').innerHTML = html;
+        }
+
+        function abrirDetalhesDia(dataChave, dataTitulo) {
+            document.getElementById('titulo-modal-dia').innerText = `Agenda: ${dataTitulo}`;
+            const lista = document.getElementById('lista-eventos-dia');
+            
+            const evs = eventosDoMes[dataChave] || [];
+            
+            if(evs.length === 0) {
+                lista.innerHTML = '<span class="text-slate-400 text-xs font-bold text-center uppercase block my-4 border-2 border-dashed p-6 rounded-xl">Dia Livre! Nenhum evento marcado. 🎉</span>';
+            } else {
+                lista.innerHTML = evs.map(ev => {
+                    return `
+                    <div class="${ev.cor} p-4 rounded-xl border flex gap-4 items-center">
+                        <span class="text-3xl">${ev.icone}</span>
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-black text-slate-500 uppercase">${ev.tipo}</span>
+                            <span class="font-black text-sm uppercase leading-tight">${esc(ev.titulo)}</span>
+                            <span class="text-[10px] font-bold mt-1 opacity-80 uppercase">${esc(ev.detalhe)}</span>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+
+            document.getElementById('modal-dia').style.display = 'flex';
+        }
+
+        function fecharModalDia() {
+            document.getElementById('modal-dia').style.display = 'none';
+        }
+
+    </script>
+</body>
+</html>
