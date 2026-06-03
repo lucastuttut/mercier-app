@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda de Lembretes - Mercier Design</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .glass-header { background: #0f172a; border-bottom: 4px solid #f43f5e; }
+        .card-lembrete { transition: transform 0.2s, box-shadow 0.2s; }
+        .card-lembrete:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
+        .pin-tape { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); width: 40px; height: 15px; background: rgba(255,255,255,0.6); border: 1px solid rgba(0,0,0,0.1); box-shadow: 0 1px 3px rgba(0,0,0,0.1); z-index: 10; }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen">
+
+    <!-- CABEÇALHO -->
+    <header class="glass-header text-white p-5 shadow-xl flex justify-between items-center sticky top-0 z-50">
+        <h1 class="text-2xl font-black tracking-tighter uppercase italic">MERCIER <span class="text-rose-400">LEMBRETES</span></h1>
+        <div class="flex gap-4 items-center">
+            <span id="status-db" class="bg-slate-700 text-slate-300 px-3 py-1 rounded-lg text-xs font-bold">Conectando...</span>
+            <button onclick="window.close()" class="text-slate-400 hover:text-white text-sm font-bold uppercase transition">Voltar ao Sistema</button>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-4 md:p-8">
+        
+        <!-- CAIXA DE NOVO LEMBRETE -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8 border-l-8 border-rose-500">
+            <h2 class="font-black uppercase text-rose-600 mb-4 text-sm tracking-wider">📌 Prender Novo Lembrete</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 items-end">
+                <div class="md:col-span-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">O que eu preciso lembrar?</label>
+                    <input type="text" id="lem_titulo" placeholder="Ex: Cobrar cliente X, Falar com fábrica Y..." class="w-full border-2 border-slate-200 p-2.5 rounded-lg text-xs font-bold uppercase outline-rose-500">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Quando?</label>
+                    <input type="date" id="lem_data" class="w-full border-2 border-slate-200 p-2.5 rounded-lg text-xs font-bold text-slate-700 outline-rose-500 bg-slate-50">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Categoria</label>
+                    <select id="lem_categoria" class="w-full border-2 border-slate-200 p-2.5 rounded-lg text-xs font-bold outline-rose-500 bg-white uppercase cursor-pointer">
+                        <option value="GERAL">🔔 Geral</option>
+                        <option value="FINANCEIRO">💰 Financeiro</option>
+                        <option value="FABRICA">🏭 Fábrica</option>
+                        <option value="CLIENTE">❤️ Pós-Venda / Cliente</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-4 border-t pt-4">
+                <button onclick="salvarLembrete()" class="bg-rose-600 text-white px-10 py-3 rounded-lg text-xs font-black uppercase shadow-lg hover:bg-rose-700 transition transform hover:scale-105">Salvar Lembrete</button>
+            </div>
+        </div>
+
+        <!-- MURAL DE POST-ITS -->
+        <h2 class="font-black uppercase text-slate-700 mb-6 text-lg flex justify-between items-end">
+            Mural de Avisos
+            <span id="cont-lembretes" class="text-[10px] bg-slate-200 text-slate-600 px-3 py-1 rounded-full">0 Pendentes</span>
+        </h2>
+        
+        <div id="grid-lembretes" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 pt-2">
+            <!-- Post-its injetados pelo JS -->
+        </div>
+
+    </main>
+
+    <script>
+        // CONFIGURAÇÃO FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyA_fQSZJJcz5Wszw54W5EhMN9D5rNnjoCo",
+            authDomain: "mercier-design.firebaseapp.com",
+            projectId: "mercier-design",
+            storageBucket: "mercier-design.firebasestorage.app",
+            messagingSenderId: "1060891658513",
+            appId: "1:1060891658513:web:2eefd15227203af39064b0",
+            databaseURL: "https://mercier-design-default-rtdb.firebaseio.com/"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let lembretes = [];
+        document.getElementById('lem_data').valueAsDate = new Date();
+
+        const esc = function(str) { return (str || "").toString().replace(/[&<>'"]/g, function(tag) { return ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag] || tag); }); };
+
+        const safeArray = function(data) {
+            if (!data) return [];
+            try { return Array.isArray(data) ? data.filter(Boolean) : Object.values(data).filter(Boolean); } 
+            catch (e) { return []; }
+        };
+
+        db.ref('.info/connected').on('value', function(snap) {
+            const el = document.getElementById('status-db');
+            if (snap.val() === true) { el.innerText = "ONLINE"; el.className = "bg-rose-500 text-white px-3 py-1 rounded-lg text-xs font-bold"; } 
+            else { el.innerText = "OFFLINE"; el.className = "bg-slate-500 text-white px-3 py-1 rounded-lg text-xs font-bold"; }
+        });
+
+        db.ref('dados/lembretes').on('value', function(s) {
+            lembretes = safeArray(s.val());
+            renderLembretes();
+        });
+
+        function salvarLembrete() {
+            const titulo = document.getElementById('lem_titulo').value.toUpperCase().trim();
+            const data = document.getElementById('lem_data').value;
+            const cat = document.getElementById('lem_categoria').value;
+
+            if(!titulo || !data) return alert("Preencha o título e a data do lembrete!");
+
+            const dStr = data.split('-').reverse().join('/');
+
+            lembretes.push({
+                uid: Date.now(),
+                titulo: titulo,
+                dataOrdem: data,
+                dataExibicao: dStr,
+                categoria: cat,
+                concluido: false
+            });
+
+            db.ref('dados/lembretes').set(lembretes);
+            document.getElementById('lem_titulo').value = "";
+            renderLembretes(); // Força a tela a desenhar na mesma hora!
+        }
+
+        function toggleConcluido(uid) {
+            const l = lembretes.find(x => x.uid == uid);
+            if(l) {
+                l.concluido = !l.concluido;
+                db.ref('dados/lembretes').set(lembretes);
+                renderLembretes();
+            }
+        }
+
+        function excluirLembrete(uid) {
+            if(confirm("Jogar este post-it no lixo?")) {
+                lembretes = lembretes.filter(x => x.uid != uid);
+                db.ref('dados/lembretes').set(lembretes);
+                renderLembretes();
+            }
+        }
+
+        function renderLembretes() {
+            const grid = document.getElementById('grid-lembretes');
+            if(!grid) return;
+
+            // Ordena primeiro pela data, e empurra os concluídos para o final
+            let lista = [...lembretes].sort((a, b) => {
+                if(a.concluido && !b.concluido) return 1;
+                if(!a.concluido && b.concluido) return -1;
+                return new Date(a.dataOrdem) - new Date(b.dataOrdem);
+            });
+
+            document.getElementById('cont-lembretes').innerText = `${lista.filter(x => !x.concluido).length} Pendentes`;
+
+            if(lista.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center p-10 text-slate-400 font-bold uppercase border-2 border-dashed rounded-2xl">Mural limpo. Nenhum lembrete!</div>`;
+                return;
+            }
+
+            const cores = {
+                "GERAL": "bg-yellow-200 border-yellow-300 text-yellow-900",
+                "FINANCEIRO": "bg-emerald-200 border-emerald-300 text-emerald-900",
+                "FABRICA": "bg-blue-200 border-blue-300 text-blue-900",
+                "CLIENTE": "bg-pink-200 border-pink-300 text-pink-900"
+            };
+
+            const icones = { "GERAL": "🔔", "FINANCEIRO": "💰", "FABRICA": "🏭", "CLIENTE": "❤️" };
+
+            grid.innerHTML = lista.map(l => {
+                const corPostit = l.concluido ? "bg-slate-200 border-slate-300 text-slate-500 opacity-60" : cores[l.categoria];
+                const icone = icones[l.categoria];
+
+                return `
+                <div class="${corPostit} rounded-bl-3xl rounded-tr-lg rounded-tl-lg rounded-br-lg p-4 border shadow-md relative card-lembrete flex flex-col min-h-[160px]">
+                    <div class="pin-tape hidden md:block"></div>
+                    
+                    <div class="flex justify-between items-start mb-2 mt-2">
+                        <span class="text-xs">${icone}</span>
+                        <span class="font-black text-[10px] bg-white/50 px-2 py-0.5 rounded shadow-sm">${l.dataExibicao}</span>
+                    </div>
+                    
+                    <p class="font-black text-xs uppercase flex-1 mt-1 leading-snug ${l.concluido ? 'line-through' : ''}">${esc(l.titulo)}</p>
+                    
+                    <div class="flex justify-between mt-3 pt-3 border-t border-black/10">
+                        <button onclick="toggleConcluido(${l.uid})" class="hover:scale-110 transition" title="Marcar como feito">${l.concluido ? '🔙' : '✅'}</button>
+                        <button onclick="excluirLembrete(${l.uid})" class="hover:scale-110 transition opacity-50 hover:opacity-100" title="Apagar">🗑️</button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+    </script>
+</body>
+</html>
