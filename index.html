@@ -20,7 +20,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
-    <link rel="stylesheet" href="style.css?v=35000">
+    <link rel="stylesheet" href="style.css?v=40000">
     <meta name="theme-color" content="#0f172a">
 </head>
 <body class="bg-slate-100 overflow-x-hidden">
@@ -29,6 +29,7 @@
         <h1 class="text-2xl font-black tracking-tighter uppercase italic hidden sm:block">MERCIER <span class="text-blue-500">DESIGN</span></h1>
         
         <div class="flex items-center gap-3 ml-auto">
+            <!-- BOTÃO DE NOTIFICAÇÃO (DIÁRIO DE BORDO) -->
             <button onclick="togglePainelHistorico()" class="relative bg-slate-800 border border-slate-600 w-10 h-10 rounded-xl text-lg flex items-center justify-center hover:bg-slate-700 transition shadow-inner" title="Diário de Bordo">
                 🔔
                 <span id="badge-historico" class="absolute -top-1 -right-1 flex h-3 w-3 hidden">
@@ -60,14 +61,13 @@
         <button onclick="switchTab('catalogo')" id="tab-catalogo" class="py-4 text-xs font-black uppercase whitespace-nowrap">📜 Catálogo</button>
         <button onclick="switchTab('fornecedores')" id="tab-fornecedores" class="py-4 text-xs font-black uppercase whitespace-nowrap">🏭 Fábricas</button>
         
-        <!-- DIVISOR E LINKS PARA OS MÓDULOS EXTERNOS -->
         <div class="w-px h-6 bg-slate-700 hidden md:block"></div>
         <a href="calendario.html" target="_blank" class="py-4 text-xs font-black uppercase whitespace-nowrap text-amber-400 hover:text-amber-300 transition">📅 Calendário ↗</a>
         <a href="entregas.html" target="_blank" class="py-4 text-xs font-black uppercase whitespace-nowrap text-emerald-400 hover:text-emerald-300 transition">🚚 Entregas ↗</a>
         <a href="lembretes.html" target="_blank" class="py-4 text-xs font-black uppercase whitespace-nowrap text-rose-400 hover:text-rose-300 transition">⏰ Lembretes ↗</a>
     </nav>
 
-    <!-- ABA PEDIDOS (LIMPA E EXPANDIDA) -->
+    <!-- ABA PEDIDOS -->
     <main id="view-pedidos" class="max-w-[1950px] mx-auto p-4 md:p-6">
         <div class="mb-6">
             <div class="card-premium p-5 border-l-8 border-blue-600">
@@ -330,11 +330,10 @@
             <button onclick="togglePainelHistorico()" class="text-xl hover:text-slate-300 transition">✕</button>
         </div>
         <div id="lista-historico" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 custom-scrollbar relative">
-            <!-- Os logs vão aparecer aqui -->
         </div>
     </div>
 
-    <script src="app.js?v=35000"></script>
+    <script src="app.js?v=40000"></script>
     <script>
         window.addEventListener('error', function(e) {
             const errEl = document.getElementById('error-log');
