@@ -335,17 +335,14 @@
         </div>
     </div>
 
+
     <!-- ========================================== -->
-    <!-- SCRIPT JAVASCRIPT COMPLETO E REVISADO      -->
+    <!-- JAVASCRIPT DO SISTEMA                      -->
     <!-- ========================================== -->
     <script>
-        // Intercepta qualquer erro e joga na barrinha vermelha para a gente ver
         window.addEventListener('error', function(e) {
             const errEl = document.getElementById('error-log');
-            if(errEl) {
-                errEl.classList.remove('hidden');
-                errEl.innerText = "ERRO DETECTADO: " + e.message;
-            }
+            if(errEl) { errEl.classList.remove('hidden'); errEl.innerText = "ERRO DETECTADO: " + e.message; }
         });
 
         // 1. CONFIGURAÇÃO DO FIREBASE
@@ -384,7 +381,6 @@
         let usuarioAtual = "";
         let modoMinhasTarefas = false;
 
-        // Recupera o usuário do navegador se houver
         try { usuarioAtual = localStorage.getItem('mercier_user') || ""; } catch(e) {}
         try { modoMinhasTarefas = localStorage.getItem('mercier_so_minhas') === 'true'; } catch(e) {}
 
@@ -420,7 +416,6 @@
             renderQuadroEquipe();
         }
 
-        // Funções de texto utilitárias
         function esc(str) { 
             return (str || "").toString().replace(/[&<>'"]/g, function(tag) { 
                 return ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag] || tag); 
@@ -437,7 +432,6 @@
             } catch (e) { return []; }
         }
 
-        // 3. ATUALIZA O BOTÃO DE STATUS NO CANTO SUPERIOR DIREITO
         const statusEl = document.getElementById('status-db');
         db.ref('.info/connected').on('value', function(snap) {
             if (snap.val() === true) {
@@ -1741,7 +1735,6 @@
             }
         }
 
-        // Sistema de arrastar o bloquinho de notas
         const painelSugestoes = document.getElementById('painel-sugestoes');
         const dragHandle = document.getElementById('drag-handle');
         let isDragging = false, offsetX, offsetY;
@@ -1765,7 +1758,7 @@
         });
 
         // =========================================================
-        // FUNÇÃO DE GERAR EMAIL/WHATSAPP EM LOTE AQUI!
+        // FUNÇÃO DE GERAR EMAIL/WHATSAPP EM LOTE - TEXTO ATUALIZADO
         // =========================================================
         function gerarEmailLote() {
             const checks = document.querySelectorAll('.ped-check:checked');
@@ -1776,21 +1769,29 @@
             const uids = Array.from(checks).map(c => c.value);
             const selecionados = pedidos.filter(p => uids.includes(String(p.uid)));
 
-            let texto = "Olá! Seguem os dados dos novos pedidos para fabricação:\n\n";
+            // Pega a fábrica do primeiro pedido selecionado
+            const fabricaSelecionada = selecionados[0].fornecedor || "NÃO INFORMADA";
+
+            let texto = `Olá, segue pedido para fábrica ${fabricaSelecionada}:\n\n`;
             
             selecionados.forEach(p => {
-                texto += `----------------------------------------\n`;
-                texto += `ID: ${p.idDoc}\n`;
-                texto += `Cliente: ${p.cliente}\n`;
-                texto += `Produto: ${p.qtd}x ${p.produto}\n`;
-                texto += `Medida: ${p.medida}\n`;
-                texto += `Cor/Tecido: ${p.cor}\n`;
-                texto += `Fábrica: ${p.fornecedor}\n`;
-                texto += `----------------------------------------\n\n`;
+                // Junta o nome, a medida e a cor num texto só pra ficar arrumadinho
+                let produtoCompleto = p.produto;
+                if (p.medida && p.medida !== "-") produtoCompleto += ` | Medida: ${p.medida}`;
+                if (p.cor && p.cor !== "-") produtoCompleto += ` | Cor: ${p.cor}`;
+                
+                // Exemplo: Qtde: 02 - SOFÁ RETRÁTIL | Medida: 2.00 | Cor: AZUL
+                texto += `Qtde: ${String(p.qtd).padStart(2, '0')} - ${produtoCompleto}\n`;
+                texto += `REF: ${p.idDoc}\n\n`;
             });
 
+            texto += `Forma de pagamento: 30/60/90.\n\n`;
+            texto += `IDs para controle interno, favor desconsiderar.\n\n`;
+            texto += `Favor confirmar o recebimento e nos enviar o documento de confirmação dos itens acima para conferência.\n\n`;
+            texto += `Atenciosamente,\nLucas Mercier..`;
+
             navigator.clipboard.writeText(texto).then(() => {
-                if (confirm("✅ Dados copiados com sucesso!\nAgora é só 'Colar' (Ctrl+V) no e-mail ou WhatsApp da fábrica.\n\nDeseja alterar o status de todos os pedidos selecionados para 'Pedido enviado'?")) {
+                if (confirm("✅ Texto gerado com o novo formato e copiado com sucesso!\nAgora é só dar 'Colar' (Ctrl+V) no e-mail ou WhatsApp.\n\nDeseja alterar o status de todos os pedidos selecionados para 'Pedido enviado'?")) {
                     
                     selecionados.forEach(p => {
                         if(p.status === "Não enviado") {
@@ -1813,6 +1814,13 @@
         }
 
     </script>
-
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
+    </style>
 </body>
 </html>
