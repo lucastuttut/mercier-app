@@ -1,752 +1,1365 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mercier Design - Gestão Cloud</title>
-<script>if ('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(function(registrations) { for(let registration of registrations) { registration.unregister(); } }); }</script>
-<link rel="manifest" href="manifest.json">
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<link rel="stylesheet" href="style.css?v=70000">
-<meta name="theme-color" content="#0f172a">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mercier Design - Gestão Cloud</title>
+    
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) { registration.unregister(); }
+            });
+        }
+    </script>
+
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <link rel="stylesheet" href="style.css?v=70002">
+    <meta name="theme-color" content="#0f172a">
 </head>
 <body class="bg-slate-100 overflow-x-hidden flex flex-col min-h-screen">
 
-<!-- CABEÇALHO GERAL -->
-<header class="glass-header text-white p-5 shadow-xl flex justify-between items-center sticky top-0 z-50">
-    <h1 class="text-2xl font-black tracking-tighter uppercase italic hidden sm:block">MERCIER <span class="text-blue-500">DESIGN</span></h1>
-    <div class="flex items-center gap-3 ml-auto">
-        <button onclick="togglePainelHistorico()" class="relative bg-slate-800 border border-slate-600 w-10 h-10 rounded-xl text-lg flex items-center justify-center hover:bg-slate-700 transition shadow-inner" title="Diário de Bordo">🔔<span id="badge-historico" class="absolute -top-1 -right-1 flex h-3 w-3 hidden"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span></span></button>
-        <select id="user-select" onchange="setUsuario(this.value)" class="bg-slate-800 border border-slate-600 px-3 py-2.5 h-10 rounded-xl text-[10px] font-black text-slate-300 outline-none cursor-pointer uppercase shadow-inner hover:bg-slate-700 transition"><option value="">👤 IDENTIFICAR-SE</option><option value="LUCAS">🟢 LUCAS</option><option value="ANGÉLICA">🟣 ANGÉLICA</option><option value="GUILHERME">🔵 GUILHERME</option><option value="CAROL">🟠 CAROL</option><option value="ISABELLA">🟡 ISABELLA</option></select>
-        <div id="status-db" class="bg-orange-500 text-white hidden md:flex h-10 items-center px-4 rounded-xl text-[10px] font-black uppercase transition-all duration-300">Conectando...</div>
-    </div>
-</header>
+    <!-- CABEÇALHO GERAL -->
+    <header class="glass-header text-white p-5 shadow-xl flex justify-between items-center sticky top-0 z-50">
+        <h1 class="text-2xl font-black tracking-tighter uppercase italic hidden sm:block">MERCIER <span class="text-blue-500">DESIGN</span></h1>
+        <div class="flex items-center gap-3 ml-auto">
+            <button onclick="togglePainelHistorico()" class="relative bg-slate-800 border border-slate-600 w-10 h-10 rounded-xl text-lg flex items-center justify-center hover:bg-slate-700 transition shadow-inner" title="Diário de Bordo">
+                🔔
+                <span id="badge-historico" class="absolute -top-1 -right-1 flex h-3 w-3 hidden">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </span>
+            </button>
 
-<div id="error-log" class="text-red-500 font-bold text-xs text-center p-2 bg-red-100 hidden z-50 relative border-b border-red-300 shadow-sm"></div>
+            <select id="user-select" onchange="setUsuario(this.value)" class="bg-slate-800 border border-slate-600 px-3 py-2.5 h-10 rounded-xl text-[10px] font-black text-slate-300 outline-none cursor-pointer uppercase shadow-inner hover:bg-slate-700 transition">
+                <option value="">👤 IDENTIFICAR-SE</option>
+                <option value="LUCAS">🟢 LUCAS</option>
+                <option value="ANGÉLICA">🟣 ANGÉLICA</option>
+                <option value="GUILHERME">🔵 GUILHERME</option>
+                <option value="CAROL">🟠 CAROL</option>
+                <option value="ISABELLA">🟡 ISABELLA</option>
+            </select>
+            <div id="status-db" class="bg-orange-500 text-white hidden md:flex h-10 items-center px-4 rounded-xl text-[10px] font-black uppercase transition-all duration-300">Conectando...</div>
+        </div>
+    </header>
 
-<!-- NAVEGAÇÃO -->
-<nav class="bg-slate-900 text-slate-400 px-8 flex gap-8 shadow-md overflow-x-auto sticky top-[72px] z-40 items-center">
-    <button onclick="switchTab('pedidos')" id="tab-pedidos" class="py-4 text-xs font-black uppercase tab-active whitespace-nowrap hover:text-slate-200 transition">📋 Pedidos</button>
-    <button onclick="switchTab('tarefas')" id="tab-tarefas" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-slate-200 transition">📝 Tarefas</button>
-    <button onclick="switchTab('equipe')" id="tab-equipe" class="py-4 text-xs font-black uppercase whitespace-nowrap text-purple-400 hover:text-purple-300 transition">👥 Equipe</button>
-    <button onclick="switchTab('logistica')" id="tab-logistica" class="py-4 text-xs font-black uppercase whitespace-nowrap text-emerald-400 hover:text-emerald-300 transition">🚚 Agenda & Entregas</button>
-    <button onclick="switchTab('estoque')" id="tab-estoque" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-slate-200 transition">📦 Estoque</button>
-    <button onclick="switchTab('assistencia')" id="tab-assistencia" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-slate-200 transition">🛠️ Assistências</button>
-    <button onclick="switchTab('catalogo')" id="tab-catalogo" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-slate-200 transition">📜 Catálogo</button>
-    <button onclick="switchTab('fornecedores')" id="tab-fornecedores" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-slate-200 transition">🏭 Fábricas</button>
-</nav>
+    <div id="error-log" class="text-red-500 font-bold text-xs text-center p-2 bg-red-100 hidden z-50 relative border-b border-red-300 shadow-sm"></div>
 
-<!-- ABA PEDIDOS -->
-<main id="view-pedidos" class="max-w-[1950px] mx-auto p-4 md:p-6 w-full">
-    <div class="mb-6"><div class="card-premium p-5 border-l-8 border-blue-600"><div class="flex flex-wrap gap-3 mb-4"><input list="listaSugestaoClientes" id="m_cliente" placeholder="NOME DO CLIENTE" class="border-2 p-2.5 rounded-lg text-xs font-bold flex-1 uppercase outline-blue-500"><select id="m_prazo_select" class="border-2 p-2.5 rounded-lg text-xs font-bold w-32 bg-white outline-blue-500"><option value="15">15 Dias</option><option value="20">20 Dias</option><option value="30" selected>30 Dias</option><option value="30-util">30 Úteis</option><option value="40-util">40 Úteis</option></select><select id="m_fornecedor_select" class="border-2 p-2.5 rounded-lg text-xs font-bold w-48 bg-white outline-blue-500"></select></div><div class="flex flex-wrap gap-2 mb-3 bg-slate-50 p-3 rounded-xl border"><input type="number" id="m_qtd" value="1" class="border-2 p-2 rounded-lg text-xs font-bold w-16 outline-blue-500"><input list="listaSugestaoProdutos" id="m_produto" placeholder="PRODUTO" class="border-2 p-2 rounded-lg text-xs font-bold flex-1 uppercase outline-blue-500"><input type="text" id="m_medida" placeholder="MEDIDA" class="border-2 p-2 rounded-lg text-xs font-bold w-24 uppercase outline-blue-500"><input type="text" id="m_cor" placeholder="COR/TECIDO" class="border-2 p-2 rounded-lg text-xs font-bold w-32 uppercase outline-blue-500"><input type="text" id="m_custo" placeholder="R$ CUSTO" class="border-2 p-2 rounded-lg text-xs font-bold w-28 outline-blue-500" oninput="maskMoney(this)"><button onclick="adicionarItemAoCesto()" class="bg-slate-800 text-white px-6 rounded-lg text-[10px] font-black uppercase hover:bg-black transition">＋ ITEM</button></div><div id="cesto-itens" class="flex flex-wrap gap-2 mb-3"></div><button onclick="cadastrarManual()" class="bg-blue-600 text-white font-black rounded-xl text-xs px-8 py-4 w-full uppercase shadow-lg hover:bg-blue-700 transition">Finalizar e Sincronizar Pedido</button></div></div>
-    <div class="card-premium overflow-hidden"><div class="flex border-b bg-slate-50"><button onclick="mudarVisaoPedidos('ATIVOS')" id="btn-visao-ativos" class="flex-1 py-4 text-xs font-black uppercase border-b-4 border-blue-600 text-blue-600 transition bg-white">Em Andamento</button><button onclick="mudarVisaoPedidos('FINALIZADOS')" id="btn-visao-finalizados" class="flex-1 py-4 text-xs font-black uppercase border-b-4 border-transparent text-slate-400 hover:text-slate-600 transition">Pedidos Finalizados</button></div><div class="p-4 bg-white border-b flex flex-col md:flex-row justify-between items-center gap-4"><input type="text" id="busca" onkeyup="renderPedidos()" placeholder="🔍 BUSCAR..." class="border-2 border-slate-100 px-5 py-2.5 rounded-2xl text-xs w-full md:w-96 font-bold uppercase outline-blue-500"><div class="flex gap-2"><button id="btnFiltroNaoEnviado" onclick="toggleFiltroNaoEnviado()" class="border-2 border-red-500 px-4 py-2 rounded-lg text-[10px] font-black uppercase text-red-600 hover:bg-red-50 transition">Não enviados</button><button onclick="gerarEmailLote()" class="bg-emerald-600 text-white px-5 py-2 rounded-lg text-[10px] font-black uppercase shadow hover:bg-emerald-700 transition">📧 Enviar Selecionados</button></div><span id="contador" class="text-[10px] font-black bg-slate-900 text-white px-4 py-2 rounded-lg uppercase">0 Pedidos</span></div><div class="table-container"><table class="w-full text-left border-collapse table-fixed"><thead class="bg-white"><tr><th width="40"><input type="checkbox" onclick="marcarTodos(this.checked)"></th><th width="65">Prazo</th><th width="80">ID</th><th width="200">Cliente</th><th width="90">Data</th><th width="45">Qtd</th><th>Móvel</th><th width="80">Medida</th><th width="100">Cor</th><th width="100">Custo</th><th width="110">Fábrica</th><th width="120">Status</th><th width="60">Whats</th><th width="60">Conf</th><th class="text-center" width="130">Ações</th></tr></thead><tbody id="tabelaPedidos"></tbody></table></div></div>
-</main>
+    <!-- NAVEGAÇÃO -->
+    <nav class="bg-slate-900 text-slate-400 px-8 flex gap-8 shadow-md overflow-x-auto sticky top-[72px] z-40 items-center">
+        <button onclick="switchTab('pedidos')" id="tab-pedidos" class="py-4 text-xs font-black uppercase tab-active whitespace-nowrap hover:text-slate-200 transition">📋 Pedidos</button>
+        <button onclick="switchTab('tarefas')" id="tab-tarefas" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-slate-200 transition">📝 Tarefas</button>
+        <button onclick="switchTab('equipe')" id="tab-equipe" class="py-4 text-xs font-black uppercase whitespace-nowrap text-purple-400 hover:text-purple-300 transition">👥 Equipe</button>
+        <button onclick="switchTab('logistica')" id="tab-logistica" class="py-4 text-xs font-black uppercase whitespace-nowrap text-emerald-400 hover:text-emerald-300 transition">🚚 Agenda & Entregas</button>
+        <button onclick="switchTab('estoque')" id="tab-estoque" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-slate-200 transition">📦 Estoque</button>
+        <button onclick="switchTab('assistencia')" id="tab-assistencia" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-slate-200 transition">🛠️ Assistências</button>
+        <button onclick="switchTab('catalogo')" id="tab-catalogo" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-slate-200 transition">📜 Catálogo</button>
+        <button onclick="switchTab('fornecedores')" id="tab-fornecedores" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-slate-200 transition">🏭 Fábricas</button>
+    </nav>
 
-<!-- ABA TAREFAS -->
-<main id="view-tarefas" class="hidden p-4 md:p-6 max-w-[1950px] mx-auto w-full">
-    <div class="card-premium p-6 border-l-8 border-indigo-600 mb-6 shadow-2xl"><div class="flex justify-between items-center mb-6"><select id="t_tipo" onchange="mostrarCamposTarefa(this.value)" class="border-2 p-2.5 rounded-xl text-xs font-bold bg-white w-full md:w-80 outline-indigo-500"><option value="SIMPLES">Anotação Simples</option><option value="TIRAR PEDIDO">Tirar Pedido (Venda Completa)</option></select><div id="loading-cep" class="hidden text-[10px] font-black text-indigo-500 animate-pulse uppercase">Buscando...</div></div><div id="container-campos-tarefa" class="grid grid-cols-1 md:grid-cols-4 gap-3"></div><button onclick="cadastrarTarefa()" class="mt-8 bg-indigo-600 text-white font-black px-12 py-4 rounded-xl text-xs uppercase shadow-lg w-full hover:bg-indigo-700 transition">Salvar Tarefa / Pedido</button></div>
-    <div class="card-premium overflow-hidden"><div class="p-4 bg-slate-50 border-b flex justify-between items-center"><span class="text-[10px] font-black uppercase text-slate-400">Histórico de Atividades</span><select id="filtro-tarefa-status" onchange="renderTarefas()" class="border-2 p-1 rounded-lg text-[10px] font-bold bg-white outline-none"><option value="TODAS">TODAS</option><option value="Não Iniciado">Não Iniciado</option><option value="Em Andamento">Em Andamento</option><option value="Feito">Feito</option></select></div><table class="w-full text-left"><thead><tr class="bg-slate-50 text-slate-500 text-[10px] uppercase"><th>Data</th><th>Descrição / Cliente</th><th>Tipo</th><th>Status</th><th class="text-center">Ação</th></tr></thead><tbody id="tabelaTarefas"></tbody></table></div>
-</main>
-
-<!-- ABA EQUIPE -->
-<main id="view-equipe" class="hidden p-4 md:p-6 max-w-[1950px] mx-auto w-full">
-    <div class="card-premium p-6 border-l-8 border-purple-600 mb-4 shadow-lg bg-white"><div class="flex flex-wrap gap-3 items-end"><div class="flex-1 min-w-[250px]"><label class="text-[9px] font-black text-slate-400 uppercase">O que precisa ser feito?</label><input id="eq_desc" placeholder="DESCREVA A TAREFA RAPIDAMENTE..." class="border-2 p-2.5 rounded-lg text-xs font-bold w-full uppercase outline-purple-500" onkeydown="if(event.key==='Enter') adicionarTarefaEquipe()"></div><div class="w-48"><label class="text-[9px] font-black text-slate-400 uppercase">Prazo / Urgência</label><select id="eq_prazo" class="border-2 p-2.5 rounded-lg text-xs font-bold bg-white w-full outline-purple-500 uppercase cursor-pointer"><option value="">SEM PRAZO</option><option value="AGORA">🚨 AGORA (Urgente)</option><option value="IMEDIATO">⚡ 1 DIA (Imediato)</option><option value="IMPORTANTE">⚠️ 2 DIAS (Importante)</option><option value="REGULAR">📅 3 DIAS (Regular)</option><option value="TRANQUILO">☕ + DIAS (Tranquilo)</option></select></div><div class="w-48"><label class="text-[9px] font-black text-slate-400 uppercase">Responsável</label><select id="eq_resp" class="border-2 p-2.5 rounded-lg text-xs font-bold bg-white w-full outline-purple-500 uppercase cursor-pointer"><option value="LUCAS">🟢 LUCAS</option><option value="ANGÉLICA">🟣 ANGÉLICA</option><option value="GUILHERME">🔵 GUILHERME</option><option value="CAROL">🟠 CAROL</option><option value="ISABELLA">🟡 ISABELLA</option></select></div><button onclick="adicionarTarefaEquipe()" class="bg-purple-600 text-white px-8 py-3 rounded-lg font-black text-xs uppercase shadow hover:bg-purple-700 transition">＋ Adicionar</button></div><div class="mt-5 pt-4 border-t border-slate-100 flex flex-col gap-2 relative"><div class="flex justify-between items-center flex-wrap gap-2"><span class="text-[9px] font-black text-slate-400 uppercase">Filtre por Responsável:</span><label class="flex items-center gap-2 cursor-pointer bg-slate-800 text-white px-4 py-2 rounded-xl shadow-md hover:bg-slate-700 transition"><input type="checkbox" id="check-minhas-tarefas" onchange="toggleModoMinhasTarefas()" class="cursor-pointer w-4 h-4 accent-purple-500"><span class="text-[10px] font-black uppercase tracking-wider">👁️ Mostrar Apenas as Minhas</span></label></div><div id="filtros-equipe" class="flex flex-wrap gap-2 mt-1 transition-opacity"></div></div></div>
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        <div id="col-todo-container" ondrop="dropTarefa(event, 'TODO')" ondragover="allowDropTarefa(event)" class="bg-slate-200/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-slate-200 shadow-inner transition-all duration-300"><h3 class="font-black text-sm uppercase text-slate-600 mb-4 flex justify-between items-center sticky top-0 bg-slate-200/90 py-1 z-10 backdrop-blur-sm pointer-events-none"><div class="flex items-center gap-2 pointer-events-auto"><button onclick="toggleColunaKanban('TODO')" id="btn-toggle-todo" class="bg-slate-300 hover:bg-slate-400 text-slate-700 w-7 h-7 rounded-full flex items-center justify-center transition shadow-sm text-lg leading-none">➖</button><span>🟥 A Fazer</span></div><span id="count-todo" class="bg-slate-300 text-slate-700 py-1 px-3 rounded-full text-[10px]">0</span></h3><div id="col-todo" class="flex flex-col gap-3 flex-1 pb-4 transition-all"></div></div>
-        <div id="col-doing-container" ondrop="dropTarefa(event, 'DOING')" ondragover="allowDropTarefa(event)" class="bg-blue-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-blue-200 shadow-inner transition-all duration-300"><h3 class="font-black text-sm uppercase text-blue-600 mb-4 flex justify-between items-center sticky top-0 bg-blue-100/90 py-1 z-10 backdrop-blur-sm pointer-events-none"><div class="flex items-center gap-2 pointer-events-auto"><button onclick="toggleColunaKanban('DOING')" id="btn-toggle-doing" class="bg-blue-200 hover:bg-blue-300 text-blue-700 w-7 h-7 rounded-full flex items-center justify-center transition shadow-sm text-lg leading-none">➖</button><span>🟨 Em Andamento</span></div><span id="count-doing" class="bg-blue-200 text-blue-700 py-1 px-3 rounded-full text-[10px]">0</span></h3><div id="col-doing" class="flex flex-col gap-3 flex-1 pb-4 transition-all"></div></div>
-        <div id="col-done-container" ondrop="dropTarefa(event, 'DONE')" ondragover="allowDropTarefa(event)" class="bg-green-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-green-200 shadow-inner transition-all duration-300"><h3 class="font-black text-sm uppercase text-green-600 mb-4 flex justify-between items-center sticky top-0 bg-green-100/90 py-1 z-10 backdrop-blur-sm pointer-events-none"><div class="flex items-center gap-2 pointer-events-auto"><button onclick="toggleColunaKanban('DONE')" id="btn-toggle-done" class="bg-green-200 hover:bg-green-300 text-green-700 w-7 h-7 rounded-full flex items-center justify-center transition shadow-sm text-lg leading-none">➖</button><span>🟩 Concluído</span></div><span id="count-done" class="bg-green-200 text-green-700 py-1 px-3 rounded-full text-[10px]">0</span></h3><div id="col-done" class="flex flex-col gap-3 flex-1 pb-4 transition-all"></div></div>
-    </div>
-</main>
-
-<!-- NOVA ABA: LOGÍSTICA & AGENDA (Unificada) -->
-<main id="view-logistica" class="hidden max-w-[1950px] mx-auto p-4 md:p-6 w-full h-[calc(100vh-100px)] flex flex-col md:flex-row gap-6">
-    
-    <!-- Esquerda: Calendário (Ocupa 2/3 da tela) -->
-    <div class="md:w-2/3 card-premium flex flex-col overflow-hidden h-full shadow-lg">
-        <div class="bg-slate-800 p-4 flex flex-col sm:flex-row justify-between items-center gap-4 text-white">
-            <div class="flex items-center gap-4">
-                <button onclick="mudarMes(-1)" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg font-black transition">◀</button>
-                <h2 id="mes-ano-display" class="text-lg font-black uppercase tracking-widest min-w-[160px] text-center text-emerald-400">MÊS ANO</h2>
-                <button onclick="mudarMes(1)" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg font-black transition">▶</button>
-            </div>
-            
-            <div class="flex gap-2 flex-wrap justify-center">
-                <label class="flex items-center gap-1.5 cursor-pointer bg-slate-700 px-3 py-1.5 rounded-lg shadow-sm hover:bg-slate-600 transition text-[10px] font-black uppercase">
-                    <input type="checkbox" id="filtro-cal-entregas" checked onchange="renderCalendario()" class="accent-emerald-500 w-3 h-3"> 🚚 Entregas
-                </label>
-                <label class="flex items-center gap-1.5 cursor-pointer bg-slate-700 px-3 py-1.5 rounded-lg shadow-sm hover:bg-slate-600 transition text-[10px] font-black uppercase">
-                    <input type="checkbox" id="filtro-cal-lembretes" checked onchange="renderCalendario()" class="accent-amber-500 w-3 h-3"> ⏰ Lembretes
-                </label>
-                <label class="flex items-center gap-1.5 cursor-pointer bg-slate-700 px-3 py-1.5 rounded-lg shadow-sm hover:bg-slate-600 transition text-[10px] font-black uppercase">
-                    <input type="checkbox" id="filtro-cal-prazos" checked onchange="renderCalendario()" class="accent-blue-500 w-3 h-3"> 📋 Prazos
-                </label>
+    <!-- ABA PEDIDOS -->
+    <main id="view-pedidos" class="max-w-[1950px] mx-auto p-4 md:p-6 w-full">
+        <div class="mb-6">
+            <div class="card-premium p-5 border-l-8 border-blue-600">
+                <div class="flex flex-wrap gap-3 mb-4">
+                    <input list="listaSugestaoClientes" id="m_cliente" placeholder="NOME DO CLIENTE" class="border-2 p-2.5 rounded-lg text-xs font-bold flex-1 uppercase outline-blue-500">
+                    <select id="m_prazo_select" class="border-2 p-2.5 rounded-lg text-xs font-bold w-32 bg-white outline-blue-500">
+                        <option value="15">15 Dias</option><option value="20">20 Dias</option><option value="30" selected>30 Dias</option>
+                        <option value="30-util">30 Úteis</option><option value="40-util">40 Úteis</option>
+                    </select>
+                    <select id="m_fornecedor_select" class="border-2 p-2.5 rounded-lg text-xs font-bold w-48 bg-white outline-blue-500"></select>
+                </div>
+                <div class="flex flex-wrap gap-2 mb-3 bg-slate-50 p-3 rounded-xl border">
+                    <input type="number" id="m_qtd" value="1" class="border-2 p-2 rounded-lg text-xs font-bold w-16 outline-blue-500">
+                    <input list="listaSugestaoProdutos" id="m_produto" placeholder="PRODUTO" class="border-2 p-2 rounded-lg text-xs font-bold flex-1 uppercase outline-blue-500">
+                    <input type="text" id="m_medida" placeholder="MEDIDA" class="border-2 p-2 rounded-lg text-xs font-bold w-24 uppercase outline-blue-500">
+                    <input type="text" id="m_cor" placeholder="COR/TECIDO" class="border-2 p-2 rounded-lg text-xs font-bold w-32 uppercase outline-blue-500">
+                    <input type="text" id="m_custo" placeholder="R$ CUSTO" class="border-2 p-2 rounded-lg text-xs font-bold w-28 outline-blue-500" oninput="maskMoney(this)">
+                    <button onclick="adicionarItemAoCesto()" class="bg-slate-800 text-white px-6 rounded-lg text-[10px] font-black uppercase hover:bg-black transition">＋ ITEM</button>
+                </div>
+                <div id="cesto-itens" class="flex flex-wrap gap-2 mb-3"></div>
+                <button onclick="cadastrarManual()" class="bg-blue-600 text-white font-black rounded-xl text-xs px-8 py-4 w-full uppercase shadow-lg hover:bg-blue-700 transition">Finalizar e Sincronizar Pedido</button>
             </div>
         </div>
 
-        <div class="flex-1 flex flex-col overflow-hidden bg-slate-100">
-            <div class="grid grid-cols-7 bg-white border-b border-slate-200 text-[10px] font-black text-slate-400 uppercase text-center py-3 shadow-sm z-10">
-                <div>DOM</div><div>SEG</div><div>TER</div><div>QUA</div><div>QUI</div><div>SEX</div><div>SAB</div>
+        <div class="card-premium overflow-hidden">
+            <div class="flex border-b bg-slate-50">
+                <button onclick="mudarVisaoPedidos('ATIVOS')" id="btn-visao-ativos" class="flex-1 py-4 text-xs font-black uppercase border-b-4 border-blue-600 text-blue-600 transition bg-white">Em Andamento</button>
+                <button onclick="mudarVisaoPedidos('FINALIZADOS')" id="btn-visao-finalizados" class="flex-1 py-4 text-xs font-black uppercase border-b-4 border-transparent text-slate-400 hover:text-slate-600 transition">Pedidos Finalizados</button>
             </div>
-            <div id="grid-dias" class="grid grid-cols-7 flex-1 auto-rows-fr overflow-y-auto custom-scrollbar bg-slate-100/50">
-                <!-- Dias Injetados pelo JS -->
-            </div>
-        </div>
-    </div>
 
-    <!-- Direita: Painel de Ação do Dia (Ocupa 1/3 da tela) -->
-    <div class="md:w-1/3 flex flex-col gap-4 h-full">
-        
-        <!-- Botões de Criação Rápida -->
-        <div class="grid grid-cols-2 gap-3">
-            <button onclick="abrirModalNovaEntrega()" class="bg-emerald-600 text-white font-black uppercase text-xs py-4 rounded-xl shadow hover:bg-emerald-700 transition flex items-center justify-center gap-2 border-b-4 border-emerald-800 active:border-b-0 active:translate-y-1"><span>🚚 Nova Entrega</span></button>
-            <button onclick="abrirModalNovoLembrete()" class="bg-amber-500 text-white font-black uppercase text-xs py-4 rounded-xl shadow hover:bg-amber-600 transition flex items-center justify-center gap-2 border-b-4 border-amber-700 active:border-b-0 active:translate-y-1"><span>⏰ Novo Lembrete</span></button>
-        </div>
-
-        <!-- Lista do Dia -->
-        <div class="card-premium flex-1 flex flex-col overflow-hidden shadow-lg border-t-8 border-emerald-500 bg-slate-50">
-            <div class="p-5 bg-white border-b border-slate-200 flex justify-between items-center shadow-sm z-10">
-                <h3 id="titulo-painel-dia" class="font-black text-slate-800 uppercase text-sm tracking-wide">Agenda de Hoje</h3>
-                <span id="badge-qtd-dia" class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-[10px] font-black">0 Itens</span>
+            <div class="p-4 bg-white border-b flex flex-col md:flex-row justify-between items-center gap-4">
+                <input type="text" id="busca" onkeyup="renderPedidos()" placeholder="🔍 BUSCAR..." class="border-2 border-slate-100 px-5 py-2.5 rounded-2xl text-xs w-full md:w-96 font-bold uppercase outline-blue-500">
+                <div class="flex gap-2">
+                    <button id="btnFiltroNaoEnviado" onclick="toggleFiltroNaoEnviado()" class="border-2 border-red-500 px-4 py-2 rounded-lg text-[10px] font-black uppercase text-red-600 hover:bg-red-50 transition">Não enviados</button>
+                    <button onclick="gerarEmailLote()" class="bg-emerald-600 text-white px-5 py-2 rounded-lg text-[10px] font-black uppercase shadow hover:bg-emerald-700 transition">📧 Enviar Selecionados</button>
+                </div>
+                <span id="contador" class="text-[10px] font-black bg-slate-900 text-white px-4 py-2 rounded-lg uppercase">0 Pedidos</span>
             </div>
-            
-            <div id="lista-eventos-dia" class="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-col gap-4 relative">
-                <!-- Cards Injetados Pelo JS -->
+            <div class="table-container">
+                <table class="w-full text-left border-collapse table-fixed">
+                    <thead class="bg-white">
+                        <tr>
+                            <th width="40"><input type="checkbox" onclick="marcarTodos(this.checked)"></th>
+                            <th width="65">Prazo</th><th width="80">ID</th><th width="200">Cliente</th><th width="90">Data</th><th width="45">Qtd</th><th>Móvel</th><th width="80">Medida</th><th width="100">Cor</th><th width="100">Custo</th><th width="110">Fábrica</th><th width="120">Status</th><th width="60">Whats</th><th width="60">Conf</th>
+                            <th class="text-center" width="130">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaPedidos"></tbody>
+                </table>
             </div>
         </div>
-    </div>
-</main>
+    </main>
 
-<!-- ABA ESTOQUE -->
-<main id="view-estoque" class="hidden p-6 max-w-[1950px] mx-auto w-full">
-    
-    <!-- CAIXA MÁGICA DE ESTOQUE -->
-    <div class="card-premium p-6 border-l-8 border-emerald-500 mb-6 bg-emerald-50 shadow-md">
-        <h3 class="text-sm font-black uppercase text-emerald-800 mb-2 flex items-center gap-2">✨ Cadastro Inteligente em Massa</h3>
-        <p class="text-[10px] font-bold text-emerald-600 uppercase mb-3 leading-relaxed">Cole sua lista abaixo. Regra de separação: <b>[PRODUTO] ; [FÁBRICA] ; [SITUAÇÃO/OBS]</b><br><i>Ex 1:</i> Sofá Egeo 2,50m TEC 9014<br><i>Ex 2:</i> 2x Poltrona Decor <b>;</b> Sier <b>;</b> Vendido para Lucas</p>
-        <textarea id="e_massa" rows="5" placeholder="• Sofá Milão Verde 2 mód. 1m Tec. 9011&#10;• 2x Sofá Fly ; Enele&#10;• Sofá Búzios 2,50 ; Móveis X ; Vendido Carol" class="w-full border-2 border-emerald-200 p-3 rounded-xl text-xs font-bold uppercase outline-emerald-500 shadow-inner resize-y bg-white"></textarea>
-        <div class="flex justify-end mt-3"><button onclick="processarEstoqueMassa()" class="bg-emerald-600 text-white px-10 py-3 rounded-lg font-black text-xs uppercase shadow-lg hover:bg-emerald-700 transition">⚡ Processar Lista</button></div>
-    </div>
-
-    <!-- RESUMO -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-        <div class="card-premium p-5 border-l-8 border-green-500 bg-white shadow-sm flex flex-col justify-center"><p class="text-[10px] font-black text-slate-400 uppercase">Disponível Agora</p><h3 id="resumo-estoque-total" class="text-2xl font-black text-green-600">0</h3></div>
-        <div class="card-premium p-5 border-l-8 border-red-500 bg-white shadow-sm flex flex-col justify-center"><p class="text-[10px] font-black text-slate-400 uppercase">Total de Saídas</p><h3 id="resumo-estoque-vendidos" class="text-2xl font-black text-red-600">0</h3></div>
-        <div class="card-premium border-l-8 border-blue-500 bg-white flex flex-col shadow-sm"><p class="text-[10px] font-black text-slate-400 uppercase p-2 border-b">📝 Notas do Estoque</p><textarea id="estoque-notas-gerais" oninput="autoSalvarNotasEstoque()" class="flex-1 p-3 text-[11px] font-bold uppercase outline-none resize-none bg-slate-50 min-h-[80px]" placeholder="ANOTAÇÕES..."></textarea></div>
-    </div>
-
-    <!-- CADASTRO UNITÁRIO -->
-    <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex flex-wrap gap-4 items-end uppercase shadow-lg">
-        <div class="flex-1 min-w-[250px]"><label class="text-[9px] font-black text-slate-400">Cadastro Unitário: Produto</label><input id="e_produto" placeholder="NOME DO MÓVEL" class="border-2 p-2.5 rounded-lg text-xs font-bold w-full uppercase outline-blue-500"></div>
-        <div class="w-44"><label class="text-[9px] font-black text-slate-400">Fábrica</label><select id="e_fabrica_select" class="border-2 p-2.5 rounded-lg text-xs font-bold bg-white w-full outline-blue-500"></select></div>
-        <div class="w-20"><label class="text-[9px] font-black text-slate-400">Qtd</label><input id="e_qtd" type="number" value="1" class="border-2 p-2.5 rounded-lg text-xs font-bold w-full outline-blue-500"></div>
-        <div class="w-36 hidden"><select id="e_situacao" class="border-2 p-2.5 rounded-lg text-xs font-bold bg-white w-full outline-blue-500"><option value="ESTOQUE">ESTOQUE</option></select></div>
-        <button onclick="cadastrarEstoque()" class="bg-blue-600 text-white px-10 py-3 rounded-lg font-black text-xs uppercase shadow hover:bg-blue-700 transition">Adicionar 1</button>
-    </div>
-
-    <!-- CONTROLES E TABELA DO ESTOQUE -->
-    <div class="card-premium overflow-hidden">
-        
-        <!-- ABAS INTERNAS DO ESTOQUE -->
-        <div class="flex border-b bg-slate-50">
-            <button onclick="mudarVisaoEstoque('ESTOQUE')" id="btn-estoque-disponivel" class="flex-1 py-4 text-xs font-black uppercase border-b-4 border-green-500 text-green-600 transition bg-white">🟢 Em Estoque (Disponível)</button>
-            <button onclick="mudarVisaoEstoque('SAIDAS')" id="btn-estoque-saidas" class="flex-1 py-4 text-xs font-black uppercase border-b-4 border-transparent text-slate-400 hover:text-slate-600 transition">🔴 Saídas / Histórico</button>
+    <!-- ABA TAREFAS / VENDAS -->
+    <main id="view-tarefas" class="hidden p-4 md:p-6 max-w-[1950px] mx-auto w-full">
+        <div class="card-premium p-6 border-l-8 border-indigo-600 mb-6 shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <select id="t_tipo" onchange="mostrarCamposTarefa(this.value)" class="border-2 p-2.5 rounded-xl text-xs font-bold bg-white w-full md:w-80 outline-indigo-500">
+                    <option value="SIMPLES">Anotação Simples</option>
+                    <option value="TIRAR PEDIDO">Tirar Pedido (Venda Completa)</option>
+                </select>
+                <div id="loading-cep" class="hidden text-[10px] font-black text-indigo-500 animate-pulse uppercase">Buscando...</div>
+            </div>
+            <div id="container-campos-tarefa" class="grid grid-cols-1 md:grid-cols-4 gap-3"></div>
+            <button onclick="cadastrarTarefa()" class="mt-8 bg-indigo-600 text-white font-black px-12 py-4 rounded-xl text-xs uppercase shadow-lg w-full hover:bg-indigo-700 transition">Salvar Tarefa / Pedido</button>
         </div>
-
-        <div class="p-4 bg-white border-b flex flex-col sm:flex-row gap-4 items-center uppercase">
-            <div class="flex-1 min-w-[300px] w-full"><input type="text" id="estoque-busca" onkeyup="renderEstoque()" placeholder="🔍 BUSCAR..." class="border-2 p-2.5 rounded-xl text-xs font-bold w-full outline-blue-500"></div>
-            <select id="estoque-filtro-fabrica" onchange="renderEstoque()" class="border-2 p-2.5 rounded-xl text-xs font-bold bg-white w-full sm:w-48 outline-blue-500"><option value="TODAS">TODAS AS FÁBRICAS</option></select>
-        </div>
-
-        <div class="table-container">
-            <table class="w-full text-left border-collapse table-fixed">
-                <thead class="bg-slate-50 border-b">
-                    <tr class="text-slate-500 uppercase text-[10px]">
-                        <th width="90">Data</th><th>Móvel</th><th width="150">Fábrica</th><th width="60" class="text-center">Qtd</th><th width="140" class="text-center">Status</th><th class="text-center" width="100">Ação</th>
-                    </tr>
-                </thead>
-                <tbody id="tabelaEstoque"></tbody>
+        <div class="card-premium overflow-hidden">
+            <div class="p-4 bg-slate-50 border-b flex justify-between items-center">
+                <span class="text-[10px] font-black uppercase text-slate-400">Histórico de Atividades</span>
+                <select id="filtro-tarefa-status" onchange="renderTarefas()" class="border-2 p-1 rounded-lg text-[10px] font-bold bg-white outline-none">
+                    <option value="TODAS">TODAS</option>
+                    <option value="Não Iniciado">Não Iniciado</option>
+                    <option value="Em Andamento">Em Andamento</option>
+                    <option value="Feito">Feito</option>
+                </select>
+            </div>
+            <table class="w-full text-left">
+                <thead><tr class="bg-slate-50 text-slate-500 text-[10px] uppercase"><th>Data</th><th>Descrição / Cliente</th><th>Tipo</th><th>Status</th><th class="text-center">Ação</th></tr></thead>
+                <tbody id="tabelaTarefas"></tbody>
             </table>
         </div>
-    </div>
-</main>
+    </main>
 
-<main id="view-assistencia" class="hidden p-6 max-w-[1950px] mx-auto w-full">
-    <div class="card-premium p-6 border-l-8 border-orange-500 flex flex-wrap gap-4 mb-6 uppercase shadow-lg"><input list="listaSugestaoClientes" id="as_cliente" placeholder="CLIENTE" class="border-2 p-2.5 rounded-lg text-xs font-bold flex-1 uppercase outline-orange-500"><input id="as_produto" placeholder="PRODUTO / DEFEITO" class="border-2 p-2.5 rounded-lg text-xs font-bold flex-1 uppercase outline-orange-500"><select id="as_fabrica" class="border-2 p-2.5 rounded-lg text-xs font-bold bg-white w-48 outline-orange-500"></select><button onclick="cadastrarAssistencia()" class="bg-orange-600 text-white px-10 py-2.5 rounded-lg font-black text-xs uppercase shadow hover:bg-orange-700 transition">Registrar</button></div>
-    <div class="card-premium p-4 mb-4 bg-slate-50 flex flex-wrap gap-4 items-center uppercase border border-slate-200"><div class="flex-1 min-w-[300px]"><input type="text" id="busca-assistencia" onkeyup="renderAssistencias()" placeholder="🔍 BUSCAR ASSISTÊNCIA..." class="border-2 p-2.5 rounded-xl text-xs font-bold w-full outline-orange-500"></div><select id="filtro-assistencia-status" onchange="renderAssistencias()" class="border-2 p-2.5 rounded-xl text-xs font-bold bg-white w-48 outline-orange-500 cursor-pointer"><option value="TODAS">TODOS OS STATUS</option><option value="Aguardando">AGUARDANDO</option><option value="Peça Solicitada">PEÇA SOLICITADA</option><option value="Concluído">CONCLUÍDO</option></select><span id="contador-assistencia" class="text-[10px] font-black bg-slate-900 text-white px-4 py-2 rounded-lg uppercase">0 ASSISTÊNCIAS</span></div>
-    <div class="card-premium overflow-hidden"><table class="w-full text-left border-collapse table-fixed"><thead><tr class="bg-slate-50 text-[10px] uppercase text-slate-500 border-b"><th width="90">Data</th><th>Cliente</th><th>Produto / Defeito</th><th width="150">Fábrica</th><th width="140" class="text-center">Status</th><th width="80" class="text-center">Ação</th></tr></thead><tbody id="tabelaAssistencias"></tbody></table></div>
-</main>
-
-<main id="view-catalogo" class="hidden p-6 max-w-[1200px] mx-auto w-full">
-    <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-3 shadow-lg"><input id="cat_nome" placeholder="NOME DO MÓVEL" class="border-2 p-2.5 rounded-lg flex-1 font-bold uppercase outline-blue-500"><button onclick="cadastrarCatalogo()" class="bg-blue-600 text-white px-10 py-2.5 rounded-lg font-black text-xs uppercase shadow hover:bg-blue-700 transition">Salvar</button></div>
-    <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50 text-[10px] uppercase"><th>Nome do Item</th><th class="text-center" width="100">Remover</th></tr></thead><tbody id="tabelaCatalogo"></tbody></table></div>
-</main>
-
-<main id="view-fornecedores" class="hidden max-w-4xl mx-auto p-6 w-full">
-    <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-3 shadow-lg"><input id="f_nome" placeholder="NOME DA FÁBRICA" class="border-2 p-2.5 rounded-lg flex-1 font-bold uppercase outline-blue-500"><input id="f_email" placeholder="EMAIL" class="border-2 p-2.5 rounded-lg flex-1 font-bold lowercase outline-blue-500"><button onclick="cadastrarFornecedor()" class="bg-blue-600 text-white px-10 py-2.5 rounded font-black text-xs uppercase hover:bg-blue-700 transition">Salvar</button></div>
-    <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50 text-[10px] uppercase"><th>Fábrica</th><th>E-mail</th><th class="text-center" width="100">Remover</th></tr></thead><tbody id="tabelaFornecedores"></tbody></table></div>
-</main>
-
-<!-- MODAIS GERAIS -->
-<div id="modal-detalhes" class="modal-overlay" onclick="if(event.target==this) this.style.display='none'"><div class="card-premium w-full max-w-2xl bg-white overflow-hidden flex flex-col max-h-[90vh] shadow-2xl"><div class="bg-indigo-600 p-5 text-white font-black flex justify-between items-center uppercase text-sm tracking-widest"><span>📄 Resumo Detalhado</span><button onclick="document.getElementById('modal-detalhes').style.display='none'" class="text-xl">✕</button></div><div id="detalhe-corpo" class="p-8 overflow-y-auto space-y-4 bg-white text-slate-800"></div></div></div>
-<div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()">💡</div>
-<div id="painel-sugestoes"><div id="drag-handle" class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase cursor-move"><span>💡 Bloco de Notas</span><button onclick="togglePainelSugestoes()">✕</button></div><textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" oninput="autoSalvarNotas()"></textarea></div>
-<input type="file" id="file-upload-global" accept="image/*" class="hidden" onchange="processarUploadImagem(event)">
-<datalist id="listaSugestaoProdutos"></datalist><datalist id="listaSugestaoClientes"></datalist>
-
-<!-- MODAL: NOVA ENTREGA -->
-<div id="modal-nova-entrega" class="modal-overlay" onclick="if(event.target==this) fecharModaisLogistica()">
-    <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-2xl border-t-8 border-emerald-500">
-        <h2 class="font-black uppercase text-emerald-600 mb-4 text-sm flex justify-between">🚚 Agendar Entrega <button onclick="fecharModaisLogistica()" class="text-slate-400 hover:text-red-500 text-lg">✕</button></h2>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-            <div class="md:col-span-1"><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Data</label><input type="date" id="ent_data" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-emerald-500"></div>
-            <div class="md:col-span-3"><label class="text-[10px] font-black text-slate-400 uppercase mb-1 flex justify-between"><span>Cliente</span><span class="text-emerald-500 hidden" id="aviso-magico">✨ Preenchido!</span></label><input list="listaSugestaoClientes" id="ent_cliente" onblur="buscarDadosInteligentes()" placeholder="NOME..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-emerald-500"></div>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Endereço (Para GPS)</label><textarea id="ent_endereco" rows="2" placeholder="Rua, Número, Bairro..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-emerald-500 resize-none"></textarea></div>
-            <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Produtos</label><textarea id="ent_produtos" rows="2" placeholder="O que vai entregar?" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-emerald-500 resize-none"></textarea></div>
-        </div>
-        <button onclick="salvarEntrega()" class="w-full bg-emerald-600 text-white py-3 rounded-lg text-xs font-black uppercase shadow hover:bg-emerald-700 transition">Salvar Agendamento</button>
-    </div>
-</div>
-
-<!-- MODAL: NOVO LEMBRETE -->
-<div id="modal-novo-lembrete" class="modal-overlay" onclick="if(event.target==this) fecharModaisLogistica()">
-    <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-lg border-t-8 border-amber-500">
-        <h2 class="font-black uppercase text-amber-600 mb-4 text-sm flex justify-between">⏰ Prender Lembrete <button onclick="fecharModaisLogistica()" class="text-slate-400 hover:text-red-500 text-lg">✕</button></h2>
-        <div class="mb-4"><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">O que lembrar?</label><input type="text" id="lem_titulo" placeholder="Ex: Cobrar cliente, Ligar fábrica..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-amber-500"></div>
-        <div class="grid grid-cols-2 gap-4 mb-4">
-            <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Quando?</label><input type="date" id="lem_data" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-amber-500"></div>
-            <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Categoria</label><select id="lem_categoria" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-amber-500 bg-white"><option value="GERAL">🔔 Geral</option><option value="FINANCEIRO">💰 Financeiro</option><option value="FABRICA">🏭 Fábrica</option><option value="CLIENTE">❤️ Cliente</option></select></div>
-        </div>
-        <button onclick="salvarLembrete()" class="w-full bg-amber-500 text-white py-3 rounded-lg text-xs font-black uppercase shadow hover:bg-amber-600 transition">Salvar Lembrete</button>
-    </div>
-</div>
-
-<!-- MODAL: DAR SAÍDA NO ESTOQUE -->
-<div id="modal-saida-estoque" class="modal-overlay" onclick="if(event.target==this) this.style.display='none'">
-    <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm border-t-8 border-red-500 flex flex-col gap-4">
-        <h2 class="font-black uppercase text-slate-800 text-sm border-b pb-2">📉 Dar Saída do Estoque</h2>
-        <p id="saida-produto-nome" class="text-xs font-bold text-slate-600 uppercase bg-slate-50 p-2 rounded border"></p>
-        
-        <input type="hidden" id="saida-uid">
-        
-        <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Quantidade a retirar</label><input type="number" id="saida-qtd" value="1" min="1" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-red-500"></div>
-        
-        <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Qual o Motivo / Destino?</label>
-            <select id="saida-motivo" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-red-500 bg-white uppercase cursor-pointer">
-                <option value="VENDIDO">🛒 Vendido (Cliente)</option>
-                <option value="ASSISTÊNCIA">🛠️ Assistência / Troca</option>
-                <option value="DEVOLUÇÃO FÁBRICA">🏭 Devolução p/ Fábrica</option>
-            </select>
-        </div>
-        
-        <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Observação / Nome (Opcional)</label><input type="text" id="saida-obs" placeholder="Ex: Cliente Maria, Defeito no braço..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-red-500 uppercase"></div>
-        
-        <button onclick="confirmarSaidaEstoque()" class="w-full bg-red-600 text-white py-3 mt-2 rounded-lg text-xs font-black uppercase shadow hover:bg-red-700 transition">Confirmar Saída</button>
-    </div>
-</div>
-
-<div id="overlay-historico" onclick="togglePainelHistorico()" class="fixed inset-0 bg-slate-900/50 z-[90] hidden backdrop-blur-sm transition-opacity"></div>
-<div id="painel-historico" class="fixed top-0 right-0 h-full w-80 max-w-[90vw] bg-slate-50 shadow-2xl transform translate-x-full transition-transform duration-300 z-[100] flex flex-col border-l border-slate-200">
-    <div class="bg-slate-800 p-5 text-white font-black flex justify-between items-center uppercase text-sm shadow-md z-10"><span class="flex items-center gap-2">🔔 Diário de Bordo</span><button onclick="togglePainelHistorico()" class="text-xl hover:text-slate-300 transition">✕</button></div>
-    <div id="lista-historico" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 custom-scrollbar relative"></div>
-</div>
-
-<script>
-window.addEventListener('error', function(e) { const errEl = document.getElementById('error-log'); if(errEl) { errEl.classList.remove('hidden'); errEl.innerText = "ERRO DETECTADO: " + e.message; } });
-
-const firebaseConfig = { apiKey: "AIzaSyA_fQSZJJcz5Wszw54W5EhMN9D5rNnjoCo", authDomain: "mercier-design.firebaseapp.com", projectId: "mercier-design", storageBucket: "mercier-design.firebasestorage.app", messagingSenderId: "1060891658513", appId: "1:1060891658513:web:2eefd15227203af39064b0", databaseURL: "https://mercier-design-default-rtdb.firebaseio.com/" };
-if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[], tarefasEquipe=[], historicoAtividades=[], entregas=[], lembretes=[];
-let proximoID=255, notasMelhoria="", notasEstoque="", cestoItensTemporario=[], filtrandoNaoEnviados=false, cpfValido=true;
-let deepLinkVerificado = false, visaoPedidos = 'ATIVOS', visaoEstoque = 'ESTOQUE', usuarioAtual = "", modoMinhasTarefas = false;
-let dataSelecionadaLogistica = new Date().toISOString().split('T')[0];
-let dataAtualCalendario = new Date();
-let eventosDoMes = {};
-
-try { usuarioAtual = localStorage.getItem('mercier_user') || ""; } catch(e) {}
-try { modoMinhasTarefas = localStorage.getItem('mercier_so_minhas') === 'true'; } catch(e) {}
-
-window.onload = function() { 
-    const selectEl = document.getElementById('user-select'); if(selectEl && usuarioAtual) selectEl.value = usuarioAtual; 
-    const chkMinhas = document.getElementById('check-minhas-tarefas'); if(chkMinhas) chkMinhas.checked = modoMinhasTarefas; 
-    renderFiltrosEquipe(); 
-    mostrarCamposTarefa('SIMPLES'); 
-    document.getElementById('ent_data').valueAsDate = new Date();
-    document.getElementById('lem_data').valueAsDate = new Date();
-};
-
-function setUsuario(nome) { usuarioAtual = nome; try { if(nome) localStorage.setItem('mercier_user', nome); else localStorage.removeItem('mercier_user'); } catch(e) {} renderFiltrosEquipe(); renderQuadroEquipe(); }
-function toggleModoMinhasTarefas() { if (!usuarioAtual) { alert("Selecione quem você é no canto superior direito primeiro!"); document.getElementById('check-minhas-tarefas').checked = false; return; } modoMinhasTarefas = document.getElementById('check-minhas-tarefas').checked; try { localStorage.setItem('mercier_so_minhas', modoMinhasTarefas); } catch(e) {} if(modoMinhasTarefas) filtrosEquipeAtivos = []; renderFiltrosEquipe(); renderQuadroEquipe(); }
-function esc(str) { return (str || "").toString().replace(/[&<>'"]/g, function(tag) { return ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag] || tag); }); }
-function removeAcentos(str) { return str.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }
-function safeArray(data) { if (!data) return []; try { let arr = Array.isArray(data) ? data : Object.values(data); return arr.filter(item => item && typeof item === 'object'); } catch (e) { return []; } }
-
-const statusEl = document.getElementById('status-db');
-db.ref('.info/connected').on('value', function(snap) { if (snap.val() === true) { if(statusEl) { statusEl.innerText = "ONLINE"; statusEl.className = "bg-emerald-500 text-white hidden md:flex h-10 items-center px-4 rounded-xl text-[10px] font-black uppercase shadow-inner transition-all duration-300"; } } else { if(statusEl) { statusEl.innerText = "CONECTANDO..."; statusEl.className = "bg-orange-500 text-white hidden md:flex h-10 items-center px-4 rounded-xl text-[10px] font-black uppercase transition-all duration-300"; } } });
-function salvarColecao(colecao, dados) { db.ref('dados/' + colecao).set(dados); }
-function registrarAcao(icone, acao, detalhe) { const quem = usuarioAtual || "SISTEMA"; const agora = new Date(); const dataHora = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}); historicoAtividades.unshift({ uid: Date.now() + Math.random(), dataHora: dataHora, usuario: quem, acao: acao, detalhe: detalhe, icone: icone }); if(historicoAtividades.length > 150) { historicoAtividades = historicoAtividades.slice(0, 150); } salvarColecao('historico', historicoAtividades); }
-function togglePainelHistorico() { const painel = document.getElementById('painel-historico'); const overlay = document.getElementById('overlay-historico'); const badge = document.getElementById('badge-historico'); if(painel.classList.contains('translate-x-full')) { painel.classList.remove('translate-x-full'); overlay.classList.remove('hidden'); if(badge) badge.classList.add('hidden'); } else { painel.classList.add('translate-x-full'); overlay.classList.add('hidden'); } }
-function renderHistorico() { const lista = document.getElementById('lista-historico'); if(!lista) return; if(historicoAtividades.length === 0) { lista.innerHTML = '<span class="text-slate-400 text-[10px] font-bold text-center uppercase block mt-10">Nenhuma atividade registrada ainda.</span>'; return; } lista.innerHTML = historicoAtividades.map(h => { return `<div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex gap-3 items-start transition-all hover:bg-slate-50"><div class="bg-slate-100 p-2 rounded-lg text-lg">${h.icone}</div><div class="flex flex-col flex-1"><div class="flex justify-between items-center mb-1"><span class="text-[9px] font-black uppercase text-slate-700 bg-slate-200 px-1.5 py-0.5 rounded">${esc(h.usuario)}</span><span class="text-[8px] font-bold text-slate-400">${h.dataHora}</span></div><span class="text-[11px] font-black uppercase text-slate-800 leading-tight">${esc(h.acao)}</span><span class="text-[9px] font-bold text-slate-500 uppercase mt-0.5 leading-snug">${esc(h.detalhe)}</span></div></div>`; }).join(''); const painel = document.getElementById('painel-historico'); const badge = document.getElementById('badge-historico'); if(painel && painel.classList.contains('translate-x-full') && badge) { badge.classList.remove('hidden'); } }
-
-db.ref('dados').on('value', function(s) { 
-    try { 
-        const d = s.val() || {}; 
-        pedidos = safeArray(d.pedidos); 
-        fornecedores = safeArray(d.fornecedores); 
-        estoque = safeArray(d.estoque); 
-        catalogo = safeArray(d.catalogo); 
-        tarefas = safeArray(d.tarefas); 
-        assistencias = safeArray(d.assistencias); 
-        tarefasEquipe = safeArray(d.tarefasEquipe); 
-        historicoAtividades = safeArray(d.historico); 
-        entregas = safeArray(d.entregas);
-        lembretes = safeArray(d.lembretes);
-        
-        proximoID = d.proximoID || 255; 
-        notasMelhoria = d.notasMelhoria || ""; 
-        notasEstoque = d.notasEstoque || ""; 
-        
-        const elMelhorias = document.getElementById('texto-melhorias'); if(elMelhorias) elMelhorias.value = notasMelhoria; 
-        const elEstoqueNotas = document.getElementById('estoque-notas-gerais'); if(elEstoqueNotas) elEstoqueNotas.value = notasEstoque; 
-        
-        atualizarSelectsFornecedores(); atualizarSugestoes(); renderAll(); 
-        
-        if(!deepLinkVerificado && tarefasEquipe.length > 0) { 
-            const urlParams = new URLSearchParams(window.location.search); 
-            const tarefaId = urlParams.get('tarefa'); 
-            if(tarefaId) { 
-                switchTab('equipe'); 
-                setTimeout(function() { 
-                    const card = document.getElementById('card-' + tarefaId); 
-                    if(card) { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); const bgOriginal = card.style.backgroundColor; card.style.backgroundColor = '#bbf7d0'; card.style.transition = 'background-color 2s'; setTimeout(() => { card.style.backgroundColor = bgOriginal; }, 2000); } 
-                }, 600); 
-                window.history.replaceState({}, document.title, window.location.pathname); 
-            } 
-            deepLinkVerificado = true; 
-        } 
-    } catch (err) { 
-        if(statusEl) { statusEl.innerText = "ERRO DE BANCO"; statusEl.className = "bg-red-500 text-white hidden md:flex h-10 items-center px-4 rounded-xl text-[10px] font-black uppercase"; } 
-        console.error("Erro critico: ", err); 
-    } 
-});
-
-async function getProximoID() { const ref = db.ref('dados/proximoID'); const res = await ref.transaction(curr => (curr || 255) + 1); return res.snapshot.val(); }
-function renderAll() { renderPedidos(); renderTarefas(); renderFornecedores(); renderEstoque(); renderCatalogo(); renderAssistencias(); renderQuadroEquipe(); renderHistorico(); processarEventosCalendario(); }
-
-function activeInlineEdit(element, uid, field, listType) { const originalValue = element.innerText; const input = document.createElement('input'); input.value = (originalValue === "-" ? "" : originalValue); input.className = "w-full p-1 text-xs font-bold border-2 border-blue-500 rounded bg-white text-black outline-none uppercase"; if(field === 'custo') { input.oninput = function() { let v = input.value.replace(/\D/g,""); v = (v/100).toFixed(2).replace(".",","); v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1."); input.value = "R$ " + v; }; } element.innerHTML = ''; element.appendChild(input); input.focus(); const save = function() { let newValue = input.value.toUpperCase().trim(); if (newValue === "") newValue = "-"; let list = pedidos; if(listType === 'estoque') list = estoque; else if(listType === 'assistencias') list = assistencias; const item = list.find(x => x.uid == uid); if (item) { if(field === 'qtd') item[field] = parseInt(newValue) || 1; else item[field] = newValue; salvarColecao(listType, list); } else { element.innerText = originalValue; } }; input.onblur = save; input.onkeydown = function(e) { if(e.key === 'Enter') save(); if(e.key === 'Escape') { input.onblur = null; element.innerText = originalValue; } }; }
-function maskMoney(i){ let v = i.value.replace(/\D/g,""); v = (v/100).toFixed(2).replace(".",","); v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1."); i.value = "R$ " + v; if(i.classList.contains('t-v-desc')) calcTotalTirarPedido(); }
-function parseMoney(v){ return parseFloat((v||"").replace("R$ ","").replace(/\./g,"").replace(",",".")) || 0; }
-function maskCPF(i){ let v=i.value.replace(/\D/g,""); if(v.length>11) v=v.slice(0,11); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d{1,2})$/,"$1-$2"); i.value=v; if(v.length===14) verifCPF(i); }
-function verifCPF(i){ const ok = validarCPF(i.value); i.style.borderColor = ok ? "#22c55e" : "#ef4444"; cpfValido=ok; }
-function validarCPF(c){ c=c.replace(/[^\d]+/g,''); if(c.length!==11 || !!c.match(/(\d)\1{10}/)) return false; let a=0; for(let i=0;i<9;i++) a+=parseInt(c.charAt(i))*(10-i); let r=11-(a%11); if(r===10||r===11) r=0; if(r!==parseInt(c.charAt(9))) return false; a=0; for(let i=0;i<10;i++) a+=parseInt(c.charAt(i))*(11-i); r=11-(a%11); return (r>=10?0:r)===parseInt(c.charAt(10)); }
-function copyText(v, el){ if(!v || v==="-") return; navigator.clipboard.writeText(v.toUpperCase()); if(el) { el.style.color="#22c55e"; setTimeout(() => { el.style.color="#94a3b8"; }, 1000); } }
-async function buscarCEP(i){ let cep=i.value.replace(/\D/g,""); if(cep.length===8){ document.getElementById('loading-cep').classList.remove('hidden'); try{ let r=await fetch(`https://viacep.com.br/ws/${cep}/json/`); let d=await r.json(); if(!d.erro){ document.getElementById('t_end').value=d.logradouro.toUpperCase(); document.getElementById('t_bairro').value=d.bairro.toUpperCase(); document.getElementById('t_cidade').value=d.localidade.toUpperCase(); document.getElementById('t_num').focus(); } }catch(e){} finally { document.getElementById('loading-cep').classList.add('hidden'); } } }
-function calcP(d, pr){ if(!d) return {dias:0, classe:""}; try { const pA = String(d).split("/"); const dt = new Date(pA[2], pA[1]-1, pA[0]); let dF = new Date(dt); let spr = String(pr || "30"); if(spr.includes("util")){ let c=0; while(c < parseInt(spr)){ dF.setDate(dF.getDate()+1); if(dF.getDay()!==0 && dF.getDay()!==6) c++; } } else { dF.setDate(dF.getDate() + parseInt(spr)); } const df = Math.ceil((dF - new Date()) / 86400000); let c = df < 0 ? "prazo-vencido" : (df <= 5 ? "prazo-urgente" : (df <= 10 ? "prazo-alerta" : (df <= 20 ? "prazo-atencao" : ""))); return {dias: df, classe: c}; } catch(e) { return {dias:0, classe:""}; } }
-function calcDataExata(dataBR, pr) { if(!dataBR) return null; try { const pA = dataBR.split("/"); let dF = new Date(pA[2], pA[1]-1, pA[0]); let spr = String(pr || "30"); if(spr.includes("util")){ let c=0; let limite = parseInt(spr); while(c < limite){ dF.setDate(dF.getDate()+1); if(dF.getDay()!==0 && dF.getDay()!==6) c++; } } else { dF.setDate(dF.getDate() + parseInt(spr)); } let y = dF.getFullYear(); let m = String(dF.getMonth() + 1).padStart(2, '0'); let d = String(dF.getDate()).padStart(2, '0'); return `${y}-${m}-${d}`; } catch(e) { return null; } }
-
-function mudarVisaoPedidos(visao) { visaoPedidos = visao; const btnAtivos = document.getElementById('btn-visao-ativos'); const btnFinais = document.getElementById('btn-visao-finalizados'); const btnFiltroNaoEnviados = document.getElementById('btnFiltroNaoEnviado'); if(visao === 'ATIVOS') { btnAtivos.classList.add('border-blue-600', 'text-blue-600', 'bg-white'); btnAtivos.classList.remove('border-transparent', 'text-slate-400'); btnFinais.classList.remove('border-blue-600', 'text-blue-600', 'bg-white'); btnFinais.classList.add('border-transparent', 'text-slate-400'); if(btnFiltroNaoEnviados) btnFiltroNaoEnviados.style.display = 'block'; } else { btnFinais.classList.add('border-blue-600', 'text-blue-600', 'bg-white'); btnFinais.classList.remove('border-transparent', 'text-slate-400'); btnAtivos.classList.remove('border-blue-600', 'text-blue-600', 'bg-white'); btnAtivos.classList.add('border-transparent', 'text-slate-400'); if(btnFiltroNaoEnviados) btnFiltroNaoEnviados.style.display = 'none'; } renderPedidos(); }
-function arquivarPedido(u) { const x = pedidos.find(y => y.uid == u); if (x) { x.finalizado = !x.finalizado; if (x.finalizado) { x.status = "Entregue/Finalizado"; } else { x.status = "Pedido na loja"; } salvarColecao('pedidos', pedidos); registrarAcao(x.finalizado ? '📦' : '🔙', x.finalizado ? 'FINALIZOU PEDIDO' : 'RESTAUROU PEDIDO', `CLIENTE: ${x.cliente}`); renderPedidos(); } }
-function excluirPedido(uid) { const p = pedidos.find(x => x.uid == uid); if(!p) return; if(p.finalizado) { if(confirm("Deseja RETORNAR este pedido para a aba principal?")) { p.finalizado = false; p.status = "Pedido na loja"; salvarColecao('pedidos', pedidos); registrarAcao('🔙', 'RESTAUROU PEDIDO', `CLIENTE: ${p.cliente}`); renderPedidos(); } } else { if(confirm("EXCLUIR ESTE PEDIDO PERMANENTEMENTE?")) { pedidos = pedidos.filter(x => x.uid != uid); salvarColecao('pedidos', pedidos); registrarAcao('🗑️', 'EXCLUIU PEDIDO', `CLIENTE: ${p.cliente}`); renderPedidos(); } } }
-function cycleStatus(u){ const x = pedidos.find(y => y.uid == u); if(!x) return; const s = ["Não enviado","Pedido enviado","Aguardando fábrica","Pedido na loja"]; if(!x.finalizado && x.status !== "Entregue/Finalizado") { x.status = s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('pedidos', pedidos); } }
-
-function renderPedidos() { const tb = document.getElementById('tabelaPedidos'); if(!tb) return; const elBusca = document.getElementById('busca'); const b = removeAcentos((elBusca ? elBusca.value : "").toLowerCase()); let lista = pedidos.filter(x => { return removeAcentos((x.cliente||"").toLowerCase()).includes(b) || removeAcentos((x.produto||"").toLowerCase()).includes(b) || removeAcentos((x.idDoc||"").toLowerCase()).includes(b) || removeAcentos((x.fornecedor||"").toLowerCase()).includes(b); }); if (visaoPedidos === 'ATIVOS') { lista = lista.filter(x => !x.finalizado && x.status !== "Entregue/Finalizado"); if(filtrandoNaoEnviados) lista = lista.filter(x => x.status === "Não enviado"); } else { lista = lista.filter(x => x.finalizado || x.status === "Entregue/Finalizado"); } document.getElementById('contador').innerText = lista.length + " PEDIDOS"; tb.innerHTML = lista.map(x => { const p = calcP(x.dataPedido, x.prazo); let sCls = "bg-blue-600"; if(x.status === "Não enviado") sCls = "bg-red-600"; else if(x.status === "Pedido na loja") sCls = "bg-green-700"; if (x.finalizado || x.status === "Entregue/Finalizado") sCls = "bg-slate-500 opacity-70"; let btnAcoes = `<button onclick="copyText('${x.qtd}x ${esc(x.produto)} ${esc(x.cor)} (${esc(x.idDoc)})', this)" title="Copiar">📋</button>`; if(!x.finalizado && x.status !== "Entregue/Finalizado") { btnAcoes += `<button onclick="arquivarPedido(${x.uid})" title="Enviar para Finalizados">📦</button><button onclick="dupPed(${x.uid})" title="Duplicar">➕</button><button onclick="gerarAssistenciaRapida(${x.uid})" title="Assistência">🛠️</button><button onclick="excluirPedido(${x.uid})" class="text-red-500 font-black" title="Excluir Definitivo">✕</button>`; } else { btnAcoes += `<button onclick="excluirPedido(${x.uid})" class="text-slate-400 hover:text-blue-500 font-black text-lg" title="Retornar para Ativos">🔙</button>`; } return `<tr class="${p.classe}"><td><input type="checkbox" class="ped-check" value="${x.uid}"></td><td><div class="flex flex-col gap-1 items-center"><span class="font-black text-[9px]">${p.dias}D</span><select onchange="updPed(${x.uid},'prazo',this.value)" class="select-prazo-tabela"><option value="15" ${x.prazo=='15'?'selected':''}>15C</option><option value="20" ${x.prazo=='20'?'selected':''}>20C</option><option value="30" ${x.prazo=='30'?'selected':''}>30C</option><option value="30-util" ${x.prazo=='30-util'?'selected':''}>30U</option><option value="40-util" ${x.prazo=='40-util'?'selected':''}>40U</option></select></div></td><td class="text-[10px] text-slate-400 font-black">${esc(x.idDoc)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'cliente', 'pedidos')" class="editable-cell uppercase">${esc(x.cliente)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'dataPedido', 'pedidos')" class="editable-cell text-[10px]">${esc(x.dataPedido)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'qtd', 'pedidos')" class="editable-cell text-center font-black">${esc(x.qtd)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'pedidos')" class="editable-cell uppercase">${esc(x.produto)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'medida', 'pedidos')" class="editable-cell uppercase">${esc(x.medida)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'cor', 'pedidos')" class="editable-cell uppercase">${esc(x.cor)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'custo', 'pedidos')" class="editable-cell">${esc(x.custo)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'fornecedor', 'pedidos')" class="editable-cell font-black text-blue-800 uppercase text-[10px]">${esc(x.fornecedor)}</td><td><button onclick="cycleStatus(${x.uid})" class="status-badge ${sCls} text-white">${esc(x.status)}</button></td><td><button onclick="togPed(${x.uid},'whatsEnviado')" class="status-badge ${x.whatsEnviado?'btn-sim':'btn-nao'}">${x.whatsEnviado?'SIM':'NÃO'}</button></td><td><button onclick="togPed(${x.uid},'confirmado')" class="status-badge ${x.confirmado?'btn-sim':'btn-nao'}">${x.confirmado?'SIM':'NÃO'}</button></td><td class="text-center flex gap-1.5 justify-center items-center">${btnAcoes}</td></tr>`; }).join(''); }
-function adicionarItemAoCesto() { const p = document.getElementById('m_produto').value.trim().toUpperCase(); if(!p) return alert("INFORME PRODUTO!"); cestoItensTemporario.push({ uid: Date.now(), q: document.getElementById('m_qtd').value || 1, p: p, m: document.getElementById('m_medida').value || "-", c: document.getElementById('m_cor').value.toUpperCase() || "-", v: document.getElementById('m_custo').value || "R$ 0,00" }); renderCesto(); document.getElementById('m_produto').value = ""; }
-function renderCesto() { document.getElementById('cesto-itens').innerHTML = cestoItensTemporario.map((item, idx) => { return `<div class="item-cesto"><span>${item.q}x</span><span>${esc(item.p)}</span><button onclick="cestoItensTemporario.splice(${idx},1); renderCesto();" class="text-red-500 font-bold ml-2">✕</button></div>`; }).join(''); }
-async function cadastrarManual() { const cli = document.getElementById('m_cliente').value.trim().toUpperCase(); const forn = document.getElementById('m_fornecedor_select').value; if(!cli || cestoItensTemporario.length === 0) return alert("FALTA DADOS!"); const nId = await getProximoID(); const idDoc = "ID#" + nId.toString().padStart(4, '0'); cestoItensTemporario.forEach(i => { pedidos.unshift({ uid: Date.now()+Math.random(), idDoc: idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false, finalizado: false }); }); salvarColecao('pedidos', pedidos); registrarAcao('📋', 'NOVO PEDIDO', `CÓDIGO: ${idDoc} | CLIENTE: ${cli}`); cestoItensTemporario = []; document.getElementById('m_cliente').value = ""; renderCesto(); }
-
-function gerarEmailLote() {
-    const checks = document.querySelectorAll('.ped-check:checked');
-    if (checks.length === 0) return alert("Nenhum pedido selecionado!");
-    const uids = Array.from(checks).map(c => c.value);
-    const selecionados = pedidos.filter(p => uids.includes(String(p.uid)));
-    const fabricaSelecionada = selecionados[0].fornecedor || "NÃO INFORMADA";
-    
-    let texto = `Olá, segue pedido para fábrica ${fabricaSelecionada}:\n\n`;
-    selecionados.forEach(p => {
-        let produtoCompleto = p.produto;
-        if (p.medida && p.medida !== "-") produtoCompleto += ` | Medida: ${p.medida}`;
-        if (p.cor && p.cor !== "-") produtoCompleto += ` | Cor: ${p.cor}`;
-        texto += `Qtde: ${String(p.qtd).padStart(2, '0')} - ${produtoCompleto}\n`;
-        texto += `REF: ${p.idDoc}\n\n`;
-    });
-    texto += `Forma de pagamento: 30/60/90.\n\nIDs para controle interno, favor desconsiderar.\n\nFavor confirmar o recebimento e nos enviar o documento de confirmação dos itens acima para conferência.\n\nAtenciosamente,\nLucas Mercier..`;
-
-    navigator.clipboard.writeText(texto).then(() => {
-        if (confirm("✅ Texto gerado e copiado com sucesso!\nAgora é só dar 'Colar' (Ctrl+V) no e-mail ou WhatsApp.\n\nDeseja alterar o status de todos os pedidos selecionados para 'Pedido enviado'?")) {
-            selecionados.forEach(p => { if(p.status === "Não enviado") p.status = "Pedido enviado"; });
-            salvarColecao('pedidos', pedidos);
-            registrarAcao('📧', 'ENVIOU LOTE', `Marcou ${selecionados.length} pedidos como enviados.`);
-            const checkTodos = document.querySelector('input[onclick="marcarTodos(this.checked)"]');
-            if(checkTodos) checkTodos.checked = false;
-            renderPedidos();
-        }
-    }).catch(err => { alert("Não foi possível copiar o texto."); });
-}
-
-// --- LOGÍSTICA & AGENDA (NOVO MÓDULO UNIFICADO) ---
-
-function processarEventosCalendario() {
-    eventosDoMes = {}; 
-    const mostraEnt = document.getElementById('filtro-cal-entregas')?.checked;
-    const mostraLem = document.getElementById('filtro-cal-lembretes')?.checked;
-    const mostraPrz = document.getElementById('filtro-cal-prazos')?.checked;
-
-    if(mostraEnt) {
-        entregas.forEach(e => {
-            if(!e.dataOrdem) return;
-            if(!eventosDoMes[e.dataOrdem]) eventosDoMes[e.dataOrdem] = [];
-            const isFeito = e.status === "Entregue";
-            eventosDoMes[e.dataOrdem].push({ tipo: 'ENTREGA', obj: e, cor: isFeito ? 'bg-emerald-200 text-emerald-800 opacity-60 line-through border-emerald-300' : 'bg-emerald-500 text-white border-emerald-600', icone: '🚚', titulo: e.cliente });
-        });
-    }
-
-    if(mostraLem) {
-        lembretes.forEach(l => {
-            if(!l.dataOrdem) return;
-            if(!eventosDoMes[l.dataOrdem]) eventosDoMes[l.dataOrdem] = [];
-            const isFeito = l.concluido;
-            const corM = { "GERAL": "bg-yellow-400 text-yellow-900", "FINANCEIRO": "bg-emerald-400 text-emerald-900", "FABRICA": "bg-blue-400 text-blue-900", "CLIENTE": "bg-pink-400 text-pink-900" };
-            const iM = { "GERAL": "🔔", "FINANCEIRO": "💰", "FABRICA": "🏭", "CLIENTE": "❤️" };
-            eventosDoMes[l.dataOrdem].push({ tipo: 'LEMBRETE', obj: l, cor: isFeito ? 'bg-slate-200 text-slate-500 opacity-60 line-through' : corM[l.categoria], icone: iM[l.categoria], titulo: l.titulo });
-        });
-    }
-
-    if(mostraPrz) {
-        pedidos.forEach(p => {
-            if(p.finalizado || p.status === "Entregue/Finalizado") return; 
-            const dataPrazo = calcDataExata(p.dataPedido, p.prazo);
-            if(dataPrazo) {
-                if(!eventosDoMes[dataPrazo]) eventosDoMes[dataPrazo] = [];
-                eventosDoMes[dataPrazo].push({ tipo: 'PRAZO', obj: p, cor: 'bg-blue-100 text-blue-800 border-blue-200', icone: '📋', titulo: `Prazo: ${p.cliente}` });
-            }
-        });
-    }
-
-    renderCalendario();
-    renderPainelDia();
-}
-
-function renderCalendario() {
-    const ano = dataAtualCalendario.getFullYear();
-    const mes = dataAtualCalendario.getMonth(); 
-    const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-    
-    document.getElementById('mes-ano-display').innerText = `${nomesMeses[mes]} ${ano}`;
-
-    const primeiroDia = new Date(ano, mes, 1).getDay(); 
-    const diasNoMes = new Date(ano, mes + 1, 0).getDate();
-
-    let html = "";
-    for (let i = 0; i < primeiroDia; i++) html += `<div class="border-b border-r border-slate-200 bg-slate-50 opacity-40 min-h-[80px]"></div>`;
-
-    const hojeStr = new Date().toISOString().split('T')[0];
-
-    for (let dia = 1; dia <= diasNoMes; dia++) {
-        const mesStr = String(mes + 1).padStart(2, '0');
-        const diaStr = String(dia).padStart(2, '0');
-        const dataChave = `${ano}-${mesStr}-${diaStr}`;
-        
-        const isHoje = (dataChave === hojeStr);
-        const isSelecionado = (dataChave === dataSelecionadaLogistica);
-        
-        let circleClass = "text-slate-600";
-        if (isHoje) circleClass = "bg-amber-500 text-white shadow-md";
-        
-        let divBg = isSelecionado ? "bg-blue-50 ring-2 ring-inset ring-blue-400" : "hover:bg-slate-50";
-
-        let eventosHTML = "";
-        if(eventosDoMes[dataChave]) {
-            const mostrar = eventosDoMes[dataChave].slice(0, 3);
-            mostrar.forEach(ev => {
-                eventosHTML += `<div class="${ev.cor} text-[8px] font-black truncate px-1 rounded shadow-sm mb-0.5 leading-tight py-0.5" title="${ev.titulo}">${ev.icone} ${esc(ev.titulo)}</div>`;
-            });
-            if(eventosDoMes[dataChave].length > 3) {
-                eventosHTML += `<div class="text-[8px] font-black text-slate-400 text-center">+${eventosDoMes[dataChave].length - 3} itens</div>`;
-            }
-        }
-
-        html += `
-        <div onclick="selecionarDiaLogistica('${dataChave}', '${dia} de ${nomesMeses[mes]}')" class="border-b border-r border-slate-200 p-1.5 min-h-[80px] transition cursor-pointer flex flex-col gap-1 ${divBg}">
-            <div class="flex justify-end"><span class="w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-black ${circleClass}">${dia}</span></div>
-            <div class="flex-1 overflow-hidden flex flex-col gap-0.5">${eventosHTML}</div>
-        </div>`;
-    }
-    const grid = document.getElementById('grid-dias');
-    if(grid) grid.innerHTML = html;
-}
-
-function mudarMes(direcao) { dataAtualCalendario.setMonth(dataAtualCalendario.getMonth() + direcao); processarEventosCalendario(); }
-function selecionarDiaLogistica(dataChave, dataFormatada) { dataSelecionadaLogistica = dataChave; renderCalendario(); renderPainelDia(); }
-
-function renderPainelDia() {
-    const painel = document.getElementById('lista-eventos-dia');
-    if(!painel) return;
-
-    const dataObj = new Date(dataSelecionadaLogistica + "T12:00:00");
-    document.getElementById('titulo-painel-dia').innerText = "Dia " + dataObj.toLocaleDateString('pt-BR');
-    
-    const evs = eventosDoMes[dataSelecionadaLogistica] || [];
-    document.getElementById('badge-qtd-dia').innerText = evs.length + (evs.length === 1 ? " Item" : " Itens");
-
-    if(evs.length === 0) {
-        painel.innerHTML = '<div class="text-center p-8 border-2 border-dashed border-slate-200 rounded-2xl"><span class="text-3xl block mb-2">🎈</span><span class="text-xs font-black text-slate-400 uppercase">Dia Livre!<br>Nenhum compromisso.</span></div>';
-        return;
-    }
-
-    painel.innerHTML = evs.map(ev => {
-        if(ev.tipo === 'ENTREGA') {
-            const e = ev.obj;
-            let corSt = "bg-slate-100 text-slate-600";
-            if(e.status === 'Agendado') corSt = "bg-blue-100 text-blue-700";
-            if(e.status === 'Em Rota') corSt = "bg-orange-100 text-orange-700";
-            if(e.status === 'Entregue') corSt = "bg-emerald-100 text-emerald-700";
-            const isFeito = e.status === 'Entregue' ? 'opacity-60' : '';
-            return `
-            <div class="bg-white border-l-4 border-emerald-500 rounded-xl p-4 shadow-sm border border-slate-200 flex flex-col ${isFeito}">
-                <div class="flex justify-between items-start mb-2"><span class="text-[10px] font-black uppercase text-emerald-600 tracking-wider">🚚 Entrega</span><button onclick="cycleStatusEntrega(${e.uid})" class="${corSt} px-2 py-0.5 rounded text-[9px] font-black uppercase shadow-sm">${esc(e.status)}</button></div>
-                <h4 class="font-black text-sm uppercase text-slate-800 leading-tight">${esc(e.cliente)}</h4>
-                <p class="text-[9px] font-bold text-slate-500 uppercase mt-1 mb-2">📍 ${esc(e.endereco)}</p>
-                <div class="bg-emerald-50 p-2 rounded border border-emerald-100 text-[10px] font-bold text-emerald-800 uppercase mb-3 leading-snug">${esc(e.produtos).replace(/\n/g, '<br>• ')}</div>
-                <div class="flex justify-between items-center border-t border-slate-100 pt-3">
-                    <button onclick="abrirGPS('${esc(e.endereco)}')" class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase flex items-center gap-1 hover:bg-blue-100 transition">🗺️ GPS</button>
-                    <div class="flex gap-2">
-                        <button onclick="abrirWhatsAppEntrega('${esc(e.cliente)}', '${esc(e.endereco)}', '${esc(e.produtos)}')" class="bg-green-50 text-green-600 p-1.5 rounded-lg hover:bg-green-100" title="Avisar WhatsApp">💬</button>
-                        <button onclick="excluirEntrega(${e.uid})" class="bg-red-50 text-red-500 p-1.5 rounded-lg hover:bg-red-100" title="Excluir">🗑️</button>
-                    </div>
+    <!-- ABA EQUIPE (KANBAN) -->
+    <main id="view-equipe" class="hidden p-4 md:p-6 max-w-[1950px] mx-auto w-full">
+        <div class="card-premium p-6 border-l-8 border-purple-600 mb-4 shadow-lg bg-white">
+            <div class="flex flex-wrap gap-3 items-end">
+                <div class="flex-1 min-w-[250px]">
+                    <label class="text-[9px] font-black text-slate-400 uppercase">O que precisa ser feito?</label>
+                    <input id="eq_desc" placeholder="DESCREVA A TAREFA RAPIDAMENTE..." class="border-2 p-2.5 rounded-lg text-xs font-bold w-full uppercase outline-purple-500" onkeydown="if(event.key==='Enter') adicionarTarefaEquipe()">
                 </div>
-            </div>`;
-        }
-        else if(ev.tipo === 'LEMBRETE') {
-            const l = ev.obj;
-            const op = l.concluido ? 'opacity-50' : '';
-            const tx = l.concluido ? 'line-through text-slate-400' : 'text-slate-800';
-            return `
-            <div class="bg-white border-l-4 border-amber-500 rounded-xl p-4 shadow-sm border border-slate-200 flex flex-col gap-2 ${op}">
-                <div class="flex justify-between items-center"><span class="text-[10px] font-black uppercase text-amber-600 tracking-wider">${ev.icone} Lembrete</span><button onclick="toggleConcluidoLembrete(${l.uid})" class="${l.concluido ? 'bg-slate-200 text-slate-500' : 'bg-green-100 text-green-700'} px-2 py-0.5 rounded text-[9px] font-black uppercase shadow-sm">${l.concluido ? '🔙 Desfazer' : '✅ Feito'}</button></div>
-                <h4 class="font-black text-xs uppercase ${tx} leading-snug">${esc(l.titulo)}</h4>
-                <div class="flex justify-end pt-1 mt-1 border-t border-slate-100"><button onclick="excluirLembrete(${l.uid})" class="text-red-400 hover:text-red-600 font-black text-xs">✕ Apagar</button></div>
-            </div>`;
-        }
-        else if(ev.tipo === 'PRAZO') {
-            const p = ev.obj;
-            return `
-            <div class="bg-blue-50 border-l-4 border-blue-500 rounded-xl p-3 shadow-sm border border-blue-100">
-                <span class="text-[9px] font-black uppercase text-blue-600 tracking-wider mb-1 block">📋 Vencimento de Prazo</span>
-                <h4 class="font-black text-xs uppercase text-slate-800">${esc(p.cliente)}</h4>
-                <p class="text-[9px] font-bold text-slate-500 uppercase mt-1">${p.qtd}x ${esc(p.produto)} - ${esc(p.fornecedor)}</p>
-            </div>`;
-        }
-    }).join('');
-}
+                <div class="w-48">
+                    <label class="text-[9px] font-black text-slate-400 uppercase">Prazo / Urgência</label>
+                    <select id="eq_prazo" class="border-2 p-2.5 rounded-lg text-xs font-bold bg-white w-full outline-purple-500 uppercase cursor-pointer">
+                        <option value="">SEM PRAZO</option>
+                        <option value="AGORA">🚨 AGORA (Urgente)</option>
+                        <option value="IMEDIATO">⚡ 1 DIA (Imediato)</option>
+                        <option value="IMPORTANTE">⚠️ 2 DIAS (Importante)</option>
+                        <option value="REGULAR">📅 3 DIAS (Regular)</option>
+                        <option value="TRANQUILO">☕ + DIAS (Tranquilo)</option>
+                    </select>
+                </div>
+                <div class="w-48">
+                    <label class="text-[9px] font-black text-slate-400 uppercase">Responsável</label>
+                    <select id="eq_resp" class="border-2 p-2.5 rounded-lg text-xs font-bold bg-white w-full outline-purple-500 uppercase cursor-pointer">
+                        <option value="LUCAS">🟢 LUCAS</option>
+                        <option value="ANGÉLICA">🟣 ANGÉLICA</option>
+                        <option value="GUILHERME">🔵 GUILHERME</option>
+                        <option value="CAROL">🟠 CAROL</option>
+                        <option value="ISABELLA">🟡 ISABELLA</option>
+                    </select>
+                </div>
+                <button onclick="adicionarTarefaEquipe()" class="bg-purple-600 text-white px-8 py-3 rounded-lg font-black text-xs uppercase shadow hover:bg-purple-700 transition">＋ Adicionar</button>
+            </div>
+            
+            <div class="mt-5 pt-4 border-t border-slate-100 flex flex-col gap-2 relative">
+                <div class="flex justify-between items-center flex-wrap gap-2">
+                    <span class="text-[9px] font-black text-slate-400 uppercase">Filtre por Responsável:</span>
+                    <label class="flex items-center gap-2 cursor-pointer bg-slate-800 text-white px-4 py-2 rounded-xl shadow-md hover:bg-slate-700 transition">
+                        <input type="checkbox" id="check-minhas-tarefas" onchange="toggleModoMinhasTarefas()" class="cursor-pointer w-4 h-4 accent-purple-500">
+                        <span class="text-[10px] font-black uppercase tracking-wider">👁️ Mostrar Apenas as Minhas</span>
+                    </label>
+                </div>
+                <div id="filtros-equipe" class="flex flex-wrap gap-2 mt-1 transition-opacity"></div>
+            </div>
+        </div>
 
-// LOGÍSTICA: ENTREGAS
-function abrirModalNovaEntrega() { 
-    document.getElementById('ent_data').value = dataSelecionadaLogistica; 
-    document.getElementById('modal-nova-entrega').style.display='flex'; 
-}
-function buscarDadosInteligentes() {
-    const nome = document.getElementById('ent_cliente').value.toUpperCase().trim(); if(!nome) return;
-    const aviso = document.getElementById('aviso-magico'); let achouAlgo = false;
-    const tarefa = tarefas.find(t => t.detalhes && t.detalhes.cliente && t.detalhes.cliente.includes(nome));
-    const elEnd = document.getElementById('ent_endereco');
-    if(tarefa && !elEnd.value) { const num = tarefa.detalhes.num ? `, ${tarefa.detalhes.num}` : ''; const bairro = tarefa.detalhes.bairro ? ` - ${tarefa.detalhes.bairro}` : ''; const cidade = tarefa.detalhes.cidade ? ` - ${tarefa.detalhes.cidade}` : ''; elEnd.value = `${tarefa.detalhes.end}${num}${bairro}${cidade}`.toUpperCase(); achouAlgo = true; }
-    const prods = pedidos.filter(p => p.cliente && p.cliente.includes(nome) && !p.finalizado);
-    const elProd = document.getElementById('ent_produtos');
-    if(prods.length > 0 && !elProd.value) { elProd.value = prods.map(p => `${p.qtd}x ${p.produto} ${p.cor}`).join('\n').toUpperCase(); achouAlgo = true; }
-    if(achouAlgo) { aviso.classList.remove('hidden'); setTimeout(() => aviso.classList.add('hidden'), 3000); }
-}
-function salvarEntrega() {
-    const data = document.getElementById('ent_data').value;
-    const cliente = document.getElementById('ent_cliente').value.toUpperCase().trim();
-    const endereco = document.getElementById('ent_endereco').value.toUpperCase().trim();
-    const produtos = document.getElementById('ent_produtos').value.toUpperCase().trim();
-    if(!data || !cliente || !produtos) return alert("Preencha Data, Cliente e Produtos!");
-    entregas.push({ uid: Date.now(), dataOrdem: data, cliente: cliente, endereco: endereco || "Não informado", produtos: produtos, status: "Agendado" });
-    salvarColecao('entregas', entregas);
-    fecharModaisLogistica();
-}
-function cycleStatusEntrega(uid) { const t = entregas.find(x => x.uid == uid); if(!t) return; const s = ["Agendado", "Em Rota", "Entregue"]; t.status = s[(s.indexOf(t.status) + 1) % s.length]; salvarColecao('entregas', entregas); }
-function excluirEntrega(uid) { if(confirm("Deseja apagar esta entrega?")) { entregas = entregas.filter(x => x.uid != uid); salvarColecao('entregas', entregas); } }
-function abrirWhatsAppEntrega(cliente, end, prods) { const msg = `🚚 *Aviso de Entrega - Mercier Design*\n\nOlá ${cliente}! O seu pedido está a caminho.\n\n📦 *Itens:*\n${prods}\n\n📍 *Endereço registrado:*\n${end}\n\nQualquer dúvida, estamos à disposição!`; window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank'); }
-function abrirGPS(endereco) { if(!endereco || endereco === "NÃO INFORMADO") return alert("Sem endereço para rota."); window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}`, '_blank'); }
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            <div id="col-todo-container" ondrop="dropTarefa(event, 'TODO')" ondragover="allowDropTarefa(event)" class="bg-slate-200/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-slate-200 shadow-inner transition-all duration-300">
+                <h3 class="font-black text-sm uppercase text-slate-600 mb-4 flex justify-between items-center sticky top-0 bg-slate-200/90 py-1 z-10 backdrop-blur-sm pointer-events-none">
+                    <div class="flex items-center gap-2 pointer-events-auto">
+                        <button onclick="toggleColunaKanban('TODO')" id="btn-toggle-todo" class="bg-slate-300 hover:bg-slate-400 text-slate-700 w-7 h-7 rounded-full flex items-center justify-center transition shadow-sm text-lg leading-none">➖</button>
+                        <span>🟥 A Fazer</span>
+                    </div>
+                    <span id="count-todo" class="bg-slate-300 text-slate-700 py-1 px-3 rounded-full text-[10px]">0</span>
+                </h3>
+                <div id="col-todo" class="flex flex-col gap-3 flex-1 pb-4 transition-all"></div>
+            </div>
+            
+            <div id="col-doing-container" ondrop="dropTarefa(event, 'DOING')" ondragover="allowDropTarefa(event)" class="bg-blue-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-blue-200 shadow-inner transition-all duration-300">
+                <h3 class="font-black text-sm uppercase text-blue-600 mb-4 flex justify-between items-center sticky top-0 bg-blue-100/90 py-1 z-10 backdrop-blur-sm pointer-events-none">
+                    <div class="flex items-center gap-2 pointer-events-auto">
+                        <button onclick="toggleColunaKanban('DOING')" id="btn-toggle-doing" class="bg-blue-200 hover:bg-blue-300 text-blue-700 w-7 h-7 rounded-full flex items-center justify-center transition shadow-sm text-lg leading-none">➖</button>
+                        <span>🟨 Em Andamento</span>
+                    </div>
+                    <span id="count-doing" class="bg-blue-200 text-blue-700 py-1 px-3 rounded-full text-[10px]">0</span>
+                </h3>
+                <div id="col-doing" class="flex flex-col gap-3 flex-1 pb-4 transition-all"></div>
+            </div>
+            
+            <div id="col-done-container" ondrop="dropTarefa(event, 'DONE')" ondragover="allowDropTarefa(event)" class="bg-green-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-green-200 shadow-inner transition-all duration-300">
+                <h3 class="font-black text-sm uppercase text-green-600 mb-4 flex justify-between items-center sticky top-0 bg-green-100/90 py-1 z-10 backdrop-blur-sm pointer-events-none">
+                    <div class="flex items-center gap-2 pointer-events-auto">
+                        <button onclick="toggleColunaKanban('DONE')" id="btn-toggle-done" class="bg-green-200 hover:bg-green-300 text-green-700 w-7 h-7 rounded-full flex items-center justify-center transition shadow-sm text-lg leading-none">➖</button>
+                        <span>🟩 Concluído</span>
+                    </div>
+                    <span id="count-done" class="bg-green-200 text-green-700 py-1 px-3 rounded-full text-[10px]">0</span>
+                </h3>
+                <div id="col-done" class="flex flex-col gap-3 flex-1 pb-4 transition-all"></div>
+            </div>
+        </div>
+    </main>
 
-// LOGÍSTICA: LEMBRETES
-function abrirModalNovoLembrete() { 
-    document.getElementById('lem_data').value = dataSelecionadaLogistica; 
-    document.getElementById('modal-novo-lembrete').style.display='flex'; 
-}
-function salvarLembrete() {
-    const titulo = document.getElementById('lem_titulo').value.toUpperCase().trim();
-    const data = document.getElementById('lem_data').value;
-    const cat = document.getElementById('lem_categoria').value;
-    if(!titulo || !data) return alert("Preencha título e data!");
-    lembretes.push({ uid: Date.now(), titulo: titulo, dataOrdem: data, categoria: cat, concluido: false });
-    salvarColecao('lembretes', lembretes);
-    fecharModaisLogistica();
-}
-function toggleConcluidoLembrete(uid) { const l = lembretes.find(x => x.uid == uid); if(l) { l.concluido = !l.concluido; salvarColecao('lembretes', lembretes); } }
-function excluirLembrete(uid) { if(confirm("Apagar lembrete?")) { lembretes = lembretes.filter(x => x.uid != uid); salvarColecao('lembretes', lembretes); } }
+    <!-- NOVA ABA: LOGÍSTICA E AGENDA -->
+    <main id="view-logistica" class="hidden max-w-[1950px] mx-auto p-4 md:p-6 w-full h-[calc(100vh-100px)] flex flex-col md:flex-row gap-6">
+        
+        <!-- Esquerda: Calendário -->
+        <div class="md:w-2/3 card-premium flex flex-col overflow-hidden h-full shadow-lg">
+            <div class="bg-slate-800 p-4 flex flex-col sm:flex-row justify-between items-center gap-4 text-white">
+                <div class="flex items-center gap-4">
+                    <button onclick="mudarMes(-1)" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg font-black transition">◀</button>
+                    <h2 id="mes-ano-display" class="text-lg font-black uppercase tracking-widest min-w-[160px] text-center text-emerald-400">MÊS ANO</h2>
+                    <button onclick="mudarMes(1)" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg font-black transition">▶</button>
+                </div>
+                
+                <div class="flex gap-2 flex-wrap justify-center">
+                    <label class="flex items-center gap-1.5 cursor-pointer bg-slate-700 px-3 py-1.5 rounded-lg shadow-sm hover:bg-slate-600 transition text-[10px] font-black uppercase">
+                        <input type="checkbox" id="filtro-cal-entregas" checked onchange="renderCalendario()" class="accent-emerald-500 w-3 h-3"> 🚚 Entregas
+                    </label>
+                    <label class="flex items-center gap-1.5 cursor-pointer bg-slate-700 px-3 py-1.5 rounded-lg shadow-sm hover:bg-slate-600 transition text-[10px] font-black uppercase">
+                        <input type="checkbox" id="filtro-cal-lembretes" checked onchange="renderCalendario()" class="accent-amber-500 w-3 h-3"> ⏰ Lembretes
+                    </label>
+                    <label class="flex items-center gap-1.5 cursor-pointer bg-slate-700 px-3 py-1.5 rounded-lg shadow-sm hover:bg-slate-600 transition text-[10px] font-black uppercase">
+                        <input type="checkbox" id="filtro-cal-prazos" checked onchange="renderCalendario()" class="accent-blue-500 w-3 h-3"> 📋 Prazos
+                    </label>
+                </div>
+            </div>
 
-function fecharModaisLogistica() {
-    document.getElementById('modal-nova-entrega').style.display = 'none';
-    document.getElementById('modal-novo-lembrete').style.display = 'none';
-    document.getElementById('ent_cliente').value = ""; document.getElementById('ent_endereco').value = ""; document.getElementById('ent_produtos').value = "";
-    document.getElementById('lem_titulo').value = "";
-}
+            <div class="flex-1 flex flex-col overflow-hidden bg-slate-100">
+                <div class="grid grid-cols-7 bg-white border-b border-slate-200 text-[10px] font-black text-slate-400 uppercase text-center py-3 shadow-sm z-10">
+                    <div>DOM</div><div>SEG</div><div>TER</div><div>QUA</div><div>QUI</div><div>SEX</div><div>SAB</div>
+                </div>
+                <div id="grid-dias" class="grid grid-cols-7 flex-1 auto-rows-fr overflow-y-auto custom-scrollbar bg-slate-100/50">
+                    <!-- Dias Injetados pelo JS -->
+                </div>
+            </div>
+        </div>
 
-// ESTOQUE - NOVAS REGRAS
-function autoSalvarNotasEstoque() { notasEstoque = document.getElementById('estoque-notas-gerais').value; db.ref('dados/notasEstoque').set(notasEstoque); }
-function mudarVisaoEstoque(visao) {
-    visaoEstoque = visao;
-    const btnDisp = document.getElementById('btn-estoque-disponivel');
-    const btnSaid = document.getElementById('btn-estoque-saidas');
-    if(visao === 'ESTOQUE') {
-        btnDisp.classList.add('border-green-500', 'text-green-600', 'bg-white'); btnDisp.classList.remove('border-transparent', 'text-slate-400');
-        btnSaid.classList.remove('border-green-500', 'text-green-600', 'bg-white'); btnSaid.classList.add('border-transparent', 'text-slate-400');
-    } else {
-        btnSaid.classList.add('border-green-500', 'text-green-600', 'bg-white'); btnSaid.classList.remove('border-transparent', 'text-slate-400');
-        btnDisp.classList.remove('border-green-500', 'text-green-600', 'bg-white'); btnDisp.classList.add('border-transparent', 'text-slate-400');
+        <!-- Direita: Painel do Dia -->
+        <div class="md:w-1/3 flex flex-col gap-4 h-full">
+            
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="abrirModalNovaEntrega()" class="bg-emerald-600 text-white font-black uppercase text-xs py-4 rounded-xl shadow hover:bg-emerald-700 transition flex items-center justify-center gap-2 border-b-4 border-emerald-800 active:border-b-0 active:translate-y-1"><span>🚚 Nova Entrega</span></button>
+                <button onclick="abrirModalNovoLembrete()" class="bg-amber-500 text-white font-black uppercase text-xs py-4 rounded-xl shadow hover:bg-amber-600 transition flex items-center justify-center gap-2 border-b-4 border-amber-700 active:border-b-0 active:translate-y-1"><span>⏰ Novo Lembrete</span></button>
+            </div>
+
+            <div class="card-premium flex-1 flex flex-col overflow-hidden shadow-lg border-t-8 border-emerald-500 bg-slate-50">
+                <div class="p-5 bg-white border-b border-slate-200 flex justify-between items-center shadow-sm z-10">
+                    <h3 id="titulo-painel-dia" class="font-black text-slate-800 uppercase text-sm tracking-wide">Agenda de Hoje</h3>
+                    <span id="badge-qtd-dia" class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-[10px] font-black">0 Itens</span>
+                </div>
+                <div id="lista-eventos-dia" class="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-col gap-4 relative">
+                    <!-- Cards Injetados Pelo JS -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ABA ESTOQUE -->
+    <main id="view-estoque" class="hidden p-6 max-w-[1950px] mx-auto w-full">
+        
+        <!-- Cadastro Inteligente -->
+        <div class="card-premium p-6 border-l-8 border-emerald-500 mb-6 bg-emerald-50 shadow-md">
+            <h3 class="text-sm font-black uppercase text-emerald-800 mb-2 flex items-center gap-2">✨ Cadastro Inteligente em Massa</h3>
+            <p class="text-[10px] font-bold text-emerald-600 uppercase mb-3 leading-relaxed">Cole sua lista abaixo. Regra de separação: <b>[PRODUTO] ; [FÁBRICA] ; [SITUAÇÃO/OBS]</b><br><i>Ex 1:</i> Sofá Egeo 2,50m TEC 9014<br><i>Ex 2:</i> 2x Poltrona Decor <b>;</b> Sier <b>;</b> Vendido para Lucas</p>
+            <textarea id="e_massa" rows="5" placeholder="• Sofá Milão Verde 2 mód. 1m Tec. 9011&#10;• 2x Sofá Fly ; Enele&#10;• Sofá Búzios 2,50 ; Móveis X ; Vendido Carol" class="w-full border-2 border-emerald-200 p-3 rounded-xl text-xs font-bold uppercase outline-emerald-500 shadow-inner resize-y bg-white"></textarea>
+            <div class="flex justify-end mt-3"><button onclick="processarEstoqueMassa()" class="bg-emerald-600 text-white px-10 py-3 rounded-lg font-black text-xs uppercase shadow-lg hover:bg-emerald-700 transition">⚡ Processar Lista</button></div>
+        </div>
+
+        <!-- Resumo -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+            <div class="card-premium p-5 border-l-8 border-green-500 bg-white shadow-sm flex flex-col justify-center"><p class="text-[10px] font-black text-slate-400 uppercase">Disponível Agora</p><h3 id="resumo-estoque-total" class="text-2xl font-black text-green-600">0</h3></div>
+            <div class="card-premium p-5 border-l-8 border-red-500 bg-white shadow-sm flex flex-col justify-center"><p class="text-[10px] font-black text-slate-400 uppercase">Total de Saídas</p><h3 id="resumo-estoque-vendidos" class="text-2xl font-black text-red-600">0</h3></div>
+            <div class="card-premium border-l-8 border-blue-500 bg-white flex flex-col shadow-sm"><p class="text-[10px] font-black text-slate-400 uppercase p-2 border-b">📝 Notas do Estoque</p><textarea id="estoque-notas-gerais" oninput="autoSalvarNotasEstoque()" class="flex-1 p-3 text-[11px] font-bold uppercase outline-none resize-none bg-slate-50 min-h-[80px]" placeholder="ANOTAÇÕES..."></textarea></div>
+        </div>
+
+        <!-- Cadastro Unitário -->
+        <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex flex-wrap gap-4 items-end uppercase shadow-lg">
+            <div class="flex-1 min-w-[250px]"><label class="text-[9px] font-black text-slate-400">Cadastro Unitário: Produto</label><input id="e_produto" placeholder="NOME DO MÓVEL" class="border-2 p-2.5 rounded-lg text-xs font-bold w-full uppercase outline-blue-500"></div>
+            <div class="w-44"><label class="text-[9px] font-black text-slate-400">Fábrica</label><select id="e_fabrica_select" class="border-2 p-2.5 rounded-lg text-xs font-bold bg-white w-full outline-blue-500"></select></div>
+            <div class="w-20"><label class="text-[9px] font-black text-slate-400">Qtd</label><input id="e_qtd" type="number" value="1" class="border-2 p-2.5 rounded-lg text-xs font-bold w-full outline-blue-500"></div>
+            <div class="w-36 hidden"><select id="e_situacao" class="border-2 p-2.5 rounded-lg text-xs font-bold bg-white w-full outline-blue-500"><option value="ESTOQUE">ESTOQUE</option></select></div>
+            <button onclick="cadastrarEstoque()" class="bg-blue-600 text-white px-10 py-3 rounded-lg font-black text-xs uppercase shadow hover:bg-blue-700 transition">Adicionar 1</button>
+        </div>
+
+        <!-- Tabela do Estoque -->
+        <div class="card-premium overflow-hidden">
+            <div class="flex border-b bg-slate-50">
+                <button onclick="mudarVisaoEstoque('ESTOQUE')" id="btn-estoque-disponivel" class="flex-1 py-4 text-xs font-black uppercase border-b-4 border-green-500 text-green-600 transition bg-white">🟢 Em Estoque (Disponível)</button>
+                <button onclick="mudarVisaoEstoque('SAIDAS')" id="btn-estoque-saidas" class="flex-1 py-4 text-xs font-black uppercase border-b-4 border-transparent text-slate-400 hover:text-slate-600 transition">🔴 Saídas / Histórico</button>
+            </div>
+
+            <div class="p-4 bg-white border-b flex flex-col sm:flex-row gap-4 items-center uppercase">
+                <div class="flex-1 min-w-[300px] w-full"><input type="text" id="estoque-busca" onkeyup="renderEstoque()" placeholder="🔍 BUSCAR..." class="border-2 p-2.5 rounded-xl text-xs font-bold w-full outline-blue-500"></div>
+                <select id="estoque-filtro-fabrica" onchange="renderEstoque()" class="border-2 p-2.5 rounded-xl text-xs font-bold bg-white w-full sm:w-48 outline-blue-500"><option value="TODAS">TODAS AS FÁBRICAS</option></select>
+            </div>
+
+            <div class="table-container">
+                <table class="w-full text-left border-collapse table-fixed">
+                    <thead class="bg-slate-50 border-b">
+                        <tr class="text-slate-500 uppercase text-[10px]">
+                            <th width="90">Data</th><th>Móvel</th><th width="150">Fábrica</th><th width="60" class="text-center">Qtd</th><th width="140" class="text-center">Status</th><th class="text-center" width="100">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaEstoque"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- ABA ASSISTÊNCIA -->
+    <main id="view-assistencia" class="hidden p-6 max-w-[1950px] mx-auto w-full">
+        <div class="card-premium p-6 border-l-8 border-orange-500 flex flex-wrap gap-4 mb-6 uppercase shadow-lg">
+            <input list="listaSugestaoClientes" id="as_cliente" placeholder="CLIENTE" class="border-2 p-2.5 rounded-lg text-xs font-bold flex-1 uppercase outline-orange-500">
+            <input id="as_produto" placeholder="PRODUTO / DEFEITO" class="border-2 p-2.5 rounded-lg text-xs font-bold flex-1 uppercase outline-orange-500">
+            <select id="as_fabrica" class="border-2 p-2.5 rounded-lg text-xs font-bold bg-white w-48 outline-orange-500"></select>
+            <button onclick="cadastrarAssistencia()" class="bg-orange-600 text-white px-10 py-2.5 rounded-lg font-black text-xs uppercase shadow hover:bg-orange-700 transition">Registrar</button>
+        </div>
+        <div class="card-premium p-4 mb-4 bg-slate-50 flex flex-wrap gap-4 items-center uppercase border border-slate-200">
+            <div class="flex-1 min-w-[300px]">
+                <input type="text" id="busca-assistencia" onkeyup="renderAssistencias()" placeholder="🔍 BUSCAR ASSISTÊNCIA..." class="border-2 p-2.5 rounded-xl text-xs font-bold w-full outline-orange-500">
+            </div>
+            <select id="filtro-assistencia-status" onchange="renderAssistencias()" class="border-2 p-2.5 rounded-xl text-xs font-bold bg-white w-48 outline-orange-500 cursor-pointer">
+                <option value="TODAS">TODOS OS STATUS</option>
+                <option value="Aguardando">AGUARDANDO</option>
+                <option value="Peça Solicitada">PEÇA SOLICITADA</option>
+                <option value="Concluído">CONCLUÍDO</option>
+            </select>
+            <span id="contador-assistencia" class="text-[10px] font-black bg-slate-900 text-white px-4 py-2 rounded-lg uppercase">0 ASSISTÊNCIAS</span>
+        </div>
+        <div class="card-premium overflow-hidden">
+            <table class="w-full text-left border-collapse table-fixed">
+                <thead>
+                    <tr class="bg-slate-50 text-[10px] uppercase text-slate-500 border-b">
+                        <th width="90">Data</th><th>Cliente</th><th>Produto / Defeito</th><th width="150">Fábrica</th><th width="140" class="text-center">Status</th><th width="80" class="text-center">Ação</th>
+                    </tr>
+                </thead>
+                <tbody id="tabelaAssistencias"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- ABA CATÁLOGO -->
+    <main id="view-catalogo" class="hidden p-6 max-w-[1200px] mx-auto w-full">
+        <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-3 shadow-lg"><input id="cat_nome" placeholder="NOME DO MÓVEL" class="border-2 p-2.5 rounded-lg flex-1 font-bold uppercase outline-blue-500"><button onclick="cadastrarCatalogo()" class="bg-blue-600 text-white px-10 py-2.5 rounded-lg font-black text-xs uppercase shadow hover:bg-blue-700 transition">Salvar</button></div>
+        <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50 text-[10px] uppercase"><th>Nome do Item</th><th class="text-center" width="100">Remover</th></tr></thead><tbody id="tabelaCatalogo"></tbody></table></div>
+    </main>
+
+    <!-- ABA FÁBRICAS -->
+    <main id="view-fornecedores" class="hidden max-w-4xl mx-auto p-6 w-full">
+        <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-3 shadow-lg"><input id="f_nome" placeholder="NOME DA FÁBRICA" class="border-2 p-2.5 rounded-lg flex-1 font-bold uppercase outline-blue-500"><input id="f_email" placeholder="EMAIL" class="border-2 p-2.5 rounded-lg flex-1 font-bold lowercase outline-blue-500"><button onclick="cadastrarFornecedor()" class="bg-blue-600 text-white px-10 py-2.5 rounded font-black text-xs uppercase hover:bg-blue-700 transition">Salvar</button></div>
+        <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50 text-[10px] uppercase"><th>Fábrica</th><th>E-mail</th><th class="text-center" width="100">Remover</th></tr></thead><tbody id="tabelaFornecedores"></tbody></table></div>
+    </main>
+
+    <!-- MODAIS E COMPONENTES ESCONDIDOS -->
+    <div id="modal-detalhes" class="modal-overlay" onclick="if(event.target==this) this.style.display='none'"><div class="card-premium w-full max-w-2xl bg-white overflow-hidden flex flex-col max-h-[90vh] shadow-2xl"><div class="bg-indigo-600 p-5 text-white font-black flex justify-between items-center uppercase text-sm tracking-widest"><span>📄 Resumo Detalhado</span><button onclick="document.getElementById('modal-detalhes').style.display='none'" class="text-xl">✕</button></div><div id="detalhe-corpo" class="p-8 overflow-y-auto space-y-4 bg-white text-slate-800"></div></div></div>
+    <div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()">💡</div>
+    <div id="painel-sugestoes"><div id="drag-handle" class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase cursor-move"><span>💡 Bloco de Notas</span><button onclick="togglePainelSugestoes()">✕</button></div><textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" oninput="autoSalvarNotas()"></textarea></div>
+    <input type="file" id="file-upload-global" accept="image/*" class="hidden" onchange="processarUploadImagem(event)">
+    <datalist id="listaSugestaoProdutos"></datalist><datalist id="listaSugestaoClientes"></datalist>
+
+    <div id="modal-nova-entrega" class="modal-overlay" onclick="if(event.target==this) fecharModaisLogistica()">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-2xl border-t-8 border-emerald-500">
+            <h2 class="font-black uppercase text-emerald-600 mb-4 text-sm flex justify-between">🚚 Agendar Entrega <button onclick="fecharModaisLogistica()" class="text-slate-400 hover:text-red-500 text-lg">✕</button></h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div class="md:col-span-1"><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Data</label><input type="date" id="ent_data" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-emerald-500"></div>
+                <div class="md:col-span-3"><label class="text-[10px] font-black text-slate-400 uppercase mb-1 flex justify-between"><span>Cliente</span><span class="text-emerald-500 hidden" id="aviso-magico">✨ Preenchido!</span></label><input list="listaSugestaoClientes" id="ent_cliente" onblur="buscarDadosInteligentes()" placeholder="NOME..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-emerald-500"></div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Endereço (Para GPS)</label><textarea id="ent_endereco" rows="2" placeholder="Rua, Número, Bairro..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-emerald-500 resize-none"></textarea></div>
+                <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Produtos</label><textarea id="ent_produtos" rows="2" placeholder="O que vai entregar?" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-emerald-500 resize-none"></textarea></div>
+            </div>
+            <button onclick="salvarEntrega()" class="w-full bg-emerald-600 text-white py-3 rounded-lg text-xs font-black uppercase shadow hover:bg-emerald-700 transition">Salvar Agendamento</button>
+        </div>
+    </div>
+
+    <div id="modal-novo-lembrete" class="modal-overlay" onclick="if(event.target==this) fecharModaisLogistica()">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-lg border-t-8 border-amber-500">
+            <h2 class="font-black uppercase text-amber-600 mb-4 text-sm flex justify-between">⏰ Prender Lembrete <button onclick="fecharModaisLogistica()" class="text-slate-400 hover:text-red-500 text-lg">✕</button></h2>
+            <div class="mb-4"><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">O que lembrar?</label><input type="text" id="lem_titulo" placeholder="Ex: Cobrar cliente, Ligar fábrica..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-amber-500"></div>
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Quando?</label><input type="date" id="lem_data" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-amber-500"></div>
+                <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Categoria</label><select id="lem_categoria" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-amber-500 bg-white"><option value="GERAL">🔔 Geral</option><option value="FINANCEIRO">💰 Financeiro</option><option value="FABRICA">🏭 Fábrica</option><option value="CLIENTE">❤️ Cliente</option></select></div>
+            </div>
+            <button onclick="salvarLembrete()" class="w-full bg-amber-500 text-white py-3 rounded-lg text-xs font-black uppercase shadow hover:bg-amber-600 transition">Salvar Lembrete</button>
+        </div>
+    </div>
+
+    <div id="modal-saida-estoque" class="modal-overlay" onclick="if(event.target==this) this.style.display='none'">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm border-t-8 border-red-500 flex flex-col gap-4">
+            <h2 class="font-black uppercase text-slate-800 text-sm border-b pb-2">📉 Dar Saída do Estoque</h2>
+            <p id="saida-produto-nome" class="text-xs font-bold text-slate-600 uppercase bg-slate-50 p-2 rounded border"></p>
+            
+            <input type="hidden" id="saida-uid">
+            
+            <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Quantidade a retirar</label><input type="number" id="saida-qtd" value="1" min="1" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-red-500"></div>
+            
+            <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Qual o Motivo / Destino?</label>
+                <select id="saida-motivo" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-red-500 bg-white uppercase cursor-pointer">
+                    <option value="VENDIDO">🛒 Vendido (Cliente)</option>
+                    <option value="ASSISTÊNCIA">🛠️ Assistência / Troca</option>
+                    <option value="DEVOLUÇÃO FÁBRICA">🏭 Devolução p/ Fábrica</option>
+                </select>
+            </div>
+            
+            <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Observação / Nome (Opcional)</label><input type="text" id="saida-obs" placeholder="Ex: Cliente Maria, Defeito no braço..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-red-500 uppercase"></div>
+            
+            <button onclick="confirmarSaidaEstoque()" class="w-full bg-red-600 text-white py-3 mt-2 rounded-lg text-xs font-black uppercase shadow hover:bg-red-700 transition">Confirmar Saída</button>
+        </div>
+    </div>
+
+    <div id="overlay-historico" onclick="togglePainelHistorico()" class="fixed inset-0 bg-slate-900/50 z-[90] hidden backdrop-blur-sm transition-opacity"></div>
+    <div id="painel-historico" class="fixed top-0 right-0 h-full w-80 max-w-[90vw] bg-slate-50 shadow-2xl transform translate-x-full transition-transform duration-300 z-[100] flex flex-col border-l border-slate-200">
+        <div class="bg-slate-800 p-5 text-white font-black flex justify-between items-center uppercase text-sm shadow-md z-10"><span class="flex items-center gap-2">🔔 Diário de Bordo</span><button onclick="togglePainelHistorico()" class="text-xl hover:text-slate-300 transition">✕</button></div>
+        <div id="lista-historico" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 custom-scrollbar relative"></div>
+    </div>
+
+    <script>
+    // ----------------------------------------------------
+    // INICIALIZAÇÃO E FIREBASE
+    // ----------------------------------------------------
+    window.addEventListener('error', function(e) { 
+        const errEl = document.getElementById('error-log'); 
+        if(errEl) { errEl.classList.remove('hidden'); errEl.innerText = "ERRO DETECTADO: " + e.message; } 
+    });
+
+    const firebaseConfig = { 
+        apiKey: "AIzaSyA_fQSZJJcz5Wszw54W5EhMN9D5rNnjoCo", 
+        authDomain: "mercier-design.firebaseapp.com", 
+        projectId: "mercier-design", 
+        storageBucket: "mercier-design.firebasestorage.app", 
+        messagingSenderId: "1060891658513", 
+        appId: "1:1060891658513:web:2eefd15227203af39064b0", 
+        databaseURL: "https://mercier-design-default-rtdb.firebaseio.com/" 
+    };
+
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[], tarefasEquipe=[], historicoAtividades=[], entregas=[], lembretes=[];
+    let proximoID=255, notasMelhoria="", notasEstoque="", cestoItensTemporario=[], filtrandoNaoEnviados=false, cpfValido=true;
+    let deepLinkVerificado = false, visaoPedidos = 'ATIVOS', visaoEstoque = 'ESTOQUE', usuarioAtual = "", modoMinhasTarefas = false;
+    let dataSelecionadaLogistica = new Date().toISOString().split('T')[0];
+    let dataAtualCalendario = new Date();
+    let eventosDoMes = {};
+
+    try { usuarioAtual = localStorage.getItem('mercier_user') || ""; } catch(e) {}
+    try { modoMinhasTarefas = localStorage.getItem('mercier_so_minhas') === 'true'; } catch(e) {}
+
+    window.onload = function() { 
+        const selectEl = document.getElementById('user-select'); 
+        if(selectEl && usuarioAtual) selectEl.value = usuarioAtual; 
+        
+        const chkMinhas = document.getElementById('check-minhas-tarefas'); 
+        if(chkMinhas) chkMinhas.checked = modoMinhasTarefas; 
+        
+        renderFiltrosEquipe(); 
+        mostrarCamposTarefa('SIMPLES'); 
+        
+        document.getElementById('ent_data').valueAsDate = new Date();
+        document.getElementById('lem_data').valueAsDate = new Date();
+    };
+
+    // ----------------------------------------------------
+    // FUNÇÕES GERAIS E UTILITÁRIAS
+    // ----------------------------------------------------
+    function setUsuario(nome) { 
+        usuarioAtual = nome; 
+        try { 
+            if(nome) localStorage.setItem('mercier_user', nome); 
+            else localStorage.removeItem('mercier_user'); 
+        } catch(e) {} 
+        renderFiltrosEquipe(); 
+        renderQuadroEquipe(); 
     }
-    renderEstoque();
-}
 
-function renderEstoque() {
-    const tb = document.getElementById('tabelaEstoque'); if(!tb) return;
-    const b = removeAcentos((document.getElementById('estoque-busca').value || "").toLowerCase());
-    const fFab = document.getElementById('estoque-filtro-fabrica') ? document.getElementById('estoque-filtro-fabrica').value : "TODAS";
-    let totEst = 0, totVen = 0;
-    
-    let lista = estoque.filter(x => {
-        const prod = removeAcentos((x.produto||"").toLowerCase()); const fab = removeAcentos((x.fabrica||"").toLowerCase()); const sit = x.situacao||"ESTOQUE";
-        if(sit === 'ESTOQUE') totEst += parseInt(x.qtd || 0); else totVen += parseInt(x.qtd || 0);
-        return (prod.includes(b) || fab.includes(b)) && (fFab === "TODAS" || x.fabrica === fFab);
+    function toggleModoMinhasTarefas() { 
+        if (!usuarioAtual) { 
+            alert("Selecione quem você é no canto superior direito primeiro!"); 
+            document.getElementById('check-minhas-tarefas').checked = false; 
+            return; 
+        } 
+        modoMinhasTarefas = document.getElementById('check-minhas-tarefas').checked; 
+        try { localStorage.setItem('mercier_so_minhas', modoMinhasTarefas); } catch(e) {} 
+        if(modoMinhasTarefas) { filtrosEquipeAtivos = []; } 
+        renderFiltrosEquipe(); 
+        renderQuadroEquipe(); 
+    }
+
+    function esc(str) { 
+        return (str || "").toString().replace(/[&<>'"]/g, function(tag) { 
+            return ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag] || tag); 
+        }); 
+    }
+
+    function removeAcentos(str) { 
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); 
+    }
+
+    function safeArray(data) { 
+        if (!data) return []; 
+        try { 
+            let arr = Array.isArray(data) ? data : Object.values(data); 
+            return arr.filter(item => item && typeof item === 'object'); 
+        } catch (e) { return []; } 
+    }
+
+    function salvarColecao(colecao, dados) { 
+        db.ref('dados/' + colecao).set(dados); 
+    }
+
+    const statusEl = document.getElementById('status-db');
+    db.ref('.info/connected').on('value', function(snap) { 
+        if (snap.val() === true) { 
+            if(statusEl) { 
+                statusEl.innerText = "ONLINE"; 
+                statusEl.className = "bg-emerald-500 text-white hidden md:flex h-10 items-center px-4 rounded-xl text-[10px] font-black uppercase shadow-inner transition-all duration-300"; 
+            } 
+        } else { 
+            if(statusEl) { 
+                statusEl.innerText = "CONECTANDO..."; 
+                statusEl.className = "bg-orange-500 text-white hidden md:flex h-10 items-center px-4 rounded-xl text-[10px] font-black uppercase transition-all duration-300"; 
+            } 
+        } 
     });
-    
-    if (visaoEstoque === 'ESTOQUE') lista = lista.filter(x => x.situacao === 'ESTOQUE');
-    else lista = lista.filter(x => x.situacao !== 'ESTOQUE');
 
-    if(document.getElementById('resumo-estoque-total')) document.getElementById('resumo-estoque-total').innerText = totEst;
-    if(document.getElementById('resumo-estoque-vendidos')) document.getElementById('resumo-estoque-vendidos').innerText = totVen;
-    
-    tb.innerHTML = lista.map(x => { 
-        let sCls = "bg-green-100 text-green-700"; let txtSit = "DISPONÍVEL";
-        if(x.situacao === 'VENDIDO') { sCls = "bg-red-100 text-red-700"; txtSit = "VENDIDO"; }
-        else if(x.situacao === 'ASSISTÊNCIA') { sCls = "bg-orange-100 text-orange-700"; txtSit = "ASSISTÊNCIA"; }
-        else if(x.situacao === 'DEVOLUÇÃO FÁBRICA') { sCls = "bg-purple-100 text-purple-700"; txtSit = "DEVOLVIDO"; }
+    db.ref('dados').on('value', function(s) { 
+        try { 
+            const d = s.val() || {}; 
+            pedidos = safeArray(d.pedidos); 
+            fornecedores = safeArray(d.fornecedores); 
+            estoque = safeArray(d.estoque); 
+            catalogo = safeArray(d.catalogo); 
+            tarefas = safeArray(d.tarefas); 
+            assistencias = safeArray(d.assistencias); 
+            tarefasEquipe = safeArray(d.tarefasEquipe); 
+            historicoAtividades = safeArray(d.historico); 
+            entregas = safeArray(d.entregas);
+            lembretes = safeArray(d.lembretes);
+            
+            proximoID = d.proximoID || 255; 
+            notasMelhoria = d.notasMelhoria || ""; 
+            notasEstoque = d.notasEstoque || ""; 
+            
+            const elMelhorias = document.getElementById('texto-melhorias'); 
+            if(elMelhorias) elMelhorias.value = notasMelhoria; 
+            
+            const elEstoqueNotas = document.getElementById('estoque-notas-gerais'); 
+            if(elEstoqueNotas) elEstoqueNotas.value = notasEstoque; 
+            
+            atualizarSelectsFornecedores(); 
+            atualizarSugestoes(); 
+            renderAll(); 
+            
+            if(!deepLinkVerificado && tarefasEquipe.length > 0) { 
+                const urlParams = new URLSearchParams(window.location.search); 
+                const tarefaId = urlParams.get('tarefa'); 
+                if(tarefaId) { 
+                    switchTab('equipe'); 
+                    setTimeout(function() { 
+                        const card = document.getElementById('card-' + tarefaId); 
+                        if(card) { 
+                            card.scrollIntoView({ behavior: 'smooth', block: 'center' }); 
+                            const bgOriginal = card.style.backgroundColor; 
+                            card.style.backgroundColor = '#bbf7d0'; 
+                            card.style.transition = 'background-color 2s'; 
+                            setTimeout(() => { card.style.backgroundColor = bgOriginal; }, 2000); 
+                        } 
+                    }, 600); 
+                    window.history.replaceState({}, document.title, window.location.pathname); 
+                } 
+                deepLinkVerificado = true; 
+            } 
+        } catch (err) { 
+            if(statusEl) { 
+                statusEl.innerText = "ERRO DE LEITURA"; 
+                statusEl.className = "bg-red-500 text-white hidden md:flex h-10 items-center px-4 rounded-xl text-[10px] font-black uppercase"; 
+            } 
+            console.error("Erro critico: ", err); 
+        } 
+    });
 
-        return `
-        <tr>
-            <td class="text-[10px] text-slate-400 font-bold">${esc(x.data) || '-'}</td>
-            <td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'estoque')" class="editable-cell uppercase font-bold">${esc(x.produto)}</td>
-            <td onclick="activeInlineEdit(this, ${x.uid}, 'fabrica', 'estoque')" class="editable-cell text-blue-600 text-[10px] font-black uppercase">${esc(x.fabrica) || "-"}</td>
-            <td onclick="activeInlineEdit(this, ${x.uid}, 'qtd', 'estoque')" class="editable-cell text-center">${esc(x.qtd)}</td>
-            <td class="text-center"><span class="px-2 py-1 rounded text-[9px] font-black w-full inline-block ${sCls}">${txtSit}</span></td>
-            <td class="text-center flex gap-1 justify-center">
-                ${x.situacao === 'ESTOQUE' ? `<button onclick="abrirModalSaidaEstoque(${x.uid})" title="Dar Saída" class="bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded text-[10px] transition">📉 Saída</button>` : ''}
-                <button onclick="if(confirm('EXCLUIR REGISTRO?')){estoque=estoque.filter(y => y.uid!=${x.uid}); salvarColecao('estoque', estoque);}" class="text-slate-300 hover:text-red-500 font-black px-2 transition">✕</button>
-            </td>
-        </tr>`; 
-    }).join('');
-}
+    function registrarAcao(icone, acao, detalhe) { 
+        const quem = usuarioAtual || "SISTEMA"; 
+        const agora = new Date(); 
+        const dataHora = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}); 
+        historicoAtividades.unshift({ uid: Date.now() + Math.random(), dataHora: dataHora, usuario: quem, acao: acao, detalhe: detalhe, icone: icone }); 
+        if(historicoAtividades.length > 150) { 
+            historicoAtividades = historicoAtividades.slice(0, 150); 
+        } 
+        salvarColecao('historico', historicoAtividades); 
+    }
 
-// DAR SAÍDA MODERNO
-function abrirModalSaidaEstoque(uid) {
-    const item = estoque.find(x => x.uid == uid);
-    if(!item) return;
-    document.getElementById('saida-uid').value = uid;
-    document.getElementById('saida-produto-nome').innerText = item.produto;
-    document.getElementById('saida-qtd').value = item.qtd;
-    document.getElementById('saida-qtd').max = item.qtd;
-    document.getElementById('saida-obs').value = "";
-    document.getElementById('saida-motivo').value = "VENDIDO";
-    document.getElementById('modal-saida-estoque').style.display = 'flex';
-}
+    function togglePainelHistorico() { 
+        const painel = document.getElementById('painel-historico'); 
+        const overlay = document.getElementById('overlay-historico'); 
+        const badge = document.getElementById('badge-historico'); 
+        if(painel.classList.contains('translate-x-full')) { 
+            painel.classList.remove('translate-x-full'); 
+            overlay.classList.remove('hidden'); 
+            if(badge) badge.classList.add('hidden'); 
+        } else { 
+            painel.classList.add('translate-x-full'); 
+            overlay.classList.add('hidden'); 
+        } 
+    }
 
-function confirmarSaidaEstoque() {
-    const uid = document.getElementById('saida-uid').value;
-    const qtdSaida = parseInt(document.getElementById('saida-qtd').value);
-    const motivo = document.getElementById('saida-motivo').value;
-    const obs = document.getElementById('saida-obs').value.toUpperCase().trim();
-    
-    const it = estoque.find(x => x.uid == uid); 
-    if (!it || isNaN(qtdSaida) || qtdSaida <= 0 || qtdSaida > it.qtd) return alert("Quantidade inválida!"); 
-    
-    let nomeFinal = it.produto;
-    if(obs) nomeFinal += ` (${obs})`;
-
-    if (qtdSaida == it.qtd) { 
-        it.situacao = motivo; 
-        it.produto = nomeFinal;
-        it.data = new Date().toLocaleDateString('pt-BR'); 
-    } else { 
-        it.qtd -= qtdSaida; 
-        estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: nomeFinal, fabrica: it.fabrica, qtd: qtdSaida, situacao: motivo }); 
-    } 
-    
-    salvarColecao('estoque', estoque); 
-    registrarAcao('📉', `SAÍDA: ${motivo}`, `${qtdSaida}x ${it.produto}`); 
-    document.getElementById('modal-saida-estoque').style.display = 'none';
-}
-
-function processarEstoqueMassa() {
-    const texto = document.getElementById('e_massa').value;
-    if(!texto || texto.trim() === "") return alert("Cole a lista na caixa mágica primeiro!");
-    const linhas = texto.split('\n'); let adicionados = 0;
-    linhas.forEach(linha => {
-        linha = linha.trim().replace(/^[\•\-\*]\s*/, ''); if(!linha) return;
-        let partes = linha.split(/;| , /);
-        let p1 = partes[0] ? partes[0].trim().toUpperCase() : "";
-        let p2 = partes[1] ? partes[1].trim().toUpperCase() : "";
-        let p3 = partes[2] ? partes[2].trim().toUpperCase() : "";
+    function renderHistorico() { 
+        const lista = document.getElementById('lista-historico'); 
+        if(!lista) return; 
+        if(historicoAtividades.length === 0) { 
+            lista.innerHTML = '<span class="text-slate-400 text-[10px] font-bold text-center uppercase block mt-10">Nenhuma atividade registrada ainda.</span>'; 
+            return; 
+        } 
+        lista.innerHTML = historicoAtividades.map(h => { 
+            return `<div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex gap-3 items-start transition-all hover:bg-slate-50"><div class="bg-slate-100 p-2 rounded-lg text-lg">${h.icone}</div><div class="flex flex-col flex-1"><div class="flex justify-between items-center mb-1"><span class="text-[9px] font-black uppercase text-slate-700 bg-slate-200 px-1.5 py-0.5 rounded">${esc(h.usuario)}</span><span class="text-[8px] font-bold text-slate-400">${h.dataHora}</span></div><span class="text-[11px] font-black uppercase text-slate-800 leading-tight">${esc(h.acao)}</span><span class="text-[9px] font-bold text-slate-500 uppercase mt-0.5 leading-snug">${esc(h.detalhe)}</span></div></div>`; 
+        }).join(''); 
         
-        let qtd = 1; let produtoTexto = p1;
-        let matchQtd = p1.match(/^(\d+)\s*(?:X|\-|UN|PÇ|MÓD)?\s+(.+)/i);
-        if(matchQtd && parseInt(matchQtd[1]) > 0) { qtd = parseInt(matchQtd[1]); produtoTexto = matchQtd[2].trim(); }
+        const painel = document.getElementById('painel-historico'); 
+        const badge = document.getElementById('badge-historico'); 
+        if(painel && painel.classList.contains('translate-x-full') && badge) { 
+            badge.classList.remove('hidden'); 
+        } 
+    }
+
+    async function getProximoID() { 
+        const ref = db.ref('dados/proximoID'); 
+        const res = await ref.transaction(curr => (curr || 255) + 1); 
+        return res.snapshot.val(); 
+    }
+
+    function renderAll() { 
+        renderPedidos(); 
+        renderTarefas(); 
+        renderFornecedores(); 
+        renderEstoque(); 
+        renderCatalogo(); 
+        renderAssistencias(); 
+        renderQuadroEquipe(); 
+        renderHistorico(); 
+        processarEventosCalendario(); 
+    }
+
+    function maskMoney(i){ 
+        let v = i.value.replace(/\D/g,""); 
+        v = (v/100).toFixed(2).replace(".",","); 
+        v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1."); 
+        i.value = "R$ " + v; 
+        if(i.classList.contains('t-v-desc')) calcTotalTirarPedido(); 
+    }
+
+    function parseMoney(v){ 
+        return parseFloat((v||"").replace("R$ ","").replace(/\./g,"").replace(",",".")) || 0; 
+    }
+
+    function maskCPF(i){ 
+        let v=i.value.replace(/\D/g,""); 
+        if(v.length>11) v=v.slice(0,11); 
+        v=v.replace(/(\d{3})(\d)/,"$1.$2"); 
+        v=v.replace(/(\d{3})(\d)/,"$1.$2"); 
+        v=v.replace(/(\d{3})(\d{1,2})$/,"$1-$2"); 
+        i.value=v; 
+        if(v.length===14) verifCPF(i); 
+    }
+
+    function verifCPF(i){ 
+        const ok = validarCPF(i.value); 
+        i.style.borderColor = ok ? "#22c55e" : "#ef4444"; 
+        cpfValido=ok; 
+    }
+
+    function validarCPF(c){ 
+        c=c.replace(/[^\d]+/g,''); 
+        if(c.length!==11 || !!c.match(/(\d)\1{10}/)) return false; 
+        let a=0; 
+        for(let i=0;i<9;i++) a+=parseInt(c.charAt(i))*(10-i); 
+        let r=11-(a%11); 
+        if(r===10||r===11) r=0; 
+        if(r!==parseInt(c.charAt(9))) return false; 
+        a=0; 
+        for(let i=0;i<10;i++) a+=parseInt(c.charAt(i))*(11-i); 
+        r=11-(a%11); 
+        return (r>=10?0:r)===parseInt(c.charAt(10)); 
+    }
+
+    function copyText(v, el){ 
+        if(!v || v==="-") return; 
+        navigator.clipboard.writeText(v.toUpperCase()); 
+        if(el) { 
+            el.style.color="#22c55e"; 
+            setTimeout(() => { el.style.color="#94a3b8"; }, 1000); 
+        } 
+    }
+
+    async function buscarCEP(i){ 
+        let cep=i.value.replace(/\D/g,""); 
+        if(cep.length===8){ 
+            document.getElementById('loading-cep').classList.remove('hidden'); 
+            try{ 
+                let r=await fetch(`https://viacep.com.br/ws/${cep}/json/`); 
+                let d=await r.json(); 
+                if(!d.erro){ 
+                    document.getElementById('t_end').value=d.logradouro.toUpperCase(); 
+                    document.getElementById('t_bairro').value=d.bairro.toUpperCase(); 
+                    document.getElementById('t_cidade').value=d.localidade.toUpperCase(); 
+                    document.getElementById('t_num').focus(); 
+                } 
+            }catch(e){} finally { 
+                document.getElementById('loading-cep').classList.add('hidden'); 
+            } 
+        } 
+    }
+
+    function calcP(d, pr){ 
+        if(!d) return {dias:0, classe:""}; 
+        try { 
+            const pA = String(d).split("/"); 
+            const dt = new Date(pA[2], pA[1]-1, pA[0]); 
+            let dF = new Date(dt); 
+            let spr = String(pr || "30"); 
+            if(spr.includes("util")){ 
+                let c=0; 
+                while(c < parseInt(spr)){ 
+                    dF.setDate(dF.getDate()+1); 
+                    if(dF.getDay()!==0 && dF.getDay()!==6) c++; 
+                } 
+            } else { 
+                dF.setDate(dF.getDate() + parseInt(spr)); 
+            } 
+            const df = Math.ceil((dF - new Date()) / 86400000); 
+            let c = df < 0 ? "prazo-vencido" : (df <= 5 ? "prazo-urgente" : (df <= 10 ? "prazo-alerta" : (df <= 20 ? "prazo-atencao" : ""))); 
+            return {dias: df, classe: c}; 
+        } catch(e) { return {dias:0, classe:""}; } 
+    }
+
+    function calcDataExata(dataBR, pr) { 
+        if(!dataBR) return null; 
+        try { 
+            const pA = dataBR.split("/"); 
+            let dF = new Date(pA[2], pA[1]-1, pA[0]); 
+            let spr = String(pr || "30"); 
+            if(spr.includes("util")){ 
+                let c=0; 
+                let limite = parseInt(spr); 
+                while(c < limite){ 
+                    dF.setDate(dF.getDate()+1); 
+                    if(dF.getDay()!==0 && dF.getDay()!==6) c++; 
+                } 
+            } else { 
+                dF.setDate(dF.getDate() + parseInt(spr)); 
+            } 
+            let y = dF.getFullYear(); 
+            let m = String(dF.getMonth() + 1).padStart(2, '0'); 
+            let d = String(dF.getDate()).padStart(2, '0'); 
+            return `${y}-${m}-${d}`; 
+        } catch(e) { return null; } 
+    }
+
+    // ----------------------------------------------------
+    // PEDIDOS
+    // ----------------------------------------------------
+    function mudarVisaoPedidos(visao) { 
+        visaoPedidos = visao; 
+        const btnAtivos = document.getElementById('btn-visao-ativos'); 
+        const btnFinais = document.getElementById('btn-visao-finalizados'); 
+        const btnFiltroNaoEnviados = document.getElementById('btnFiltroNaoEnviado'); 
         
-        let fabrica = p2; let obsSit = p3; let situacao = "ESTOQUE";
+        if(visao === 'ATIVOS') { 
+            btnAtivos.classList.add('border-blue-600', 'text-blue-600', 'bg-white'); 
+            btnAtivos.classList.remove('border-transparent', 'text-slate-400'); 
+            btnFinais.classList.remove('border-blue-600', 'text-blue-600', 'bg-white'); 
+            btnFinais.classList.add('border-transparent', 'text-slate-400'); 
+            if(btnFiltroNaoEnviados) btnFiltroNaoEnviados.style.display = 'block'; 
+        } else { 
+            btnFinais.classList.add('border-blue-600', 'text-blue-600', 'bg-white'); 
+            btnFinais.classList.remove('border-transparent', 'text-slate-400'); 
+            btnAtivos.classList.remove('border-blue-600', 'text-blue-600', 'bg-white'); 
+            btnAtivos.classList.add('border-transparent', 'text-slate-400'); 
+            if(btnFiltroNaoEnviados) btnFiltroNaoEnviados.style.display = 'none'; 
+        } 
+        renderPedidos(); 
+    }
+
+    function arquivarPedido(u) { 
+        const x = pedidos.find(y => y.uid == u); 
+        if (x) { 
+            x.finalizado = !x.finalizado; 
+            if (x.finalizado) { x.status = "Entregue/Finalizado"; } else { x.status = "Pedido na loja"; } 
+            salvarColecao('pedidos', pedidos); 
+            registrarAcao(x.finalizado ? '📦' : '🔙', x.finalizado ? 'FINALIZOU PEDIDO' : 'RESTAUROU PEDIDO', `CLIENTE: ${x.cliente}`); 
+            renderPedidos(); 
+        } 
+    }
+
+    function excluirPedido(uid) { 
+        const p = pedidos.find(x => x.uid == uid); 
+        if(!p) return; 
+        if(p.finalizado) { 
+            if(confirm("Deseja RETORNAR este pedido para a aba principal?")) { 
+                p.finalizado = false; 
+                p.status = "Pedido na loja"; 
+                salvarColecao('pedidos', pedidos); 
+                registrarAcao('🔙', 'RESTAUROU PEDIDO', `CLIENTE: ${p.cliente}`); 
+                renderPedidos(); 
+            } 
+        } else { 
+            if(confirm("EXCLUIR ESTE PEDIDO PERMANENTEMENTE?")) { 
+                pedidos = pedidos.filter(x => x.uid != uid); 
+                salvarColecao('pedidos', pedidos); 
+                registrarAcao('🗑️', 'EXCLUIU PEDIDO', `CLIENTE: ${p.cliente}`); 
+                renderPedidos(); 
+            } 
+        } 
+    }
+
+    function cycleStatus(u){ 
+        const x = pedidos.find(y => y.uid == u); 
+        if(!x) return; 
+        const s = ["Não enviado","Pedido enviado","Aguardando fábrica","Pedido na loja"]; 
+        if(!x.finalizado && x.status !== "Entregue/Finalizado") { 
+            x.status = s[(s.indexOf(x.status)+1)%s.length]; 
+            salvarColecao('pedidos', pedidos); 
+        } 
+    }
+
+    function activeInlineEdit(element, uid, field, listType) { 
+        const originalValue = element.innerText; 
+        const input = document.createElement('input'); 
+        input.value = (originalValue === "-" ? "" : originalValue); 
+        input.className = "w-full p-1 text-xs font-bold border-2 border-blue-500 rounded bg-white text-black outline-none uppercase"; 
         
-        if(obsSit) {
-            if(obsSit.includes("VENDID")) {
-                situacao = "VENDIDO"; let quem = obsSit.replace(/VENDID[AOOS]*\s*(PARA|P\/)?\s*/i, '').trim();
-                produtoTexto += quem ? " (VENDIDO: " + quem + ")" : " (VENDIDO)";
-            } else if(obsSit.includes("ASSIST")) {
-                situacao = "ASSISTÊNCIA"; produtoTexto += " (ASSISTÊNCIA)";
-            } else if(obsSit.includes("DEVOL")) {
-                situacao = "DEVOLUÇÃO FÁBRICA"; produtoTexto += " (DEVOLUÇÃO)";
-            } else {
-                produtoTexto += " (" + obsSit + ")"; // Mantém ESTOQUE, só junta o texto
+        if(field === 'custo') { 
+            input.oninput = function() { 
+                let v = input.value.replace(/\D/g,""); 
+                v = (v/100).toFixed(2).replace(".",","); 
+                v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1."); 
+                input.value = "R$ " + v; 
+            }; 
+        } 
+        
+        element.innerHTML = ''; 
+        element.appendChild(input); 
+        input.focus(); 
+        
+        const save = function() { 
+            let newValue = input.value.toUpperCase().trim(); 
+            if (newValue === "") newValue = "-"; 
+            let list = pedidos; 
+            if(listType === 'estoque') list = estoque; 
+            else if(listType === 'assistencias') list = assistencias; 
+            
+            const item = list.find(x => x.uid == uid); 
+            if (item) { 
+                if(field === 'qtd') item[field] = parseInt(newValue) || 1; 
+                else item[field] = newValue; 
+                salvarColecao(listType, list); 
+            } else { 
+                element.innerText = originalValue; 
+            } 
+        }; 
+        
+        input.onblur = save; 
+        input.onkeydown = function(e) { 
+            if(e.key === 'Enter') save(); 
+            if(e.key === 'Escape') { input.onblur = null; element.innerText = originalValue; } 
+        }; 
+    }
+
+    function renderPedidos() { 
+        const tb = document.getElementById('tabelaPedidos'); 
+        if(!tb) return; 
+        
+        const elBusca = document.getElementById('busca'); 
+        const b = removeAcentos((elBusca ? elBusca.value : "").toLowerCase()); 
+        
+        let lista = pedidos.filter(x => { 
+            return removeAcentos((x.cliente||"").toLowerCase()).includes(b) || 
+                   removeAcentos((x.produto||"").toLowerCase()).includes(b) || 
+                   removeAcentos((x.idDoc||"").toLowerCase()).includes(b) || 
+                   removeAcentos((x.fornecedor||"").toLowerCase()).includes(b); 
+        }); 
+        
+        if (visaoPedidos === 'ATIVOS') { 
+            lista = lista.filter(x => !x.finalizado && x.status !== "Entregue/Finalizado"); 
+            if(filtrandoNaoEnviados) lista = lista.filter(x => x.status === "Não enviado"); 
+        } else { 
+            lista = lista.filter(x => x.finalizado || x.status === "Entregue/Finalizado"); 
+        } 
+        
+        document.getElementById('contador').innerText = lista.length + " PEDIDOS"; 
+        
+        tb.innerHTML = lista.map(x => { 
+            const p = calcP(x.dataPedido, x.prazo); 
+            let sCls = "bg-blue-600"; 
+            
+            if(x.status === "Não enviado") sCls = "bg-red-600"; 
+            else if(x.status === "Pedido na loja") sCls = "bg-green-700"; 
+            
+            if (x.finalizado || x.status === "Entregue/Finalizado") sCls = "bg-slate-500 opacity-70"; 
+            
+            let btnAcoes = `<button onclick="copyText('${x.qtd}x ${esc(x.produto)} ${esc(x.cor)} (${esc(x.idDoc)})', this)" title="Copiar">📋</button>`; 
+            
+            if(!x.finalizado && x.status !== "Entregue/Finalizado") { 
+                btnAcoes += `<button onclick="arquivarPedido(${x.uid})" title="Enviar para Finalizados">📦</button>`;
+                btnAcoes += `<button onclick="dupPed(${x.uid})" title="Duplicar">➕</button>`;
+                btnAcoes += `<button onclick="gerarAssistenciaRapida(${x.uid})" title="Assistência">🛠️</button>`;
+                btnAcoes += `<button onclick="excluirPedido(${x.uid})" class="text-red-500 font-black" title="Excluir Definitivo">✕</button>`; 
+            } else { 
+                btnAcoes += `<button onclick="excluirPedido(${x.uid})" class="text-slate-400 hover:text-blue-500 font-black text-lg" title="Retornar para Ativos">🔙</button>`; 
+            } 
+            
+            return `
+            <tr class="${p.classe}">
+                <td><input type="checkbox" class="ped-check" value="${x.uid}"></td>
+                <td><div class="flex flex-col gap-1 items-center"><span class="font-black text-[9px]">${p.dias}D</span><select onchange="updPed(${x.uid},'prazo',this.value)" class="select-prazo-tabela"><option value="15" ${x.prazo=='15'?'selected':''}>15C</option><option value="20" ${x.prazo=='20'?'selected':''}>20C</option><option value="30" ${x.prazo=='30'?'selected':''}>30C</option><option value="30-util" ${x.prazo=='30-util'?'selected':''}>30U</option><option value="40-util" ${x.prazo=='40-util'?'selected':''}>40U</option></select></div></td>
+                <td class="text-[10px] text-slate-400 font-black">${esc(x.idDoc)}</td>
+                <td onclick="activeInlineEdit(this, ${x.uid}, 'cliente', 'pedidos')" class="editable-cell uppercase">${esc(x.cliente)}</td>
+                <td onclick="activeInlineEdit(this, ${x.uid}, 'dataPedido', 'pedidos')" class="editable-cell text-[10px]">${esc(x.dataPedido)}</td>
+                <td onclick="activeInlineEdit(this, ${x.uid}, 'qtd', 'pedidos')" class="editable-cell text-center font-black">${esc(x.qtd)}</td>
+                <td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'pedidos')" class="editable-cell uppercase">${esc(x.produto)}</td>
+                <td onclick="activeInlineEdit(this, ${x.uid}, 'medida', 'pedidos')" class="editable-cell uppercase">${esc(x.medida)}</td>
+                <td onclick="activeInlineEdit(this, ${x.uid}, 'cor', 'pedidos')" class="editable-cell uppercase">${esc(x.cor)}</td>
+                <td onclick="activeInlineEdit(this, ${x.uid}, 'custo', 'pedidos')" class="editable-cell">${esc(x.custo)}</td>
+                <td onclick="activeInlineEdit(this, ${x.uid}, 'fornecedor', 'pedidos')" class="editable-cell font-black text-blue-800 uppercase text-[10px]">${esc(x.fornecedor)}</td>
+                <td><button onclick="cycleStatus(${x.uid})" class="status-badge ${sCls} text-white">${esc(x.status)}</button></td>
+                <td><button onclick="togPed(${x.uid},'whatsEnviado')" class="status-badge ${x.whatsEnviado?'btn-sim':'btn-nao'}">${x.whatsEnviado?'SIM':'NÃO'}</button></td>
+                <td><button onclick="togPed(${x.uid},'confirmado')" class="status-badge ${x.confirmado?'btn-sim':'btn-nao'}">${x.confirmado?'SIM':'NÃO'}</button></td>
+                <td class="text-center flex gap-1.5 justify-center items-center">${btnAcoes}</td>
+            </tr>`; 
+        }).join(''); 
+    }
+
+    function adicionarItemAoCesto() { 
+        const p = document.getElementById('m_produto').value.trim().toUpperCase(); 
+        if(!p) return alert("INFORME PRODUTO!"); 
+        cestoItensTemporario.push({ 
+            uid: Date.now(), 
+            q: document.getElementById('m_qtd').value || 1, 
+            p: p, 
+            m: document.getElementById('m_medida').value || "-", 
+            c: document.getElementById('m_cor').value.toUpperCase() || "-", 
+            v: document.getElementById('m_custo').value || "R$ 0,00" 
+        }); 
+        renderCesto(); 
+        document.getElementById('m_produto').value = ""; 
+    }
+
+    function renderCesto() { 
+        document.getElementById('cesto-itens').innerHTML = cestoItensTemporario.map((item, idx) => { 
+            return `<div class="item-cesto"><span>${item.q}x</span><span>${esc(item.p)}</span><button onclick="cestoItensTemporario.splice(${idx},1); renderCesto();" class="text-red-500 font-bold ml-2">✕</button></div>`; 
+        }).join(''); 
+    }
+
+    async function cadastrarManual() { 
+        const cli = document.getElementById('m_cliente').value.trim().toUpperCase(); 
+        const forn = document.getElementById('m_fornecedor_select').value; 
+        if(!cli || cestoItensTemporario.length === 0) return alert("FALTA DADOS!"); 
+        
+        const nId = await getProximoID(); 
+        const idDoc = "ID#" + nId.toString().padStart(4, '0'); 
+        
+        cestoItensTemporario.forEach(i => { 
+            pedidos.unshift({ 
+                uid: Date.now()+Math.random(), 
+                idDoc: idDoc, 
+                cliente: cli, 
+                dataPedido: new Date().toLocaleDateString('pt-BR'), 
+                qtd: i.q, 
+                produto: i.p, 
+                medida: i.m, 
+                cor: i.c, 
+                custo: i.v, 
+                fornecedor: forn, 
+                prazo: document.getElementById('m_prazo_select').value, 
+                status: "Não enviado", 
+                whatsEnviado: false, 
+                confirmado: false, 
+                finalizado: false 
+            }); 
+        }); 
+        
+        salvarColecao('pedidos', pedidos); 
+        registrarAcao('📋', 'NOVO PEDIDO', `CÓDIGO: ${idDoc} | CLIENTE: ${cli}`); 
+        cestoItensTemporario = []; 
+        document.getElementById('m_cliente').value = ""; 
+        renderCesto(); 
+    }
+
+    function gerarEmailLote() {
+        const checks = document.querySelectorAll('.ped-check:checked');
+        if (checks.length === 0) return alert("Nenhum pedido selecionado!");
+        
+        const uids = Array.from(checks).map(c => c.value);
+        const selecionados = pedidos.filter(p => uids.includes(String(p.uid)));
+        const fabricaSelecionada = selecionados[0].fornecedor || "NÃO INFORMADA";
+        
+        let texto = `Olá, segue pedido para fábrica ${fabricaSelecionada}:\n\n`;
+        
+        selecionados.forEach(p => {
+            let produtoCompleto = p.produto;
+            if (p.medida && p.medida !== "-") produtoCompleto += ` | Medida: ${p.medida}`;
+            if (p.cor && p.cor !== "-") produtoCompleto += ` | Cor: ${p.cor}`;
+            texto += `Qtde: ${String(p.qtd).padStart(2, '0')} - ${produtoCompleto}\n`;
+            texto += `REF: ${p.idDoc}\n\n`;
+        });
+        
+        texto += `Forma de pagamento: 30/60/90.\n\nIDs para controle interno, favor desconsiderar.\n\nFavor confirmar o recebimento e nos enviar o documento de confirmação dos itens acima para conferência.\n\nAtenciosamente,\nLucas Mercier..`;
+
+        navigator.clipboard.writeText(texto).then(() => {
+            if (confirm("✅ Texto gerado e copiado com sucesso!\nAgora é só dar 'Colar' (Ctrl+V) no e-mail ou WhatsApp.\n\nDeseja alterar o status de todos os pedidos selecionados para 'Pedido enviado'?")) {
+                selecionados.forEach(p => { if(p.status === "Não enviado") p.status = "Pedido enviado"; });
+                salvarColecao('pedidos', pedidos);
+                registrarAcao('📧', 'ENVIOU LOTE', `Marcou ${selecionados.length} pedidos como enviados.`);
+                const checkTodos = document.querySelector('input[onclick="marcarTodos(this.checked)"]');
+                if(checkTodos) checkTodos.checked = false;
+                renderPedidos();
             }
+        }).catch(err => { alert("Não foi possível copiar o texto automaticamente."); console.error(err); });
+    }
+
+    function marcarTodos(v){ 
+        document.querySelectorAll('.ped-check').forEach(c => { c.checked = v; }); 
+    }
+
+    function toggleFiltroNaoEnviado(){ 
+        filtrandoNaoEnviados = !filtrandoNaoEnviados; 
+        document.getElementById('btnFiltroNaoEnviado').classList.toggle('bg-red-600'); 
+        document.getElementById('btnFiltroNaoEnviado').classList.toggle('text-white'); 
+        renderPedidos(); 
+    }
+
+    function updPed(u,c,v){ 
+        pedidos.find(x => x.uid == u)[c] = v; 
+        salvarColecao('pedidos', pedidos); 
+    }
+
+    function togPed(u,c){ 
+        const x = pedidos.find(y => y.uid == u); 
+        if(x) x[c] = !x[c]; 
+        salvarColecao('pedidos', pedidos); 
+    }
+
+    // ----------------------------------------------------
+    // LOGÍSTICA & AGENDA (MÓDULO UNIFICADO)
+    // ----------------------------------------------------
+    function processarEventosCalendario() {
+        eventosDoMes = {}; 
+        const mostraEnt = document.getElementById('filtro-cal-entregas')?.checked;
+        const mostraLem = document.getElementById('filtro-cal-lembretes')?.checked;
+        const mostraPrz = document.getElementById('filtro-cal-prazos')?.checked;
+
+        if(mostraEnt) {
+            entregas.forEach(e => {
+                if(!e.dataOrdem) return;
+                if(!eventosDoMes[e.dataOrdem]) eventosDoMes[e.dataOrdem] = [];
+                const isFeito = e.status === "Entregue";
+                eventosDoMes[e.dataOrdem].push({ tipo: 'ENTREGA', obj: e, cor: isFeito ? 'bg-emerald-200 text-emerald-800 opacity-60 line-through border-emerald-300' : 'bg-emerald-500 text-white border-emerald-600', icone: '🚚', titulo: e.cliente });
+            });
+        }
+        if(mostraLem) {
+            lembretes.forEach(l => {
+                if(!l.dataOrdem) return;
+                if(!eventosDoMes[l.dataOrdem]) eventosDoMes[l.dataOrdem] = [];
+                const isFeito = l.concluido;
+                const corM = { "GERAL": "bg-yellow-400 text-yellow-900", "FINANCEIRO": "bg-emerald-400 text-emerald-900", "FABRICA": "bg-blue-400 text-blue-900", "CLIENTE": "bg-pink-400 text-pink-900" };
+                const iM = { "GERAL": "🔔", "FINANCEIRO": "💰", "FABRICA": "🏭", "CLIENTE": "❤️" };
+                eventosDoMes[l.dataOrdem].push({ tipo: 'LEMBRETE', obj: l, cor: isFeito ? 'bg-slate-200 text-slate-500 opacity-60 line-through' : corM[l.categoria], icone: iM[l.categoria], titulo: l.titulo });
+            });
+        }
+        if(mostraPrz) {
+            pedidos.forEach(p => {
+                if(p.finalizado || p.status === "Entregue/Finalizado") return; 
+                const dataPrazo = calcDataExata(p.dataPedido, p.prazo);
+                if(dataPrazo) {
+                    if(!eventosDoMes[dataPrazo]) eventosDoMes[dataPrazo] = [];
+                    eventosDoMes[dataPrazo].push({ tipo: 'PRAZO', obj: p, cor: 'bg-blue-100 text-blue-800 border-blue-200', icone: '📋', titulo: `Prazo: ${p.cliente}` });
+                }
+            });
+        }
+        renderCalendario();
+        renderPainelDia();
+    }
+
+    function renderCalendario() {
+        const ano = dataAtualCalendario.getFullYear();
+        const mes = dataAtualCalendario.getMonth(); 
+        const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+        document.getElementById('mes-ano-display').innerText = `${nomesMeses[mes]} ${ano}`;
+
+        const primeiroDia = new Date(ano, mes, 1).getDay(); 
+        const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+        let html = "";
+        for (let i = 0; i < primeiroDia; i++) {
+            html += `<div class="border-b border-r border-slate-200 bg-slate-50 opacity-40 min-h-[80px]"></div>`;
+        }
+
+        const hojeStr = new Date().toISOString().split('T')[0];
+
+        for (let dia = 1; dia <= diasNoMes; dia++) {
+            const mesStr = String(mes + 1).padStart(2, '0');
+            const diaStr = String(dia).padStart(2, '0');
+            const dataChave = `${ano}-${mesStr}-${diaStr}`;
+            const isHoje = (dataChave === hojeStr);
+            const isSelecionado = (dataChave === dataSelecionadaLogistica);
+            
+            let circleClass = "text-slate-600";
+            if (isHoje) circleClass = "bg-amber-500 text-white shadow-md";
+            let divBg = isSelecionado ? "bg-blue-50 ring-2 ring-inset ring-blue-400" : "hover:bg-slate-50";
+
+            let eventosHTML = "";
+            if(eventosDoMes[dataChave]) {
+                const mostrar = eventosDoMes[dataChave].slice(0, 3);
+                mostrar.forEach(ev => { 
+                    eventosHTML += `<div class="${ev.cor} text-[8px] font-black truncate px-1 rounded shadow-sm mb-0.5 leading-tight py-0.5" title="${ev.titulo}">${ev.icone} ${esc(ev.titulo)}</div>`; 
+                });
+                if(eventosDoMes[dataChave].length > 3) { 
+                    eventosHTML += `<div class="text-[8px] font-black text-slate-400 text-center">+${eventosDoMes[dataChave].length - 3} itens</div>`; 
+                }
+            }
+
+            html += `<div onclick="selecionarDiaLogistica('${dataChave}', '${dia} de ${nomesMeses[mes]}')" class="border-b border-r border-slate-200 p-1.5 min-h-[80px] transition cursor-pointer flex flex-col gap-1 ${divBg}"><div class="flex justify-end"><span class="w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-black ${circleClass}">${dia}</span></div><div class="flex-1 overflow-hidden flex flex-col gap-0.5">${eventosHTML}</div></div>`;
+        }
+        const grid = document.getElementById('grid-dias');
+        if(grid) grid.innerHTML = html;
+    }
+
+    function mudarMes(direcao) { 
+        dataAtualCalendario.setMonth(dataAtualCalendario.getMonth() + direcao); 
+        processarEventosCalendario(); 
+    }
+
+    function selecionarDiaLogistica(dataChave, dataFormatada) { 
+        dataSelecionadaLogistica = dataChave; 
+        renderCalendario(); 
+        renderPainelDia(); 
+    }
+
+    function renderPainelDia() {
+        const painel = document.getElementById('lista-eventos-dia'); 
+        if(!painel) return;
+        
+        const dataObj = new Date(dataSelecionadaLogistica + "T12:00:00");
+        document.getElementById('titulo-painel-dia').innerText = "Dia " + dataObj.toLocaleDateString('pt-BR');
+        
+        const evs = eventosDoMes[dataSelecionadaLogistica] || [];
+        document.getElementById('badge-qtd-dia').innerText = evs.length + (evs.length === 1 ? " Item" : " Itens");
+
+        if(evs.length === 0) {
+            painel.innerHTML = '<div class="text-center p-8 border-2 border-dashed border-slate-200 rounded-2xl"><span class="text-3xl block mb-2">🎈</span><span class="text-xs font-black text-slate-400 uppercase">Dia Livre!<br>Nenhum compromisso.</span></div>';
+            return;
+        }
+
+        painel.innerHTML = evs.map(ev => {
+            if(ev.tipo === 'ENTREGA') {
+                const e = ev.obj;
+                let corSt = "bg-slate-100 text-slate-600";
+                if(e.status === 'Agendado') corSt = "bg-blue-100 text-blue-700";
+                if(e.status === 'Em Rota') corSt = "bg-orange-100 text-orange-700";
+                if(e.status === 'Entregue') corSt = "bg-emerald-100 text-emerald-700";
+                const isFeito = e.status === 'Entregue' ? 'opacity-60' : '';
+                return `
+                <div class="bg-white border-l-4 border-emerald-500 rounded-xl p-4 shadow-sm border border-slate-200 flex flex-col ${isFeito}">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="text-[10px] font-black uppercase text-emerald-600 tracking-wider">🚚 Entrega</span>
+                        <button onclick="cycleStatusEntrega(${e.uid})" class="${corSt} px-2 py-0.5 rounded text-[9px] font-black uppercase shadow-sm">${esc(e.status)}</button>
+                    </div>
+                    <h4 class="font-black text-sm uppercase text-slate-800 leading-tight">${esc(e.cliente)}</h4>
+                    <p class="text-[9px] font-bold text-slate-500 uppercase mt-1 mb-2">📍 ${esc(e.endereco)}</p>
+                    <div class="bg-emerald-50 p-2 rounded border border-emerald-100 text-[10px] font-bold text-emerald-800 uppercase mb-3 leading-snug">${esc(e.produtos).replace(/\n/g, '<br>• ')}</div>
+                    <div class="flex justify-between items-center border-t border-slate-100 pt-3">
+                        <button onclick="abrirGPS('${esc(e.endereco)}')" class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase flex items-center gap-1 hover:bg-blue-100 transition">🗺️ GPS</button>
+                        <div class="flex gap-2">
+                            <button onclick="abrirWhatsAppEntrega('${esc(e.cliente)}', '${esc(e.endereco)}', '${esc(e.produtos)}')" class="bg-green-50 text-green-600 p-1.5 rounded-lg hover:bg-green-100" title="Avisar WhatsApp">💬</button>
+                            <button onclick="excluirEntrega(${e.uid})" class="bg-red-50 text-red-500 p-1.5 rounded-lg hover:bg-red-100" title="Excluir">🗑️</button>
+                        </div>
+                    </div>
+                </div>`;
+            }
+            else if(ev.tipo === 'LEMBRETE') {
+                const l = ev.obj;
+                const op = l.concluido ? 'opacity-50' : ''; 
+                const tx = l.concluido ? 'line-through text-slate-400' : 'text-slate-800';
+                return `
+                <div class="bg-white border-l-4 border-amber-500 rounded-xl p-4 shadow-sm border border-slate-200 flex flex-col gap-2 ${op}">
+                    <div class="flex justify-between items-center">
+                        <span class="text-[10px] font-black uppercase text-amber-600 tracking-wider">${ev.icone} Lembrete</span>
+                        <button onclick="toggleConcluidoLembrete(${l.uid})" class="${l.concluido ? 'bg-slate-200 text-slate-500' : 'bg-green-100 text-green-700'} px-2 py-0.5 rounded text-[9px] font-black uppercase shadow-sm">${l.concluido ? '🔙 Desfazer' : '✅ Feito'}</button>
+                    </div>
+                    <h4 class="font-black text-xs uppercase ${tx} leading-snug">${esc(l.titulo)}</h4>
+                    <div class="flex justify-end pt-1 mt-1 border-t border-slate-100">
+                        <button onclick="excluirLembrete(${l.uid})" class="text-red-400 hover:text-red-600 font-black text-xs">✕ Apagar</button>
+                    </div>
+                </div>`;
+            }
+            else if(ev.tipo === 'PRAZO') {
+                const p = ev.obj;
+                return `
+                <div class="bg-blue-50 border-l-4 border-blue-500 rounded-xl p-3 shadow-sm border border-blue-100">
+                    <span class="text-[9px] font-black uppercase text-blue-600 tracking-wider mb-1 block">📋 Vencimento de Prazo</span>
+                    <h4 class="font-black text-xs uppercase text-slate-800">${esc(p.cliente)}</h4>
+                    <p class="text-[9px] font-bold text-slate-500 uppercase mt-1">${p.qtd}x ${esc(p.produto)} - ${esc(p.fornecedor)}</p>
+                </div>`;
+            }
+        }).join('');
+    }
+
+    function abrirModalNovaEntrega() { 
+        document.getElementById('ent_data').value = dataSelecionadaLogistica; 
+        document.getElementById('modal-nova-entrega').style.display='flex'; 
+    }
+
+    function buscarDadosInteligentes() {
+        const nome = document.getElementById('ent_cliente').value.toUpperCase().trim(); 
+        if(!nome) return;
+        
+        const aviso = document.getElementById('aviso-magico'); 
+        let achouAlgo = false;
+        
+        const tarefa = tarefas.find(t => t.detalhes && t.detalhes.cliente && t.detalhes.cliente.includes(nome));
+        const elEnd = document.getElementById('ent_endereco');
+        
+        if(tarefa && !elEnd.value) { 
+            const num = tarefa.detalhes.num ? `, ${tarefa.detalhes.num}` : ''; 
+            const bairro = tarefa.detalhes.bairro ? ` - ${tarefa.detalhes.bairro}` : ''; 
+            const cidade = tarefa.detalhes.cidade ? ` - ${tarefa.detalhes.cidade}` : ''; 
+            elEnd.value = `${tarefa.detalhes.end}${num}${bairro}${cidade}`.toUpperCase(); 
+            achouAlgo = true; 
         }
         
-        if(produtoTexto) { estoque.unshift({ uid: Date.now() + Math.random(), data: new Date().toLocaleDateString('pt-BR'), produto: produtoTexto, fabrica: fabrica, qtd: qtd, situacao: situacao }); adicionados++; }
-    });
-    
-    if(adicionados > 0) { salvarColecao('estoque', estoque); registrarAcao('📦', 'CADASTRO EM MASSA', `${adicionados} itens.`); document.getElementById('e_massa').value = ""; alert(`✅ ${adicionados} itens cadastrados!`); }
-}
+        const prods = pedidos.filter(p => p.cliente && p.cliente.includes(nome) && !p.finalizado);
+        const elProd = document.getElementById('ent_produtos');
+        
+        if(prods.length > 0 && !elProd.value) { 
+            elProd.value = prods.map(p => `${p.qtd}x ${p.produto} ${p.cor}`).join('\n').toUpperCase(); 
+            achouAlgo = true; 
+        }
+        
+        if(achouAlgo) { 
+            aviso.classList.remove('hidden'); 
+            setTimeout(() => aviso.classList.add('hidden'), 3000); 
+        }
+    }
 
-function cadastrarEstoque() { 
-    const p = document.getElementById('e_produto').value.toUpperCase().trim(); const f = document.getElementById('e_fabrica_select').value; const q = document.getElementById('e_qtd').value;
-    if (p) { estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: p, fabrica: f, qtd: parseInt(q), situacao: 'ESTOQUE' }); salvarColecao('estoque', estoque); registrarAcao('📦', 'ADICIONOU AO ESTOQUE', `${q}x ${p}`); document.getElementById('e_produto').value = ""; } 
-}
+    function salvarEntrega() {
+        const data = document.getElementById('ent_data').value;
+        const cliente = document.getElementById('ent_cliente').value.toUpperCase().trim();
+        const endereco = document.getElementById('ent_endereco').value.toUpperCase().trim();
+        const produtos = document.getElementById('ent_produtos').value.toUpperCase().trim();
+        
+        if(!data || !cliente || !produtos) return alert("Preencha Data, Cliente e Produtos!");
+        
+        entregas.push({ uid: Date.now(), dataOrdem: data, cliente: cliente, endereco: endereco || "Não informado", produtos: produtos, status: "Agendado" });
+        salvarColecao('entregas', entregas);
+        fecharModaisLogistica();
+    }
 
-function switchTab(t){ 
-    window.scrollTo(0,0); 
-    document.querySelectorAll('main').forEach(x => { x.classList.add('hidden'); }); 
-    document.getElementById('view-'+t).classList.remove('hidden'); 
-    document.querySelectorAll('nav button').forEach(x => { x.classList.remove('tab-active', 'text-slate-200'); }); 
-    document.getElementById('tab-'+t).classList.add('tab-active'); 
-    if(t === 'logistica') processarEventosCalendario();
-}
-</script>
+    function cycleStatusEntrega(uid) { 
+        const t = entregas.find(x => x.uid == uid); 
+        if(!t) return; 
+        const s = ["Agendado", "Em Rota", "Entregue"]; 
+        t.status = s[(s.indexOf(t.status) + 1) % s.length]; 
+        salvarColecao('entregas', entregas); 
+    }
 
-<style>
-.custom-scrollbar::-webkit-scrollbar { width: 4px; } .custom-scrollbar::-webkit-scrollbar-track { background: transparent; } .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; } .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; } .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; } @keyframes fadeIn { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
-</style>
-</body>
-</html>
+    function excluirEntrega(uid) { 
+        if(confirm("Deseja apagar esta entrega?")) { 
+            entregas = entregas.filter(x => x.uid != uid); 
+            salvarColecao('entregas', entregas); 
+        } 
+    }
+
+    function abrirWhatsAppEntrega(cliente, end, prods) { 
+        const msg = `🚚 *Aviso de Entrega - Mercier Design*\n\nOlá ${cliente}! O seu pedido está a caminho.\n\n📦 *Itens:*\n${prods}\n\n📍 *Endereço registrado:*\n${end}\n\nQualquer dúvida, estamos à disposição!`; 
+        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank'); 
+    }
+
+    function abrirGPS(endereco) { 
+        if(!endereco || endereco === "NÃO INFORMADO") return alert("Sem endereço para rota."); 
+        window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}`, '_blank'); 
+    }
+
+    function abrirModalNovoLembrete() { 
+        document.getElementById('lem_data').value = dataSelecionadaLogistica; 
+        document.getElementById('modal-novo-lembrete').style.display='flex'; 
+    }
+
+    function salvarLembrete() {
+        const titulo = document.getElementById('lem_titulo').value.toUpperCase().trim();
+        const data = document.getElementById('lem_data').value;
+        const cat = document.getElementById('lem_categoria').value;
+        
+        if(!titulo || !data) return alert("Preencha título e data!");
+        
+        lembretes.push({ uid: Date.now(), titulo: titulo, dataOrdem: data, categoria: cat, concluido: false });
+        salvarColecao('lembretes', lembretes);
+        fecharModaisLogistica();
+    }
+
+    function toggleConcluidoLembrete(uid) { 
+        const l = lembretes.find(x => x.uid == uid); 
+        if(l) { l.concluido = !l.concluido; salvarColecao('lembretes', lembretes); } 
+    }
+
+    function excluirLembrete(uid) { 
+        if(confirm("Apagar lembrete?")) { 
+            lembretes = lembretes.filter(x => x.uid != uid); 
+            salvarColecao('lembretes', lembretes); 
+        } 
+    }
+
+    function fecharModaisLogistica() {
+        document.getElementById('modal-nova-entrega').style.display = 'none';
+        document.getElementById('modal-novo-lembrete').style.display = 'none';
+        document.getElementById('ent_cliente').value = ""; 
+        document.getElementById('ent_endereco').value = ""; 
+        document.getElementById('ent_produtos').value = "";
+        document.getElementById('lem_titulo').value = "";
+    }
+
+    // ----------------------------------------------------
+    // ESTOQUE
+    // ----------------------------------------------------
+    function autoSalvarNotasEstoque() { 
+        notasEstoque = document.getElementById('estoque-notas-gerais').value; 
+        db.ref('dados/notasEstoque').set(notasEstoque); 
+    }
+
+    function mudarVisaoEstoque(visao) {
+        visaoEstoque = visao;
+        const btnDisp = document.getElementById('btn-estoque-disponivel');
+        const btnSaid = document.getElementById('btn-estoque-saidas');
+        
+        if(visao === 'ESTOQUE') {
+            btnDisp.classList.add('border-green-500', 'text-green-600', 'bg-white'); 
+            btnDisp.classList.remove('border-transparent', 'text-slate-400');
+            btnSaid.classList.remove('border-green-500', 'text-green-600', 'bg-white'); 
+            btnSaid.classList.add('border-transparent', 'text-slate-400');
+        } else {
+            btnSaid.classList.add('border-green-500', 'text-green
