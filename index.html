@@ -21,7 +21,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
-    <link rel="stylesheet" href="style.css?v=80000">
+    <link rel="stylesheet" href="style.css?v=80001">
     <meta name="theme-color" content="#0f172a">
 </head>
 <body class="bg-slate-100 overflow-x-hidden flex flex-col min-h-screen">
@@ -389,16 +389,37 @@
 
     <!-- MODAL NOVA ENTREGA -->
     <div id="modal-nova-entrega" class="modal-overlay" onclick="if(event.target==this) fecharModaisLogistica()">
-        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-2xl border-t-8 border-emerald-500">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-3xl border-t-8 border-emerald-500">
             <h2 class="font-black uppercase text-emerald-600 mb-4 text-sm flex justify-between">🚚 Agendar Entrega <button onclick="fecharModaisLogistica()" class="text-slate-400 hover:text-red-500 text-lg">✕</button></h2>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                <div class="md:col-span-1"><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Data</label><input type="date" id="ent_data" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-emerald-500"></div>
-                <div class="md:col-span-3"><label class="text-[10px] font-black text-slate-400 uppercase mb-1 flex justify-between"><span>Cliente</span><span class="text-emerald-500 hidden" id="aviso-magico">✨ Preenchido!</span></label><input list="listaSugestaoClientes" id="ent_cliente" onblur="buscarDadosInteligentes()" placeholder="NOME..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-emerald-500"></div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+                <div class="md:col-span-1">
+                    <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Data</label>
+                    <input type="date" id="ent_data" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-emerald-500">
+                </div>
+                <div class="md:col-span-1">
+                    <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Hora</label>
+                    <input type="time" id="ent_hora" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-emerald-500 bg-white">
+                </div>
+                <div class="md:col-span-3">
+                    <label class="text-[10px] font-black text-slate-400 uppercase mb-1 flex justify-between">
+                        <span>Cliente</span><span class="text-emerald-500 hidden" id="aviso-magico">✨ Preenchido!</span>
+                    </label>
+                    <input list="listaSugestaoClientes" id="ent_cliente" onblur="buscarDadosInteligentes()" placeholder="NOME..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-emerald-500">
+                </div>
             </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Endereço (Para GPS)</label><textarea id="ent_endereco" rows="2" placeholder="Rua, Número, Bairro..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-emerald-500 resize-none"></textarea></div>
-                <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Produtos</label><textarea id="ent_produtos" rows="2" placeholder="O que vai entregar?" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-emerald-500 resize-none"></textarea></div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Endereço (Para GPS)</label>
+                    <textarea id="ent_endereco" rows="2" placeholder="Rua, Número, Bairro..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-emerald-500 resize-none"></textarea>
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Produtos</label>
+                    <textarea id="ent_produtos" rows="2" placeholder="O que vai entregar?" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-emerald-500 resize-none"></textarea>
+                </div>
             </div>
+            
             <button onclick="salvarEntrega()" class="w-full bg-emerald-600 text-white py-3 rounded-lg text-xs font-black uppercase shadow hover:bg-emerald-700 transition">Salvar Agendamento</button>
         </div>
     </div>
@@ -407,10 +428,24 @@
     <div id="modal-novo-lembrete" class="modal-overlay" onclick="if(event.target==this) fecharModaisLogistica()">
         <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-lg border-t-8 border-amber-500">
             <h2 class="font-black uppercase text-amber-600 mb-4 text-sm flex justify-between">⏰ Prender Lembrete <button onclick="fecharModaisLogistica()" class="text-slate-400 hover:text-red-500 text-lg">✕</button></h2>
-            <div class="mb-4"><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">O que lembrar?</label><input type="text" id="lem_titulo" placeholder="Ex: Cobrar cliente, Ligar fábrica..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-amber-500"></div>
+            <div class="mb-4">
+                <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">O que lembrar?</label>
+                <input type="text" id="lem_titulo" placeholder="Ex: Cobrar cliente, Ligar fábrica..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-amber-500">
+            </div>
             <div class="grid grid-cols-2 gap-4 mb-4">
-                <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Quando?</label><input type="date" id="lem_data" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-amber-500"></div>
-                <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Categoria</label><select id="lem_categoria" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-amber-500 bg-white"><option value="GERAL">🔔 Geral</option><option value="FINANCEIRO">💰 Financeiro</option><option value="FABRICA">🏭 Fábrica</option><option value="CLIENTE">❤️ Cliente</option></select></div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Quando?</label>
+                    <input type="date" id="lem_data" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-amber-500">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Categoria</label>
+                    <select id="lem_categoria" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-amber-500 bg-white">
+                        <option value="GERAL">🔔 Geral</option>
+                        <option value="FINANCEIRO">💰 Financeiro</option>
+                        <option value="FABRICA">🏭 Fábrica</option>
+                        <option value="CLIENTE">❤️ Cliente</option>
+                    </select>
+                </div>
             </div>
             <button onclick="salvarLembrete()" class="w-full bg-amber-500 text-white py-3 rounded-lg text-xs font-black uppercase shadow hover:bg-amber-600 transition">Salvar Lembrete</button>
         </div>
@@ -424,9 +459,13 @@
             
             <input type="hidden" id="saida-uid">
             
-            <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Quantidade a retirar</label><input type="number" id="saida-qtd" value="1" min="1" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-red-500"></div>
+            <div>
+                <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Quantidade a retirar</label>
+                <input type="number" id="saida-qtd" value="1" min="1" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-red-500">
+            </div>
             
-            <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Qual o Motivo / Destino?</label>
+            <div>
+                <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Qual o Motivo / Destino?</label>
                 <select id="saida-motivo" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-red-500 bg-white uppercase cursor-pointer">
                     <option value="VENDIDO">🛒 Vendido (Cliente)</option>
                     <option value="ASSISTÊNCIA">🛠️ Assistência / Troca</option>
@@ -434,7 +473,10 @@
                 </select>
             </div>
             
-            <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Observação / Nome (Opcional)</label><input type="text" id="saida-obs" placeholder="Ex: Cliente Maria, Defeito no braço..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-red-500 uppercase"></div>
+            <div>
+                <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Observação / Nome (Opcional)</label>
+                <input type="text" id="saida-obs" placeholder="Ex: Cliente Maria, Defeito no braço..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-red-500 uppercase">
+            </div>
             
             <button onclick="confirmarSaidaEstoque()" class="w-full bg-red-600 text-white py-3 mt-2 rounded-lg text-xs font-black uppercase shadow hover:bg-red-700 transition">Confirmar Saída</button>
         </div>
@@ -443,7 +485,10 @@
     <!-- DIÁRIO DE BORDO -->
     <div id="overlay-historico" onclick="togglePainelHistorico()" class="fixed inset-0 bg-slate-900/50 z-[90] hidden backdrop-blur-sm transition-opacity"></div>
     <div id="painel-historico" class="fixed top-0 right-0 h-full w-80 max-w-[90vw] bg-slate-50 shadow-2xl transform translate-x-full transition-transform duration-300 z-[100] flex flex-col border-l border-slate-200">
-        <div class="bg-slate-800 p-5 text-white font-black flex justify-between items-center uppercase text-sm shadow-md z-10"><span class="flex items-center gap-2">🔔 Diário de Bordo</span><button onclick="togglePainelHistorico()" class="text-xl hover:text-slate-300 transition">✕</button></div>
+        <div class="bg-slate-800 p-5 text-white font-black flex justify-between items-center uppercase text-sm shadow-md z-10">
+            <span class="flex items-center gap-2">🔔 Diário de Bordo</span>
+            <button onclick="togglePainelHistorico()" class="text-xl hover:text-slate-300 transition">✕</button>
+        </div>
         <div id="lista-historico" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 custom-scrollbar relative"></div>
     </div>
 
@@ -492,6 +537,54 @@
         document.getElementById('ent_data').valueAsDate = new Date();
         document.getElementById('lem_data').valueAsDate = new Date();
     };
+
+    // ==========================================
+    // 2. FUNÇÕES UTILITÁRIAS
+    // ==========================================
+    function setUsuario(nome) { 
+        usuarioAtual = nome; 
+        try { 
+            if(nome) localStorage.setItem('mercier_user', nome); 
+            else localStorage.removeItem('mercier_user'); 
+        } catch(e) {} 
+        renderFiltrosEquipe(); 
+        renderQuadroEquipe(); 
+    }
+
+    function toggleModoMinhasTarefas() { 
+        if (!usuarioAtual) { 
+            alert("Selecione quem você é no canto superior direito primeiro!"); 
+            document.getElementById('check-minhas-tarefas').checked = false; 
+            return; 
+        } 
+        modoMinhasTarefas = document.getElementById('check-minhas-tarefas').checked; 
+        try { localStorage.setItem('mercier_so_minhas', modoMinhasTarefas); } catch(e) {} 
+        if(modoMinhasTarefas) { filtrosEquipeAtivos = []; } 
+        renderFiltrosEquipe(); 
+        renderQuadroEquipe(); 
+    }
+
+    function esc(str) { 
+        return (str || "").toString().replace(/[&<>'"]/g, function(tag) { 
+            return ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag] || tag); 
+        }); 
+    }
+
+    function removeAcentos(str) { 
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); 
+    }
+
+    function safeArray(data) { 
+        if (!data) return []; 
+        try { 
+            let arr = Array.isArray(data) ? data : Object.values(data); 
+            return arr.filter(item => item && typeof item === 'object'); 
+        } catch (e) { return []; } 
+    }
+
+    function salvarColecao(colecao, dados) { 
+        db.ref('dados/' + colecao).set(dados); 
+    }
 
     const statusEl = document.getElementById('status-db');
     db.ref('.info/connected').on('value', function(snap) { 
@@ -564,54 +657,6 @@
         } 
     });
 
-    // ==========================================
-    // 2. FUNÇÕES UTILITÁRIAS
-    // ==========================================
-    function setUsuario(nome) { 
-        usuarioAtual = nome; 
-        try { 
-            if(nome) localStorage.setItem('mercier_user', nome); 
-            else localStorage.removeItem('mercier_user'); 
-        } catch(e) {} 
-        renderFiltrosEquipe(); 
-        renderQuadroEquipe(); 
-    }
-
-    function toggleModoMinhasTarefas() { 
-        if (!usuarioAtual) { 
-            alert("Selecione quem você é no canto superior direito primeiro!"); 
-            document.getElementById('check-minhas-tarefas').checked = false; 
-            return; 
-        } 
-        modoMinhasTarefas = document.getElementById('check-minhas-tarefas').checked; 
-        try { localStorage.setItem('mercier_so_minhas', modoMinhasTarefas); } catch(e) {} 
-        if(modoMinhasTarefas) { filtrosEquipeAtivos = []; } 
-        renderFiltrosEquipe(); 
-        renderQuadroEquipe(); 
-    }
-
-    function esc(str) { 
-        return (str || "").toString().replace(/[&<>'"]/g, function(tag) { 
-            return ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag] || tag); 
-        }); 
-    }
-
-    function removeAcentos(str) { 
-        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); 
-    }
-
-    function safeArray(data) { 
-        if (!data) return []; 
-        try { 
-            let arr = Array.isArray(data) ? data : Object.values(data); 
-            return arr.filter(item => item && typeof item === 'object'); 
-        } catch (e) { return []; } 
-    }
-
-    function salvarColecao(colecao, dados) { 
-        db.ref('dados/' + colecao).set(dados); 
-    }
-
     function registrarAcao(icone, acao, detalhe) { 
         const quem = usuarioAtual || "SISTEMA"; 
         const agora = new Date(); 
@@ -621,6 +666,38 @@
             historicoAtividades = historicoAtividades.slice(0, 150); 
         } 
         salvarColecao('historico', historicoAtividades); 
+    }
+
+    function togglePainelHistorico() { 
+        const painel = document.getElementById('painel-historico'); 
+        const overlay = document.getElementById('overlay-historico'); 
+        const badge = document.getElementById('badge-historico'); 
+        if(painel.classList.contains('translate-x-full')) { 
+            painel.classList.remove('translate-x-full'); 
+            overlay.classList.remove('hidden'); 
+            if(badge) badge.classList.add('hidden'); 
+        } else { 
+            painel.classList.add('translate-x-full'); 
+            overlay.classList.add('hidden'); 
+        } 
+    }
+
+    function renderHistorico() { 
+        const lista = document.getElementById('lista-historico'); 
+        if(!lista) return; 
+        if(historicoAtividades.length === 0) { 
+            lista.innerHTML = '<span class="text-slate-400 text-[10px] font-bold text-center uppercase block mt-10">Nenhuma atividade registrada ainda.</span>'; 
+            return; 
+        } 
+        lista.innerHTML = historicoAtividades.map(h => { 
+            return `<div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex gap-3 items-start transition-all hover:bg-slate-50"><div class="bg-slate-100 p-2 rounded-lg text-lg">${h.icone}</div><div class="flex flex-col flex-1"><div class="flex justify-between items-center mb-1"><span class="text-[9px] font-black uppercase text-slate-700 bg-slate-200 px-1.5 py-0.5 rounded">${esc(h.usuario)}</span><span class="text-[8px] font-bold text-slate-400">${h.dataHora}</span></div><span class="text-[11px] font-black uppercase text-slate-800 leading-tight">${esc(h.acao)}</span><span class="text-[9px] font-bold text-slate-500 uppercase mt-0.5 leading-snug">${esc(h.detalhe)}</span></div></div>`; 
+        }).join(''); 
+        
+        const painel = document.getElementById('painel-historico'); 
+        const badge = document.getElementById('badge-historico'); 
+        if(painel && painel.classList.contains('translate-x-full') && badge) { 
+            badge.classList.remove('hidden'); 
+        } 
     }
 
     async function getProximoID() { 
@@ -1041,7 +1118,7 @@
     }
 
     // ==========================================
-    // 4. ABA: LOGÍSTICA & AGENDA (UNIFICADO)
+    // 4. ABA: LOGÍSTICA & AGENDA (UNIFICADO COM HORA)
     // ==========================================
     function processarEventosCalendario() {
         eventosDoMes = {}; 
@@ -1163,6 +1240,21 @@
         document.getElementById('titulo-painel-dia').innerText = "Dia " + dataObj.toLocaleDateString('pt-BR');
         
         const evs = eventosDoMes[dataSelecionadaLogistica] || [];
+        
+        // ORDENAÇÃO: Entregas primeiro (ordenadas por hora), depois Lembretes, depois Prazos
+        evs.sort((a, b) => {
+            const pesoA = a.tipo === 'ENTREGA' ? 1 : (a.tipo === 'LEMBRETE' ? 2 : 3);
+            const pesoB = b.tipo === 'ENTREGA' ? 1 : (b.tipo === 'LEMBRETE' ? 2 : 3);
+            if (pesoA !== pesoB) return pesoA - pesoB;
+            
+            if (a.tipo === 'ENTREGA' && b.tipo === 'ENTREGA') {
+                const hA = a.obj.hora || "23:59";
+                const hB = b.obj.hora || "23:59";
+                return hA.localeCompare(hB);
+            }
+            return 0;
+        });
+
         document.getElementById('badge-qtd-dia').innerText = evs.length + (evs.length === 1 ? " Item" : " Itens");
 
         if(evs.length === 0) {
@@ -1177,12 +1269,14 @@
                 if(e.status === 'Agendado') corSt = "bg-blue-100 text-blue-700";
                 if(e.status === 'Em Rota') corSt = "bg-orange-100 text-orange-700";
                 if(e.status === 'Entregue') corSt = "bg-emerald-100 text-emerald-700";
+                
                 const isFeito = e.status === 'Entregue' ? 'opacity-60' : '';
+                const horaBadge = e.hora ? `<span class="bg-emerald-600 text-white px-2 py-0.5 rounded shadow-sm text-[9px] font-black tracking-wider ml-2">🕒 ${e.hora}</span>` : '';
                 
                 return `
                 <div class="bg-white border-l-4 border-emerald-500 rounded-xl p-4 shadow-sm border border-slate-200 flex flex-col ${isFeito}">
                     <div class="flex justify-between items-start mb-2">
-                        <span class="text-[10px] font-black uppercase text-emerald-600 tracking-wider">🚚 Entrega</span>
+                        <span class="text-[10px] font-black uppercase text-emerald-600 tracking-wider flex items-center">🚚 Entrega ${horaBadge}</span>
                         <button onclick="cycleStatusEntrega(${e.uid})" class="${corSt} px-2 py-0.5 rounded text-[9px] font-black uppercase shadow-sm">${esc(e.status)}</button>
                     </div>
                     <h4 class="font-black text-sm uppercase text-slate-800 leading-tight">${esc(e.cliente)}</h4>
@@ -1227,6 +1321,7 @@
 
     function abrirModalNovaEntrega() { 
         document.getElementById('ent_data').value = dataSelecionadaLogistica; 
+        document.getElementById('ent_hora').value = ""; 
         document.getElementById('modal-nova-entrega').style.display='flex'; 
     }
 
@@ -1264,13 +1359,23 @@
 
     function salvarEntrega() {
         const data = document.getElementById('ent_data').value;
+        const hora = document.getElementById('ent_hora').value;
         const cliente = document.getElementById('ent_cliente').value.toUpperCase().trim();
         const endereco = document.getElementById('ent_endereco').value.toUpperCase().trim();
         const produtos = document.getElementById('ent_produtos').value.toUpperCase().trim();
         
         if(!data || !cliente || !produtos) return alert("Preencha Data, Cliente e Produtos!");
         
-        entregas.push({ uid: Date.now(), dataOrdem: data, cliente: cliente, endereco: endereco || "Não informado", produtos: produtos, status: "Agendado" });
+        entregas.push({ 
+            uid: Date.now(), 
+            dataOrdem: data, 
+            hora: hora,
+            cliente: cliente, 
+            endereco: endereco || "Não informado", 
+            produtos: produtos, 
+            status: "Agendado" 
+        });
+        
         salvarColecao('entregas', entregas);
         fecharModaisLogistica();
     }
@@ -1332,9 +1437,11 @@
     function fecharModaisLogistica() {
         document.getElementById('modal-nova-entrega').style.display = 'none';
         document.getElementById('modal-novo-lembrete').style.display = 'none';
+        
         document.getElementById('ent_cliente').value = ""; 
         document.getElementById('ent_endereco').value = ""; 
         document.getElementById('ent_produtos').value = "";
+        document.getElementById('ent_hora').value = "";
         document.getElementById('lem_titulo').value = "";
     }
 
@@ -1845,7 +1952,7 @@
     }
 
     // ==========================================
-    // 7. FUNÇÕES DE TAREFAS / VENDA / CLIENTE
+    // 7. FUNÇÕES DE TAREFAS E VENDAS
     // ==========================================
     function processarFichaWhatsApp(texto) {
         if(!texto) return;
@@ -2097,7 +2204,7 @@
     }
 
     // ==========================================
-    // 8. FUNÇÕES GERAIS DE NAVEGAÇÃO E BOTÕES
+    // 8. NAVEGAÇÃO E OUTRAS FUNÇÕES
     // ==========================================
     function switchTab(t){ 
         window.scrollTo(0,0); 
@@ -2107,7 +2214,7 @@
         document.getElementById('tab-'+t).classList.add('tab-active'); 
         if(t === 'logistica') processarEventosCalendario(); 
     }
-
+    
     function cycleAssisStatus(u){ 
         const x = assistencias.find(y => y.uid == u); 
         const s = ["Aguardando","Peça Solicitada","Concluído"]; 
@@ -2115,53 +2222,16 @@
         salvarColecao('assistencias', assistencias); 
         renderAssistencias(); 
     }
-
+    
     function togglePainelSugestoes(){ 
         const p = document.getElementById('painel-sugestoes'); 
         p.style.display = (p.style.display === 'flex') ? 'none' : 'flex'; 
     }
-
+    
     function autoSalvarNotas(){ 
         notasMelhoria = document.getElementById('texto-melhorias').value; 
         db.ref('dados/notasMelhoria').set(notasMelhoria); 
     }
-
-    function atualizarSelectsFornecedores(){ 
-        const h = fornecedores.map(f => `<option value="${esc(f.nome)}">${esc(f.nome)}</option>`).join(''); 
-        if(document.getElementById('m_fornecedor_select')) document.getElementById('m_fornecedor_select').innerHTML = h || "<option>...</option>"; 
-        if(document.getElementById('as_fabrica')) document.getElementById('as_fabrica').innerHTML = h || "<option>...</option>";
-        if(document.getElementById('e_fabrica_select')) document.getElementById('e_fabrica_select').innerHTML = h || "<option>...</option>";
-        if(document.getElementById('estoque-filtro-fabrica')) document.getElementById('estoque-filtro-fabrica').innerHTML = '<option value="TODAS">TODAS AS FÁBRICAS</option>' + h;
-    }
-
-    function atualizarSugestoes(){ 
-        const n = [...new Set(pedidos.map(p => p.cliente))].sort(); 
-        if(document.getElementById('listaSugestaoClientes')) {
-            document.getElementById('listaSugestaoClientes').innerHTML = n.map(x => `<option value="${esc(x)}">`).join(''); 
-        }
-    }
-
-    const painelSugestoes = document.getElementById('painel-sugestoes');
-    const dragHandle = document.getElementById('drag-handle');
-    let isDragging = false, offsetX, offsetY;
-
-    dragHandle.addEventListener('mousedown', function(e) {
-        isDragging = true; 
-        offsetX = e.clientX - painelSugestoes.getBoundingClientRect().left; 
-        offsetY = e.clientY - painelSugestoes.getBoundingClientRect().top;
-        painelSugestoes.style.bottom = 'auto'; 
-        painelSugestoes.style.right = 'auto';  
-    });
-    
-    document.addEventListener('mousemove', function(e) {
-        if (!isDragging) return; 
-        painelSugestoes.style.left = (e.clientX - offsetX) + 'px'; 
-        painelSugestoes.style.top = (e.clientY - offsetY) + 'px';
-    });
-    
-    document.addEventListener('mouseup', function() { 
-        isDragging = false; 
-    });
 
     </script>
     <style>
