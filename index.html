@@ -1,999 +1,296 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mercier Design - Gestão Cloud</title>
-    
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(r) {
-                for(let i of r) i.unregister();
-            });
-        }
-    </script>
-
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f1f5f9; }
-        .glass-header { background: #0f172a; border-bottom: 4px solid #3b82f6; }
-        .card-premium { background: #fff; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        .table-container { width: 100%; overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; min-width: 800px; }
-        th { font-size: 10px; font-weight: 900; text-transform: uppercase; color: #64748b; padding: 12px; border-bottom: 2px solid #3b82f6; }
-        td { padding: 12px; font-size: 11px; font-weight: bold; border-bottom: 1px solid #f1f5f9; }
-        tr:hover { background: #e2e8f0; }
-        .prazo-vencido { background: #fee2e2; border-left: 4px solid #b91c1c; }
-        .prazo-urgente { background: #fff1f2; border-left: 4px solid #ef4444; }
-        .status-badge { font-size: 9px; font-weight: 900; padding: 6px; border-radius: 6px; text-transform: uppercase; cursor: pointer; }
-        .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.8); z-index: 50; display: none; align-items: center; justify-content: center; padding: 20px; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        .tab-active { color: #3b82f6; border-bottom: 2px solid #3b82f6; }
-    </style>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mercier Design - Gestão Cloud</title>
+<script>if('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(r => r.forEach(i => i.unregister()));</script>
+<link rel="manifest" href="manifest.json"><script src="https://cdn.tailwindcss.com"></script><script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f1f5f9;} .glass-header{background:#0f172a;border-bottom:4px solid #3b82f6;} .card-premium{background:#fff;border-radius:20px;box-shadow:0 4px 20px rgba(0,0,0,0.08);} .table-container{width:100%;overflow-x:auto;} table{width:100%;border-collapse:collapse;min-width:800px;} th{font-size:10px;font-weight:900;text-transform:uppercase;color:#64748b;padding:12px;border-bottom:2px solid #3b82f6;} td{padding:12px;font-size:11px;font-weight:bold;border-bottom:1px solid #f1f5f9;} tr:hover{background:#e2e8f0;} .prazo-vencido{background:#fee2e2;border-left:4px solid #b91c1c;} .prazo-urgente{background:#fff1f2;border-left:4px solid #ef4444;} .status-badge{font-size:9px;font-weight:900;padding:6px;border-radius:6px;text-transform:uppercase;cursor:pointer;} .modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,0.8);z-index:50;display:none;align-items:center;justify-content:center;padding:20px;} .custom-scrollbar::-webkit-scrollbar{width:6px;} .custom-scrollbar::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px;} .tab-active{color:#3b82f6;border-bottom:2px solid #3b82f6;}
+</style>
 </head>
 <body class="overflow-x-hidden flex flex-col min-h-screen">
-
-    <header class="glass-header text-white p-5 shadow-xl flex justify-between items-center sticky top-0 z-50">
-        <h1 class="text-2xl font-black tracking-tighter uppercase italic hidden sm:block">MERCIER <span class="text-blue-500">DESIGN</span></h1>
-        
-        <div class="flex items-center gap-3 ml-auto">
-            <button onclick="togglePainelHistorico()" class="bg-slate-800 border border-slate-600 w-10 h-10 rounded-xl text-lg flex items-center justify-center hover:bg-slate-700 transition" title="Diário de Bordo">🔔</button>
-            <select id="user-select" onchange="setUsuario(this.value)" class="bg-slate-800 border border-slate-600 px-3 py-2.5 h-10 rounded-xl text-[10px] font-black text-slate-300 outline-none cursor-pointer uppercase hover:bg-slate-700 transition">
-                <option value="">👤 IDENTIFICAR-SE</option>
-                <option value="LUCAS">🟢 LUCAS</option>
-                <option value="ANGÉLICA">🟣 ANGÉLICA</option>
-                <option value="GUILHERME">🔵 GUILHERME</option>
-                <option value="CAROL">🟠 CAROL</option>
-                <option value="ISABELLA">🟡 ISABELLA</option>
-            </select>
-            <div id="status-db" class="bg-orange-500 text-white hidden md:flex h-10 items-center px-4 rounded-xl text-[10px] font-black uppercase">Conectando...</div>
-        </div>
-    </header>
-
-    <div id="error-log" class="text-red-500 font-bold text-xs text-center p-2 bg-red-100 hidden z-50 border-b border-red-300"></div>
-
-    <nav class="bg-slate-900 text-slate-400 px-8 flex gap-8 shadow-md overflow-x-auto sticky top-[72px] z-40 items-center">
-        <button onclick="switchTab('pedidos')" id="tab-pedidos" class="py-4 text-xs font-black uppercase tab-active whitespace-nowrap hover:text-white">📋 Pedidos</button>
-        <button onclick="switchTab('tarefas')" id="tab-tarefas" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-white">📝 Tarefas</button>
-        <button onclick="switchTab('equipe')" id="tab-equipe" class="py-4 text-xs font-black uppercase whitespace-nowrap text-purple-400 hover:text-purple-300">👥 Equipe</button>
-        <button onclick="switchTab('logistica')" id="tab-logistica" class="py-4 text-xs font-black uppercase whitespace-nowrap text-emerald-400 hover:text-emerald-300">🚚 Agenda & Entregas</button>
-        <button onclick="switchTab('estoque')" id="tab-estoque" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-white">📦 Estoque</button>
-        <button onclick="switchTab('assistencia')" id="tab-assistencia" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-white">🛠️ Assistências</button>
-        <button onclick="switchTab('catalogo')" id="tab-catalogo" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-white">📜 Catálogo</button>
-        <button onclick="switchTab('fornecedores')" id="tab-fornecedores" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-white">🏭 Fábricas</button>
-    </nav>
-
-    <!-- PEDIDOS -->
-    <main id="view-pedidos" class="max-w-[1950px] mx-auto p-4 md:p-6 w-full">
-        <div class="mb-6 card-premium p-5 border-l-8 border-blue-600">
-            <div class="flex flex-wrap gap-3 mb-4">
-                <input list="listaSugestaoClientes" id="m_cliente" placeholder="NOME DO CLIENTE" class="border-2 p-2.5 rounded-lg text-xs font-bold flex-1 uppercase outline-blue-500">
-                <select id="m_prazo_select" class="border-2 p-2.5 rounded-lg text-xs font-bold w-32 bg-white outline-blue-500">
-                    <option value="15">15 Dias</option><option value="20">20 Dias</option><option value="30" selected>30 Dias</option><option value="30-util">30 Úteis</option><option value="40-util">40 Úteis</option>
-                </select>
-                <select id="m_fornecedor_select" class="border-2 p-2.5 rounded-lg text-xs font-bold w-48 bg-white outline-blue-500"></select>
-            </div>
-            <div class="flex flex-wrap gap-2 mb-3 bg-slate-50 p-3 rounded-xl border">
-                <input type="number" id="m_qtd" value="1" class="border-2 p-2 rounded-lg text-xs font-bold w-16 outline-blue-500">
-                <input list="listaSugestaoProdutos" id="m_produto" placeholder="PRODUTO" class="border-2 p-2 rounded-lg text-xs font-bold flex-1 uppercase outline-blue-500">
-                <input type="text" id="m_medida" placeholder="MEDIDA" class="border-2 p-2 rounded-lg text-xs font-bold w-24 uppercase outline-blue-500">
-                <input type="text" id="m_cor" placeholder="COR/TECIDO" class="border-2 p-2 rounded-lg text-xs font-bold w-32 uppercase outline-blue-500">
-                <input type="text" id="m_custo" placeholder="R$ CUSTO" class="border-2 p-2 rounded-lg text-xs font-bold w-28 outline-blue-500" oninput="maskMoney(this)">
-                <button onclick="adicionarItemAoCesto()" class="bg-slate-800 text-white px-6 rounded-lg text-[10px] font-black uppercase hover:bg-black transition">＋ ITEM</button>
-            </div>
-            <div id="cesto-itens" class="flex flex-wrap gap-2 mb-3"></div>
-            <button onclick="cadastrarManual()" class="bg-blue-600 text-white font-black rounded-xl text-xs px-8 py-4 w-full uppercase shadow-lg hover:bg-blue-700 transition">Finalizar e Sincronizar Pedido</button>
-        </div>
-
-        <div class="card-premium overflow-hidden">
-            <div class="flex border-b bg-slate-50">
-                <button onclick="mudarVisaoPedidos('ATIVOS')" id="btn-visao-ativos" class="flex-1 py-4 text-xs font-black uppercase border-b-4 border-blue-600 text-blue-600 transition bg-white">Em Andamento</button>
-                <button onclick="mudarVisaoPedidos('FINALIZADOS')" id="btn-visao-finalizados" class="flex-1 py-4 text-xs font-black uppercase border-b-4 border-transparent text-slate-400 hover:text-slate-600 transition">Pedidos Finalizados</button>
-            </div>
-            <div class="p-4 bg-white border-b flex flex-col md:flex-row justify-between items-center gap-4">
-                <input type="text" id="busca" onkeyup="renderPedidos()" placeholder="🔍 BUSCAR..." class="border-2 p-2.5 rounded-2xl text-xs w-full md:w-96 font-bold uppercase outline-blue-500">
-                <div class="flex gap-2">
-                    <button id="btnFiltroNaoEnviado" onclick="toggleFiltroNaoEnviado()" class="border-2 border-red-500 px-4 py-2 rounded-lg text-[10px] font-black uppercase text-red-600 hover:bg-red-50 transition">Não enviados</button>
-                    <button onclick="gerarEmailLote()" class="bg-emerald-600 text-white px-5 py-2 rounded-lg text-[10px] font-black uppercase shadow hover:bg-emerald-700 transition">📧 Enviar Selecionados</button>
-                </div>
-                <span id="contador" class="text-[10px] font-black bg-slate-900 text-white px-4 py-2 rounded-lg uppercase">0 Pedidos</span>
-            </div>
-            <div class="table-container">
-                <table class="w-full text-left">
-                    <thead class="bg-white">
-                        <tr>
-                            <th width="40"><input type="checkbox" onclick="marcarTodos(this.checked)"></th>
-                            <th width="65">Prazo</th><th width="80">ID</th><th width="200">Cliente</th><th width="90">Data</th><th width="45">Qtd</th><th>Móvel</th><th width="80">Medida</th><th width="100">Cor</th><th width="100">Custo</th><th width="110">Fábrica</th><th width="120">Status</th><th width="60">Whats</th><th width="60">Conf</th><th class="text-center" width="130">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabelaPedidos"></tbody>
-                </table>
-            </div>
-        </div>
-    </main>
-
-    <!-- TAREFAS -->
-    <main id="view-tarefas" class="hidden p-4 md:p-6 max-w-[1950px] mx-auto w-full">
-        <div class="card-premium p-6 border-l-8 border-indigo-600 mb-6 shadow-xl">
-            <div class="flex justify-between items-center mb-6">
-                <select id="t_tipo" onchange="mostrarCamposTarefa(this.value)" class="border-2 p-2.5 rounded-xl text-xs font-bold bg-white w-full md:w-80 outline-indigo-500">
-                    <option value="SIMPLES">Anotação Simples</option>
-                    <option value="TIRAR PEDIDO">Tirar Pedido (Venda Completa)</option>
-                </select>
-                <div id="loading-cep" class="hidden text-[10px] font-black text-indigo-500 animate-pulse uppercase">Buscando...</div>
-            </div>
-            <div id="container-campos-tarefa" class="grid grid-cols-1 md:grid-cols-4 gap-3"></div>
-            <button onclick="cadastrarTarefa()" class="mt-8 bg-indigo-600 text-white font-black px-12 py-4 rounded-xl text-xs uppercase shadow-lg w-full hover:bg-indigo-700 transition">Salvar Tarefa / Pedido</button>
-        </div>
-        <div class="card-premium overflow-hidden">
-            <div class="p-4 bg-slate-50 border-b flex justify-between items-center">
-                <span class="text-[10px] font-black uppercase text-slate-400">Histórico de Atividades</span>
-                <select id="filtro-tarefa-status" onchange="renderTarefas()" class="border-2 p-1 rounded-lg text-[10px] font-bold bg-white outline-none">
-                    <option value="TODAS">TODAS</option><option value="Não Iniciado">Não Iniciado</option><option value="Em Andamento">Em Andamento</option><option value="Feito">Feito</option>
-                </select>
-            </div>
-            <table class="w-full text-left">
-                <thead><tr class="bg-slate-50 text-slate-500 text-[10px] uppercase"><th>Data</th><th>Descrição / Cliente</th><th>Tipo</th><th>Status</th><th class="text-center">Ação</th></tr></thead>
-                <tbody id="tabelaTarefas"></tbody>
-            </table>
-        </div>
-    </main>
-
-    <!-- EQUIPE (KANBAN) -->
-    <main id="view-equipe" class="hidden p-4 md:p-6 max-w-[1950px] mx-auto w-full">
-        <div class="card-premium p-6 border-l-8 border-purple-600 mb-4 shadow-lg bg-white">
-            <div class="flex flex-wrap gap-3 items-end">
-                <div class="flex-1 min-w-[250px]">
-                    <label class="text-[9px] font-black text-slate-400 uppercase">O que precisa ser feito?</label>
-                    <input id="eq_desc" placeholder="DESCREVA A TAREFA RAPIDAMENTE..." class="border-2 p-2.5 rounded-lg text-xs font-bold w-full uppercase outline-purple-500" onkeydown="if(event.key==='Enter') adicionarTarefaEquipe()">
-                </div>
-                <div class="w-48">
-                    <label class="text-[9px] font-black text-slate-400 uppercase">Prazo / Urgência</label>
-                    <select id="eq_prazo" class="border-2 p-2.5 rounded-lg text-xs font-bold bg-white w-full outline-purple-500 uppercase cursor-pointer">
-                        <option value="">SEM PRAZO</option><option value="AGORA">🚨 AGORA (Urgente)</option><option value="IMEDIATO">⚡ 1 DIA (Imediato)</option><option value="IMPORTANTE">⚠️ 2 DIAS (Importante)</option><option value="REGULAR">📅 3 DIAS (Regular)</option><option value="TRANQUILO">☕ + DIAS (Tranquilo)</option>
-                    </select>
-                </div>
-                <div class="w-48">
-                    <label class="text-[9px] font-black text-slate-400 uppercase">Responsável</label>
-                    <select id="eq_resp" class="border-2 p-2.5 rounded-lg text-xs font-bold bg-white w-full outline-purple-500 uppercase cursor-pointer">
-                        <option value="LUCAS">🟢 LUCAS</option><option value="ANGÉLICA">🟣 ANGÉLICA</option><option value="GUILHERME">🔵 GUILHERME</option><option value="CAROL">🟠 CAROL</option><option value="ISABELLA">🟡 ISABELLA</option>
-                    </select>
-                </div>
-                <button onclick="adicionarTarefaEquipe()" class="bg-purple-600 text-white px-8 py-3 rounded-lg font-black text-xs uppercase shadow hover:bg-purple-700 transition">＋ Adicionar</button>
-            </div>
-            <div class="mt-5 pt-4 border-t border-slate-100 flex flex-col gap-2">
-                <div class="flex justify-between items-center flex-wrap gap-2">
-                    <span class="text-[9px] font-black text-slate-400 uppercase">Filtre por Responsável:</span>
-                    <label class="flex items-center gap-2 cursor-pointer bg-slate-800 text-white px-4 py-2 rounded-xl shadow-md hover:bg-slate-700 transition">
-                        <input type="checkbox" id="check-minhas-tarefas" onchange="toggleModoMinhasTarefas()" class="cursor-pointer w-4 h-4 accent-purple-500">
-                        <span class="text-[10px] font-black uppercase tracking-wider">👁️ Mostrar Apenas as Minhas</span>
-                    </label>
-                </div>
-                <div id="filtros-equipe" class="flex flex-wrap gap-2 mt-1"></div>
-            </div>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-            <div id="col-todo-container" ondrop="dropTarefa(event, 'TODO')" ondragover="allowDropTarefa(event)" class="bg-slate-200/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-slate-200 shadow-inner">
-                <h3 class="font-black text-sm uppercase text-slate-600 mb-4 flex justify-between items-center sticky top-0 bg-slate-200/90 py-1 z-10 backdrop-blur-sm">
-                    <div class="flex items-center gap-2"><button onclick="toggleColunaKanban('TODO')" id="btn-toggle-todo" class="bg-slate-300 hover:bg-slate-400 text-slate-700 w-7 h-7 rounded-full flex items-center justify-center transition shadow-sm text-lg">➖</button><span>🟥 A Fazer</span></div>
-                    <span id="count-todo" class="bg-slate-300 text-slate-700 py-1 px-3 rounded-full text-[10px]">0</span>
-                </h3>
-                <div id="col-todo" class="flex flex-col gap-3 flex-1 pb-4"></div>
-            </div>
-            
-            <div id="col-doing-container" ondrop="dropTarefa(event, 'DOING')" ondragover="allowDropTarefa(event)" class="bg-blue-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-blue-200 shadow-inner">
-                <h3 class="font-black text-sm uppercase text-blue-600 mb-4 flex justify-between items-center sticky top-0 bg-blue-100/90 py-1 z-10 backdrop-blur-sm">
-                    <div class="flex items-center gap-2"><button onclick="toggleColunaKanban('DOING')" id="btn-toggle-doing" class="bg-blue-200 hover:bg-blue-300 text-blue-700 w-7 h-7 rounded-full flex items-center justify-center transition shadow-sm text-lg">➖</button><span>🟨 Em Andamento</span></div>
-                    <span id="count-doing" class="bg-blue-200 text-blue-700 py-1 px-3 rounded-full text-[10px]">0</span>
-                </h3>
-                <div id="col-doing" class="flex flex-col gap-3 flex-1 pb-4"></div>
-            </div>
-            
-            <div id="col-done-container" ondrop="dropTarefa(event, 'DONE')" ondragover="allowDropTarefa(event)" class="bg-green-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-green-200 shadow-inner">
-                <h3 class="font-black text-sm uppercase text-green-600 mb-4 flex justify-between items-center sticky top-0 bg-green-100/90 py-1 z-10 backdrop-blur-sm">
-                    <div class="flex items-center gap-2"><button onclick="toggleColunaKanban('DONE')" id="btn-toggle-done" class="bg-green-200 hover:bg-green-300 text-green-700 w-7 h-7 rounded-full flex items-center justify-center transition shadow-sm text-lg">➖</button><span>🟩 Concluído</span></div>
-                    <span id="count-done" class="bg-green-200 text-green-700 py-1 px-3 rounded-full text-[10px]">0</span>
-                </h3>
-                <div id="col-done" class="flex flex-col gap-3 flex-1 pb-4"></div>
-            </div>
-        </div>
-    </main>
-
-    <!-- LOGÍSTICA & AGENDA (COM HORÁRIOS) -->
-    <main id="view-logistica" class="hidden max-w-[1950px] mx-auto p-4 md:p-6 w-full h-[calc(100vh-100px)] flex flex-col md:flex-row gap-6">
-        
-        <div class="md:w-2/3 card-premium flex flex-col overflow-hidden h-full shadow-lg">
-            <div class="bg-slate-800 p-4 flex flex-col sm:flex-row justify-between items-center gap-4 text-white">
-                <div class="flex items-center gap-4">
-                    <button onclick="mudarMes(-1)" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg font-black transition">◀</button>
-                    <h2 id="mes-ano-display" class="text-lg font-black uppercase tracking-widest min-w-[160px] text-center text-emerald-400">MÊS ANO</h2>
-                    <button onclick="mudarMes(1)" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg font-black transition">▶</button>
-                </div>
-                <div class="flex gap-2 flex-wrap justify-center">
-                    <label class="flex items-center gap-1.5 cursor-pointer bg-slate-700 px-3 py-1.5 rounded-lg shadow-sm hover:bg-slate-600 transition text-[10px] font-black uppercase"><input type="checkbox" id="filtro-cal-entregas" checked onchange="renderCalendario()" class="accent-emerald-500 w-3 h-3"> 🚚 Entregas</label>
-                    <label class="flex items-center gap-1.5 cursor-pointer bg-slate-700 px-3 py-1.5 rounded-lg shadow-sm hover:bg-slate-600 transition text-[10px] font-black uppercase"><input type="checkbox" id="filtro-cal-lembretes" checked onchange="renderCalendario()" class="accent-amber-500 w-3 h-3"> ⏰ Lembretes</label>
-                    <label class="flex items-center gap-1.5 cursor-pointer bg-slate-700 px-3 py-1.5 rounded-lg shadow-sm hover:bg-slate-600 transition text-[10px] font-black uppercase"><input type="checkbox" id="filtro-cal-prazos" checked onchange="renderCalendario()" class="accent-blue-500 w-3 h-3"> 📋 Prazos</label>
-                </div>
-            </div>
-
-            <div class="flex-1 flex flex-col overflow-hidden bg-slate-100">
-                <div class="grid grid-cols-7 bg-white border-b border-slate-200 text-[10px] font-black text-slate-400 uppercase text-center py-3 shadow-sm z-10">
-                    <div>DOM</div><div>SEG</div><div>TER</div><div>QUA</div><div>QUI</div><div>SEX</div><div>SAB</div>
-                </div>
-                <div id="grid-dias" class="grid grid-cols-7 flex-1 auto-rows-fr overflow-y-auto custom-scrollbar bg-slate-100/50"></div>
-            </div>
-        </div>
-
-        <div class="md:w-1/3 flex flex-col gap-4 h-full">
-            <div class="grid grid-cols-2 gap-3">
-                <button onclick="abrirModalNovaEntrega()" class="bg-emerald-600 text-white font-black uppercase text-xs py-4 rounded-xl shadow hover:bg-emerald-700 transition flex items-center justify-center gap-2 border-b-4 border-emerald-800 active:translate-y-1 active:border-b-0"><span>🚚 Nova Entrega</span></button>
-                <button onclick="abrirModalNovoLembrete()" class="bg-amber-500 text-white font-black uppercase text-xs py-4 rounded-xl shadow hover:bg-amber-600 transition flex items-center justify-center gap-2 border-b-4 border-amber-700 active:translate-y-1 active:border-b-0"><span>⏰ Novo Lembrete</span></button>
-            </div>
-            <div class="card-premium flex-1 flex flex-col overflow-hidden shadow-lg border-t-8 border-emerald-500 bg-slate-50">
-                <div class="p-5 bg-white border-b border-slate-200 flex justify-between items-center shadow-sm z-10">
-                    <h3 id="titulo-painel-dia" class="font-black text-slate-800 uppercase text-sm tracking-wide">Agenda de Hoje</h3>
-                    <span id="badge-qtd-dia" class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-[10px] font-black">0 Itens</span>
-                </div>
-                <div id="lista-eventos-dia" class="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-col gap-4 relative"></div>
-            </div>
-        </div>
-    </main>
-
-    <!-- ESTOQUE (INTELIGENTE E COM ABAS) -->
-    <main id="view-estoque" class="hidden p-6 max-w-[1950px] mx-auto w-full">
-        <div class="card-premium p-6 border-l-8 border-emerald-500 mb-6 bg-emerald-50 shadow-md">
-            <h3 class="text-sm font-black uppercase text-emerald-800 mb-2 flex items-center gap-2">✨ Cadastro Inteligente em Massa</h3>
-            <p class="text-[10px] font-bold text-emerald-600 uppercase mb-3 leading-relaxed">Cole sua lista abaixo. Regra de separação: <b>[PRODUTO] ; [FÁBRICA] ; [SITUAÇÃO/OBS]</b><br><i>Ex:</i> 2x Poltrona Decor <b>;</b> Sier <b>;</b> Vendido para Lucas</p>
-            <textarea id="e_massa" rows="5" placeholder="Cole os itens aqui..." class="w-full border-2 border-emerald-200 p-3 rounded-xl text-xs font-bold uppercase outline-emerald-500 shadow-inner resize-y bg-white"></textarea>
-            <div class="flex justify-end mt-3"><button onclick="processarEstoqueMassa()" class="bg-emerald-600 text-white px-10 py-3 rounded-lg font-black text-xs uppercase shadow-lg hover:bg-emerald-700 transition">⚡ Processar Lista</button></div>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-            <div class="card-premium p-5 border-l-8 border-green-500 bg-white shadow-sm flex flex-col justify-center"><p class="text-[10px] font-black text-slate-400 uppercase">Disponível Agora</p><h3 id="resumo-estoque-total" class="text-2xl font-black text-green-600">0</h3></div>
-            <div class="card-premium p-5 border-l-8 border-red-500 bg-white shadow-sm flex flex-col justify-center"><p class="text-[10px] font-black text-slate-400 uppercase">Total de Saídas</p><h3 id="resumo-estoque-vendidos" class="text-2xl font-black text-red-600">0</h3></div>
-            <div class="card-premium border-l-8 border-blue-500 bg-white flex flex-col shadow-sm"><p class="text-[10px] font-black text-slate-400 uppercase p-2 border-b">📝 Notas do Estoque</p><textarea id="estoque-notas-gerais" oninput="autoSalvarNotasEstoque()" class="flex-1 p-3 text-[11px] font-bold uppercase outline-none resize-none bg-slate-50 min-h-[80px]" placeholder="ANOTAÇÕES..."></textarea></div>
-        </div>
-
-        <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex flex-wrap gap-4 items-end uppercase shadow-lg">
-            <div class="flex-1 min-w-[250px]"><label class="text-[9px] font-black text-slate-400">Cadastro Unitário: Produto</label><input id="e_produto" placeholder="NOME DO MÓVEL" class="border-2 p-2.5 rounded-lg text-xs font-bold w-full uppercase outline-blue-500"></div>
-            <div class="w-44"><label class="text-[9px] font-black text-slate-400">Fábrica</label><select id="e_fabrica_select" class="border-2 p-2.5 rounded-lg text-xs font-bold bg-white w-full outline-blue-500"></select></div>
-            <div class="w-20"><label class="text-[9px] font-black text-slate-400">Qtd</label><input id="e_qtd" type="number" value="1" class="border-2 p-2.5 rounded-lg text-xs font-bold w-full outline-blue-500"></div>
-            <div class="w-36 hidden"><select id="e_situacao" class="border-2 p-2.5 rounded-lg text-xs font-bold bg-white w-full outline-blue-500"><option value="ESTOQUE">ESTOQUE</option></select></div>
-            <button onclick="cadastrarEstoque()" class="bg-blue-600 text-white px-10 py-3 rounded-lg font-black text-xs uppercase shadow hover:bg-blue-700 transition">Adicionar 1</button>
-        </div>
-
-        <div class="card-premium overflow-hidden">
-            <div class="flex border-b bg-slate-50">
-                <button onclick="mudarVisaoEstoque('ESTOQUE')" id="btn-estoque-disponivel" class="flex-1 py-4 text-xs font-black uppercase border-b-4 border-green-500 text-green-600 transition bg-white">🟢 Em Estoque</button>
-                <button onclick="mudarVisaoEstoque('SAIDAS')" id="btn-estoque-saidas" class="flex-1 py-4 text-xs font-black uppercase border-b-4 border-transparent text-slate-400 hover:text-slate-600 transition">🔴 Saídas / Histórico</button>
-            </div>
-            <div class="p-4 bg-white border-b flex flex-col sm:flex-row gap-4 items-center uppercase">
-                <div class="flex-1 min-w-[300px] w-full"><input type="text" id="estoque-busca" onkeyup="renderEstoque()" placeholder="🔍 BUSCAR..." class="border-2 p-2.5 rounded-xl text-xs font-bold w-full outline-blue-500"></div>
-                <select id="estoque-filtro-fabrica" onchange="renderEstoque()" class="border-2 p-2.5 rounded-xl text-xs font-bold bg-white w-full sm:w-48 outline-blue-500"><option value="TODAS">TODAS AS FÁBRICAS</option></select>
-            </div>
-            <div class="table-container">
-                <table class="w-full text-left">
-                    <thead class="bg-slate-50 border-b"><tr class="text-slate-500 uppercase text-[10px]"><th width="90">Data</th><th>Móvel</th><th width="150">Fábrica</th><th width="60" class="text-center">Qtd</th><th width="140" class="text-center">Status</th><th class="text-center" width="100">Ação</th></tr></thead>
-                    <tbody id="tabelaEstoque"></tbody>
-                </table>
-            </div>
-        </div>
-    </main>
-
-    <!-- ASSISTÊNCIAS, CATÁLOGO, FORNECEDORES -->
-    <main id="view-assistencia" class="hidden p-6 max-w-[1950px] mx-auto w-full">
-        <div class="card-premium p-6 border-l-8 border-orange-500 flex flex-wrap gap-4 mb-6 uppercase shadow-lg"><input list="listaSugestaoClientes" id="as_cliente" placeholder="CLIENTE" class="border-2 p-2.5 rounded-lg text-xs font-bold flex-1 uppercase outline-orange-500"><input id="as_produto" placeholder="PRODUTO / DEFEITO" class="border-2 p-2.5 rounded-lg text-xs font-bold flex-1 uppercase outline-orange-500"><select id="as_fabrica" class="border-2 p-2.5 rounded-lg text-xs font-bold bg-white w-48 outline-orange-500"></select><button onclick="cadastrarAssistencia()" class="bg-orange-600 text-white px-10 py-2.5 rounded-lg font-black text-xs uppercase shadow hover:bg-orange-700 transition">Registrar</button></div>
-        <div class="card-premium p-4 mb-4 bg-slate-50 flex flex-wrap gap-4 items-center uppercase border border-slate-200"><div class="flex-1 min-w-[300px]"><input type="text" id="busca-assistencia" onkeyup="renderAssistencias()" placeholder="🔍 BUSCAR ASSISTÊNCIA..." class="border-2 p-2.5 rounded-xl text-xs font-bold w-full outline-orange-500"></div><select id="filtro-assistencia-status" onchange="renderAssistencias()" class="border-2 p-2.5 rounded-xl text-xs font-bold bg-white w-48 outline-orange-500 cursor-pointer"><option value="TODAS">TODOS OS STATUS</option><option value="Aguardando">AGUARDANDO</option><option value="Peça Solicitada">PEÇA SOLICITADA</option><option value="Concluído">CONCLUÍDO</option></select><span id="contador-assistencia" class="text-[10px] font-black bg-slate-900 text-white px-4 py-2 rounded-lg uppercase">0 ASSISTÊNCIAS</span></div>
-        <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50 text-[10px] uppercase text-slate-500 border-b"><th width="90">Data</th><th>Cliente</th><th>Produto / Defeito</th><th width="150">Fábrica</th><th width="140" class="text-center">Status</th><th width="80" class="text-center">Ação</th></tr></thead><tbody id="tabelaAssistencias"></tbody></table></div>
-    </main>
-
-    <main id="view-catalogo" class="hidden p-6 max-w-[1200px] mx-auto w-full">
-        <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-3 shadow-lg"><input id="cat_nome" placeholder="NOME DO MÓVEL" class="border-2 p-2.5 rounded-lg flex-1 font-bold uppercase outline-blue-500"><button onclick="cadastrarCatalogo()" class="bg-blue-600 text-white px-10 py-2.5 rounded-lg font-black text-xs uppercase shadow hover:bg-blue-700 transition">Salvar</button></div>
-        <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50 text-[10px] uppercase"><th>Nome do Item</th><th class="text-center" width="100">Remover</th></tr></thead><tbody id="tabelaCatalogo"></tbody></table></div>
-    </main>
-
-    <main id="view-fornecedores" class="hidden max-w-4xl mx-auto p-6 w-full">
-        <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-3 shadow-lg"><input id="f_nome" placeholder="NOME DA FÁBRICA" class="border-2 p-2.5 rounded-lg flex-1 font-bold uppercase outline-blue-500"><input id="f_email" placeholder="EMAIL" class="border-2 p-2.5 rounded-lg flex-1 font-bold lowercase outline-blue-500"><button onclick="cadastrarFornecedor()" class="bg-blue-600 text-white px-10 py-2.5 rounded font-black text-xs uppercase hover:bg-blue-700 transition">Salvar</button></div>
-        <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50 text-[10px] uppercase"><th>Fábrica</th><th>E-mail</th><th class="text-center" width="100">Remover</th></tr></thead><tbody id="tabelaFornecedores"></tbody></table></div>
-    </main>
-
-    <!-- MODAIS E POPUPS -->
-    <div id="modal-detalhes" class="modal-overlay" onclick="if(event.target==this) this.style.display='none'"><div class="card-premium w-full max-w-2xl bg-white overflow-hidden flex flex-col max-h-[90vh] shadow-2xl"><div class="bg-indigo-600 p-5 text-white font-black flex justify-between items-center uppercase text-sm tracking-widest"><span>📄 Resumo Detalhado</span><button onclick="document.getElementById('modal-detalhes').style.display='none'" class="text-xl">✕</button></div><div id="detalhe-corpo" class="p-8 overflow-y-auto space-y-4 bg-white text-slate-800"></div></div></div>
-    <div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()">💡</div>
-    <div id="painel-sugestoes"><div id="drag-handle" class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase cursor-move"><span>💡 Bloco de Notas</span><button onclick="togglePainelSugestoes()">✕</button></div><textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none" oninput="autoSalvarNotas()"></textarea></div>
-    <input type="file" id="file-upload-global" accept="image/*" class="hidden" onchange="processarUploadImagem(event)">
-    <datalist id="listaSugestaoProdutos"></datalist><datalist id="listaSugestaoClientes"></datalist>
-
-    <div id="modal-nova-entrega" class="modal-overlay" onclick="if(event.target==this) fecharModaisLogistica()">
-        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-3xl border-t-8 border-emerald-500">
-            <h2 class="font-black uppercase text-emerald-600 mb-4 text-sm flex justify-between">🚚 Agendar Entrega <button onclick="fecharModaisLogistica()" class="text-slate-400 hover:text-red-500 text-lg">✕</button></h2>
-            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
-                <div class="md:col-span-1"><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Data</label><input type="date" id="ent_data" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-emerald-500"></div>
-                <div class="md:col-span-1"><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Hora</label><input type="time" id="ent_hora" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-emerald-500 bg-white"></div>
-                <div class="md:col-span-3"><label class="text-[10px] font-black text-slate-400 uppercase mb-1 flex justify-between"><span>Cliente</span><span class="text-emerald-500 hidden" id="aviso-magico">✨ Preenchido!</span></label><input list="listaSugestaoClientes" id="ent_cliente" onblur="buscarDadosInteligentes()" placeholder="NOME..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-emerald-500"></div>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Endereço (Para GPS)</label><textarea id="ent_endereco" rows="2" placeholder="Rua, Número, Bairro..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-emerald-500 resize-none"></textarea></div>
-                <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Produtos</label><textarea id="ent_produtos" rows="2" placeholder="O que vai entregar?" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-emerald-500 resize-none"></textarea></div>
-            </div>
-            <button onclick="salvarEntrega()" class="w-full bg-emerald-600 text-white py-3 rounded-lg text-xs font-black uppercase shadow hover:bg-emerald-700 transition">Salvar Agendamento</button>
-        </div>
+<header class="glass-header text-white p-5 shadow-xl flex justify-between items-center sticky top-0 z-50">
+    <h1 class="text-2xl font-black tracking-tighter uppercase italic hidden sm:block">MERCIER <span class="text-blue-500">DESIGN</span></h1>
+    <div class="flex items-center gap-3 ml-auto">
+        <button onclick="togglePainelHistorico()" class="bg-slate-800 border border-slate-600 w-10 h-10 rounded-xl text-lg flex items-center justify-center hover:bg-slate-700 transition shadow-inner">🔔<span id="badge-historico" class="absolute -top-1 -right-1 flex h-3 w-3 hidden"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span></span></button>
+        <select id="user-select" onchange="setUsuario(this.value)" class="bg-slate-800 border border-slate-600 px-3 py-2.5 h-10 rounded-xl text-[10px] font-black text-slate-300 outline-none uppercase hover:bg-slate-700 transition"><option value="">👤 IDENTIFICAR-SE</option><option value="LUCAS">🟢 LUCAS</option><option value="ANGÉLICA">🟣 ANGÉLICA</option><option value="GUILHERME">🔵 GUILHERME</option><option value="CAROL">🟠 CAROL</option><option value="ISABELLA">🟡 ISABELLA</option></select>
+        <div id="status-db" class="bg-orange-500 text-white hidden md:flex h-10 items-center px-4 rounded-xl text-[10px] font-black uppercase">Conectando...</div>
     </div>
+</header>
+<div id="error-log" class="text-red-500 font-bold text-xs text-center p-2 bg-red-100 hidden z-50 border-b border-red-300"></div>
+<nav class="bg-slate-900 text-slate-400 px-8 flex gap-8 shadow-md overflow-x-auto sticky top-[72px] z-40 items-center">
+    <button onclick="switchTab('pedidos')" id="tab-pedidos" class="py-4 text-xs font-black uppercase tab-active whitespace-nowrap hover:text-white">📋 Pedidos</button><button onclick="switchTab('tarefas')" id="tab-tarefas" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-white">📝 Tarefas</button><button onclick="switchTab('equipe')" id="tab-equipe" class="py-4 text-xs font-black uppercase whitespace-nowrap text-purple-400 hover:text-purple-300">👥 Equipe</button><button onclick="switchTab('logistica')" id="tab-logistica" class="py-4 text-xs font-black uppercase whitespace-nowrap text-emerald-400 hover:text-emerald-300">🚚 Agenda & Entregas</button><button onclick="switchTab('estoque')" id="tab-estoque" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-white">📦 Estoque</button><button onclick="switchTab('assistencia')" id="tab-assistencia" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-white">🛠️ Assistências</button><button onclick="switchTab('catalogo')" id="tab-catalogo" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-white">📜 Catálogo</button><button onclick="switchTab('fornecedores')" id="tab-fornecedores" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-white">🏭 Fábricas</button>
+</nav>
 
-    <div id="modal-novo-lembrete" class="modal-overlay" onclick="if(event.target==this) fecharModaisLogistica()">
-        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-lg border-t-8 border-amber-500">
-            <h2 class="font-black uppercase text-amber-600 mb-4 text-sm flex justify-between">⏰ Prender Lembrete <button onclick="fecharModaisLogistica()" class="text-slate-400 hover:text-red-500 text-lg">✕</button></h2>
-            <div class="mb-4"><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">O que lembrar?</label><input type="text" id="lem_titulo" placeholder="Ex: Cobrar cliente..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-amber-500"></div>
-            <div class="grid grid-cols-2 gap-4 mb-4">
-                <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Quando?</label><input type="date" id="lem_data" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-amber-500"></div>
-                <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Categoria</label><select id="lem_categoria" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-amber-500 bg-white"><option value="GERAL">🔔 Geral</option><option value="FINANCEIRO">💰 Financeiro</option><option value="FABRICA">🏭 Fábrica</option><option value="CLIENTE">❤️ Cliente</option></select></div>
-            </div>
-            <button onclick="salvarLembrete()" class="w-full bg-amber-500 text-white py-3 rounded-lg text-xs font-black uppercase shadow hover:bg-amber-600 transition">Salvar Lembrete</button>
-        </div>
+<main id="view-pedidos" class="max-w-[1950px] mx-auto p-4 md:p-6 w-full">
+    <div class="mb-6 card-premium p-5 border-l-8 border-blue-600"><div class="flex flex-wrap gap-3 mb-4"><input list="listaSugestaoClientes" id="m_cliente" placeholder="NOME DO CLIENTE" class="border-2 p-2.5 rounded-lg text-xs font-bold flex-1 uppercase outline-blue-500"><select id="m_prazo_select" class="border-2 p-2.5 rounded-lg text-xs font-bold w-32 bg-white outline-blue-500"><option value="15">15 Dias</option><option value="20">20 Dias</option><option value="30" selected>30 Dias</option><option value="30-util">30 Úteis</option><option value="40-util">40 Úteis</option></select><select id="m_fornecedor_select" class="border-2 p-2.5 rounded-lg text-xs font-bold w-48 bg-white outline-blue-500"></select></div><div class="flex flex-wrap gap-2 mb-3 bg-slate-50 p-3 rounded-xl border"><input type="number" id="m_qtd" value="1" class="border-2 p-2 rounded-lg text-xs font-bold w-16 outline-blue-500"><input list="listaSugestaoProdutos" id="m_produto" placeholder="PRODUTO" class="border-2 p-2 rounded-lg text-xs font-bold flex-1 uppercase outline-blue-500"><input type="text" id="m_medida" placeholder="MEDIDA" class="border-2 p-2 rounded-lg text-xs font-bold w-24 uppercase outline-blue-500"><input type="text" id="m_cor" placeholder="COR/TECIDO" class="border-2 p-2 rounded-lg text-xs font-bold w-32 uppercase outline-blue-500"><input type="text" id="m_custo" placeholder="R$ CUSTO" class="border-2 p-2 rounded-lg text-xs font-bold w-28 outline-blue-500" oninput="maskMoney(this)"><button onclick="adicionarItemAoCesto()" class="bg-slate-800 text-white px-6 rounded-lg text-[10px] font-black uppercase hover:bg-black transition">＋ ITEM</button></div><div id="cesto-itens" class="flex flex-wrap gap-2 mb-3"></div><button onclick="cadastrarManual()" class="bg-blue-600 text-white font-black rounded-xl text-xs px-8 py-4 w-full uppercase shadow-lg hover:bg-blue-700 transition">Finalizar e Sincronizar Pedido</button></div>
+    <div class="card-premium overflow-hidden"><div class="flex border-b bg-slate-50"><button onclick="mudarVisaoPedidos('ATIVOS')" id="btn-visao-ativos" class="flex-1 py-4 text-xs font-black uppercase border-b-4 border-blue-600 text-blue-600 transition bg-white">Em Andamento</button><button onclick="mudarVisaoPedidos('FINALIZADOS')" id="btn-visao-finalizados" class="flex-1 py-4 text-xs font-black uppercase border-b-4 border-transparent text-slate-400 hover:text-slate-600 transition">Pedidos Finalizados</button></div><div class="p-4 bg-white border-b flex flex-col md:flex-row justify-between items-center gap-4"><input type="text" id="busca" onkeyup="renderPedidos()" placeholder="🔍 BUSCAR..." class="border-2 p-2.5 rounded-2xl text-xs w-full md:w-96 font-bold uppercase outline-blue-500"><div class="flex gap-2"><button id="btnFiltroNaoEnviado" onclick="toggleFiltroNaoEnviado()" class="border-2 border-red-500 px-4 py-2 rounded-lg text-[10px] font-black uppercase text-red-600 hover:bg-red-50 transition">Não enviados</button><button onclick="gerarEmailLote()" class="bg-emerald-600 text-white px-5 py-2 rounded-lg text-[10px] font-black uppercase shadow hover:bg-emerald-700 transition">📧 Enviar Selecionados</button></div><span id="contador" class="text-[10px] font-black bg-slate-900 text-white px-4 py-2 rounded-lg uppercase">0 Pedidos</span></div><div class="table-container"><table class="w-full text-left"><thead class="bg-white"><tr><th width="40"><input type="checkbox" id="check-todos" onclick="marcarTodos(this.checked)"></th><th width="65">Prazo</th><th width="80">ID</th><th width="200">Cliente</th><th width="90">Data</th><th width="45">Qtd</th><th>Móvel</th><th width="80">Medida</th><th width="100">Cor</th><th width="100">Custo</th><th width="110">Fábrica</th><th width="120">Status</th><th width="60">Whats</th><th width="60">Conf</th><th class="text-center" width="130">Ações</th></tr></thead><tbody id="tabelaPedidos"></tbody></table></div></div>
+</main>
+
+<main id="view-tarefas" class="hidden p-4 md:p-6 max-w-[1950px] mx-auto w-full">
+    <div class="card-premium p-6 border-l-8 border-indigo-600 mb-6 shadow-xl"><div class="flex justify-between items-center mb-6"><select id="t_tipo" onchange="mostrarCamposTarefa(this.value)" class="border-2 p-2.5 rounded-xl text-xs font-bold bg-white w-full md:w-80 outline-indigo-500"><option value="SIMPLES">Anotação Simples</option><option value="TIRAR PEDIDO">Tirar Pedido (Venda Completa)</option></select><div id="loading-cep" class="hidden text-[10px] font-black text-indigo-500 animate-pulse uppercase">Buscando...</div></div><div id="container-campos-tarefa" class="grid grid-cols-1 md:grid-cols-4 gap-3"></div><button onclick="cadastrarTarefa()" class="mt-8 bg-indigo-600 text-white font-black px-12 py-4 rounded-xl text-xs uppercase shadow-lg w-full hover:bg-indigo-700 transition">Salvar Tarefa / Pedido</button></div>
+    <div class="card-premium overflow-hidden"><div class="p-4 bg-slate-50 border-b flex justify-between items-center"><span class="text-[10px] font-black uppercase text-slate-400">Histórico de Atividades</span><select id="filtro-tarefa-status" onchange="renderTarefas()" class="border-2 p-1 rounded-lg text-[10px] font-bold bg-white outline-none"><option value="TODAS">TODAS</option><option value="Não Iniciado">Não Iniciado</option><option value="Em Andamento">Em Andamento</option><option value="Feito">Feito</option></select></div><table class="w-full text-left"><thead><tr class="bg-slate-50 text-slate-500 text-[10px] uppercase"><th>Data</th><th>Descrição / Cliente</th><th>Tipo</th><th>Status</th><th class="text-center">Ação</th></tr></thead><tbody id="tabelaTarefas"></tbody></table></div>
+</main>
+
+<main id="view-equipe" class="hidden p-4 md:p-6 max-w-[1950px] mx-auto w-full">
+    <div class="card-premium p-6 border-l-8 border-purple-600 mb-4 shadow-lg bg-white"><div class="flex flex-wrap gap-3 items-end"><div class="flex-1 min-w-[250px]"><label class="text-[9px] font-black text-slate-400 uppercase">O que precisa ser feito?</label><input id="eq_desc" placeholder="DESCREVA A TAREFA RAPIDAMENTE..." class="border-2 p-2.5 rounded-lg text-xs font-bold w-full uppercase outline-purple-500" onkeydown="if(event.key==='Enter') adicionarTarefaEquipe()"></div><div class="w-48"><label class="text-[9px] font-black text-slate-400 uppercase">Prazo / Urgência</label><select id="eq_prazo" class="border-2 p-2.5 rounded-lg text-xs font-bold bg-white w-full outline-purple-500 uppercase cursor-pointer"><option value="">SEM PRAZO</option><option value="AGORA">🚨 AGORA (Urgente)</option><option value="IMEDIATO">⚡ 1 DIA (Imediato)</option><option value="IMPORTANTE">⚠️ 2 DIAS (Importante)</option><option value="REGULAR">📅 3 DIAS (Regular)</option><option value="TRANQUILO">☕ + DIAS (Tranquilo)</option></select></div><div class="w-48"><label class="text-[9px] font-black text-slate-400 uppercase">Responsável</label><select id="eq_resp" class="border-2 p-2.5 rounded-lg text-xs font-bold bg-white w-full outline-purple-500 uppercase cursor-pointer"><option value="LUCAS">🟢 LUCAS</option><option value="ANGÉLICA">🟣 ANGÉLICA</option><option value="GUILHERME">🔵 GUILHERME</option><option value="CAROL">🟠 CAROL</option><option value="ISABELLA">🟡 ISABELLA</option></select></div><button onclick="adicionarTarefaEquipe()" class="bg-purple-600 text-white px-8 py-3 rounded-lg font-black text-xs uppercase shadow hover:bg-purple-700 transition">＋ Adicionar</button></div><div class="mt-5 pt-4 border-t border-slate-100 flex flex-col gap-2"><div class="flex justify-between items-center flex-wrap gap-2"><span class="text-[9px] font-black text-slate-400 uppercase">Filtre por Responsável:</span><label class="flex items-center gap-2 cursor-pointer bg-slate-800 text-white px-4 py-2 rounded-xl shadow-md hover:bg-slate-700 transition"><input type="checkbox" id="check-minhas-tarefas" onchange="toggleModoMinhasTarefas()" class="cursor-pointer w-4 h-4 accent-purple-500"><span class="text-[10px] font-black uppercase tracking-wider">👁️ Mostrar Apenas as Minhas</span></label></div><div id="filtros-equipe" class="flex flex-wrap gap-2 mt-1"></div></div></div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <div id="col-todo-container" ondrop="dropTarefa(event, 'TODO')" ondragover="allowDropTarefa(event)" class="bg-slate-200/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-slate-200 shadow-inner"><h3 class="font-black text-sm uppercase text-slate-600 mb-4 flex justify-between items-center sticky top-0 bg-slate-200/90 py-1 z-10 backdrop-blur-sm"><div class="flex items-center gap-2"><button onclick="toggleColunaKanban('TODO')" id="btn-toggle-todo" class="bg-slate-300 hover:bg-slate-400 text-slate-700 w-7 h-7 rounded-full flex items-center justify-center transition shadow-sm text-lg">➖</button><span>🟥 A Fazer</span></div><span id="count-todo" class="bg-slate-300 text-slate-700 py-1 px-3 rounded-full text-[10px]">0</span></h3><div id="col-todo" class="flex flex-col gap-3 flex-1 pb-4"></div></div>
+        <div id="col-doing-container" ondrop="dropTarefa(event, 'DOING')" ondragover="allowDropTarefa(event)" class="bg-blue-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-blue-200 shadow-inner"><h3 class="font-black text-sm uppercase text-blue-600 mb-4 flex justify-between items-center sticky top-0 bg-blue-100/90 py-1 z-10 backdrop-blur-sm"><div class="flex items-center gap-2"><button onclick="toggleColunaKanban('DOING')" id="btn-toggle-doing" class="bg-blue-200 hover:bg-blue-300 text-blue-700 w-7 h-7 rounded-full flex items-center justify-center transition shadow-sm text-lg">➖</button><span>🟨 Em Andamento</span></div><span id="count-doing" class="bg-blue-200 text-blue-700 py-1 px-3 rounded-full text-[10px]">0</span></h3><div id="col-doing" class="flex flex-col gap-3 flex-1 pb-4"></div></div>
+        <div id="col-done-container" ondrop="dropTarefa(event, 'DONE')" ondragover="allowDropTarefa(event)" class="bg-green-100/50 rounded-2xl p-4 flex flex-col min-h-[500px] border border-green-200 shadow-inner"><h3 class="font-black text-sm uppercase text-green-600 mb-4 flex justify-between items-center sticky top-0 bg-green-100/90 py-1 z-10 backdrop-blur-sm"><div class="flex items-center gap-2"><button onclick="toggleColunaKanban('DONE')" id="btn-toggle-done" class="bg-green-200 hover:bg-green-300 text-green-700 w-7 h-7 rounded-full flex items-center justify-center transition shadow-sm text-lg">➖</button><span>🟩 Concluído</span></div><span id="count-done" class="bg-green-200 text-green-700 py-1 px-3 rounded-full text-[10px]">0</span></h3><div id="col-done" class="flex flex-col gap-3 flex-1 pb-4"></div></div>
     </div>
+</main>
 
-    <div id="modal-saida-estoque" class="modal-overlay" onclick="if(event.target==this) this.style.display='none'">
-        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm border-t-8 border-red-500 flex flex-col gap-4">
-            <h2 class="font-black uppercase text-slate-800 text-sm border-b pb-2">📉 Dar Saída do Estoque</h2>
-            <p id="saida-produto-nome" class="text-xs font-bold text-slate-600 uppercase bg-slate-50 p-2 rounded border"></p>
-            <input type="hidden" id="saida-uid">
-            <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Quantidade a retirar</label><input type="number" id="saida-qtd" value="1" min="1" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-red-500"></div>
-            <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Qual o Motivo / Destino?</label>
-                <select id="saida-motivo" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-red-500 bg-white uppercase cursor-pointer">
-                    <option value="VENDIDO">🛒 Vendido (Cliente)</option>
-                    <option value="ASSISTÊNCIA">🛠️ Assistência / Troca</option>
-                    <option value="DEVOLUÇÃO FÁBRICA">🏭 Devolução p/ Fábrica</option>
-                </select>
-            </div>
-            <div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Observação (Opcional)</label><input type="text" id="saida-obs" placeholder="Ex: Cliente Maria..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-red-500 uppercase"></div>
-            <button onclick="confirmarSaidaEstoque()" class="w-full bg-red-600 text-white py-3 mt-2 rounded-lg text-xs font-black uppercase shadow hover:bg-red-700 transition">Confirmar Saída</button>
-        </div>
-    </div>
+<main id="view-logistica" class="hidden max-w-[1950px] mx-auto p-4 md:p-6 w-full h-[calc(100vh-100px)] flex flex-col md:flex-row gap-6">
+    <div class="md:w-2/3 card-premium flex flex-col overflow-hidden h-full shadow-lg"><div class="bg-slate-800 p-4 flex flex-col sm:flex-row justify-between items-center gap-4 text-white"><div class="flex items-center gap-4"><button onclick="mudarMes(-1)" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg font-black transition">◀</button><h2 id="mes-ano-display" class="text-lg font-black uppercase tracking-widest min-w-[160px] text-center text-emerald-400">MÊS ANO</h2><button onclick="mudarMes(1)" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg font-black transition">▶</button></div><div class="flex gap-2 flex-wrap justify-center"><label class="flex items-center gap-1.5 cursor-pointer bg-slate-700 px-3 py-1.5 rounded-lg shadow-sm hover:bg-slate-600 transition text-[10px] font-black uppercase"><input type="checkbox" id="filtro-cal-entregas" checked onchange="renderCalendario()" class="accent-emerald-500 w-3 h-3"> 🚚 Entregas</label><label class="flex items-center gap-1.5 cursor-pointer bg-slate-700 px-3 py-1.5 rounded-lg shadow-sm hover:bg-slate-600 transition text-[10px] font-black uppercase"><input type="checkbox" id="filtro-cal-lembretes" checked onchange="renderCalendario()" class="accent-amber-500 w-3 h-3"> ⏰ Lembretes</label><label class="flex items-center gap-1.5 cursor-pointer bg-slate-700 px-3 py-1.5 rounded-lg shadow-sm hover:bg-slate-600 transition text-[10px] font-black uppercase"><input type="checkbox" id="filtro-cal-prazos" checked onchange="renderCalendario()" class="accent-blue-500 w-3 h-3"> 📋 Prazos</label></div></div><div class="flex-1 flex flex-col overflow-hidden bg-slate-100"><div class="grid grid-cols-7 bg-white border-b border-slate-200 text-[10px] font-black text-slate-400 uppercase text-center py-3 shadow-sm z-10"><div>DOM</div><div>SEG</div><div>TER</div><div>QUA</div><div>QUI</div><div>SEX</div><div>SAB</div></div><div id="grid-dias" class="grid grid-cols-7 flex-1 auto-rows-fr overflow-y-auto custom-scrollbar bg-slate-100/50"></div></div></div>
+    <div class="md:w-1/3 flex flex-col gap-4 h-full"><div class="grid grid-cols-2 gap-3"><button onclick="abrirModalNovaEntrega()" class="bg-emerald-600 text-white font-black uppercase text-xs py-4 rounded-xl shadow hover:bg-emerald-700 transition flex items-center justify-center gap-2 border-b-4 border-emerald-800 active:border-b-0 active:translate-y-1"><span>🚚 Nova Entrega</span></button><button onclick="abrirModalNovoLembrete()" class="bg-amber-500 text-white font-black uppercase text-xs py-4 rounded-xl shadow hover:bg-amber-600 transition flex items-center justify-center gap-2 border-b-4 border-amber-700 active:border-b-0 active:translate-y-1"><span>⏰ Novo Lembrete</span></button></div><div class="card-premium flex-1 flex flex-col overflow-hidden shadow-lg border-t-8 border-emerald-500 bg-slate-50"><div class="p-5 bg-white border-b border-slate-200 flex justify-between items-center shadow-sm z-10"><h3 id="titulo-painel-dia" class="font-black text-slate-800 uppercase text-sm tracking-wide">Agenda de Hoje</h3><span id="badge-qtd-dia" class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-[10px] font-black">0 Itens</span></div><div id="lista-eventos-dia" class="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-col gap-4 relative"></div></div></div>
+</main>
 
-    <div id="overlay-historico" onclick="togglePainelHistorico()" class="fixed inset-0 bg-slate-900/50 z-[90] hidden backdrop-blur-sm transition-opacity"></div>
-    <div id="painel-historico" class="fixed top-0 right-0 h-full w-80 max-w-[90vw] bg-slate-50 shadow-2xl transform translate-x-full transition-transform duration-300 z-[100] flex flex-col border-l border-slate-200">
-        <div class="bg-slate-800 p-5 text-white font-black flex justify-between items-center uppercase text-sm shadow-md z-10"><span class="flex items-center gap-2">🔔 Diário de Bordo</span><button onclick="togglePainelHistorico()" class="text-xl hover:text-slate-300 transition">✕</button></div>
-        <div id="lista-historico" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 custom-scrollbar relative"></div>
-    </div>
+<main id="view-estoque" class="hidden p-6 max-w-[1950px] mx-auto w-full">
+    <div class="card-premium p-6 border-l-8 border-emerald-500 mb-6 bg-emerald-50 shadow-md"><h3 class="text-sm font-black uppercase text-emerald-800 mb-2 flex items-center gap-2">✨ Cadastro Inteligente em Massa</h3><p class="text-[10px] font-bold text-emerald-600 uppercase mb-3 leading-relaxed">Cole sua lista abaixo. Regra de separação: <b>[PRODUTO] ; [FÁBRICA] ; [SITUAÇÃO/OBS]</b></p><textarea id="e_massa" rows="3" placeholder="Ex: 2x Poltrona Decor ; Sier ; Vendido para Lucas" class="w-full border-2 border-emerald-200 p-3 rounded-xl text-xs font-bold uppercase outline-emerald-500 shadow-inner resize-y bg-white"></textarea><div class="flex justify-end mt-3"><button onclick="processarEstoqueMassa()" class="bg-emerald-600 text-white px-10 py-3 rounded-lg font-black text-xs uppercase shadow-lg hover:bg-emerald-700 transition">⚡ Processar Lista</button></div></div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6"><div class="card-premium p-5 border-l-8 border-green-500 bg-white shadow-sm flex flex-col justify-center"><p class="text-[10px] font-black text-slate-400 uppercase">Disponível Agora</p><h3 id="resumo-estoque-total" class="text-2xl font-black text-green-600">0</h3></div><div class="card-premium p-5 border-l-8 border-red-500 bg-white shadow-sm flex flex-col justify-center"><p class="text-[10px] font-black text-slate-400 uppercase">Total de Saídas</p><h3 id="resumo-estoque-vendidos" class="text-2xl font-black text-red-600">0</h3></div><div class="card-premium border-l-8 border-blue-500 bg-white flex flex-col shadow-sm"><p class="text-[10px] font-black text-slate-400 uppercase p-2 border-b">📝 Notas do Estoque</p><textarea id="estoque-notas-gerais" oninput="autoSalvarNotasEstoque()" class="flex-1 p-3 text-[11px] font-bold uppercase outline-none resize-none bg-slate-50 min-h-[80px]" placeholder="ANOTAÇÕES..."></textarea></div></div>
+    <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex flex-wrap gap-4 items-end uppercase shadow-lg"><div class="flex-1 min-w-[250px]"><label class="text-[9px] font-black text-slate-400">Cadastro Unitário: Produto</label><input id="e_produto" placeholder="NOME DO MÓVEL" class="border-2 p-2.5 rounded-lg text-xs font-bold w-full uppercase outline-blue-500"></div><div class="w-44"><label class="text-[9px] font-black text-slate-400">Fábrica</label><select id="e_fabrica_select" class="border-2 p-2.5 rounded-lg text-xs font-bold bg-white w-full outline-blue-500"></select></div><div class="w-20"><label class="text-[9px] font-black text-slate-400">Qtd</label><input id="e_qtd" type="number" value="1" class="border-2 p-2.5 rounded-lg text-xs font-bold w-full outline-blue-500"></div><button onclick="cadastrarEstoque()" class="bg-blue-600 text-white px-10 py-3 rounded-lg font-black text-xs uppercase shadow hover:bg-blue-700 transition">Adicionar 1</button></div>
+    <div class="card-premium overflow-hidden"><div class="flex border-b bg-slate-50"><button onclick="mudarVisaoEstoque('ESTOQUE')" id="btn-estoque-disponivel" class="flex-1 py-4 text-xs font-black uppercase border-b-4 border-green-500 text-green-600 transition bg-white">🟢 Em Estoque</button><button onclick="mudarVisaoEstoque('SAIDAS')" id="btn-estoque-saidas" class="flex-1 py-4 text-xs font-black uppercase border-b-4 border-transparent text-slate-400 hover:text-slate-600 transition">🔴 Saídas / Histórico</button></div><div class="p-4 bg-white border-b flex flex-col sm:flex-row gap-4 items-center uppercase"><div class="flex-1 min-w-[300px] w-full"><input type="text" id="estoque-busca" onkeyup="renderEstoque()" placeholder="🔍 BUSCAR..." class="border-2 p-2.5 rounded-xl text-xs font-bold w-full outline-blue-500"></div><select id="estoque-filtro-fabrica" onchange="renderEstoque()" class="border-2 p-2.5 rounded-xl text-xs font-bold bg-white w-full sm:w-48 outline-blue-500"><option value="TODAS">TODAS AS FÁBRICAS</option></select></div><div class="table-container"><table class="w-full text-left"><thead class="bg-slate-50 border-b"><tr class="text-slate-500 uppercase text-[10px]"><th width="90">Data</th><th>Móvel</th><th width="150">Fábrica</th><th width="60" class="text-center">Qtd</th><th width="140" class="text-center">Status</th><th class="text-center" width="100">Ação</th></tr></thead><tbody id="tabelaEstoque"></tbody></table></div></div>
+</main>
 
-    <!-- SCRIPT GERAL -->
-    <script>
-        window.addEventListener('error', function(e) { 
-            const errEl = document.getElementById('error-log'); 
-            if(errEl) { errEl.classList.remove('hidden'); errEl.innerText = "ERRO: " + e.message; } 
-        });
+<main id="view-assistencia" class="hidden p-6 max-w-[1950px] mx-auto w-full">
+    <div class="card-premium p-6 border-l-8 border-orange-500 flex flex-wrap gap-4 mb-6 uppercase shadow-lg"><input list="listaSugestaoClientes" id="as_cliente" placeholder="CLIENTE" class="border-2 p-2.5 rounded-lg text-xs font-bold flex-1 uppercase outline-orange-500"><input id="as_produto" placeholder="PRODUTO / DEFEITO" class="border-2 p-2.5 rounded-lg text-xs font-bold flex-1 uppercase outline-orange-500"><select id="as_fabrica" class="border-2 p-2.5 rounded-lg text-xs font-bold bg-white w-48 outline-orange-500"></select><button onclick="cadastrarAssistencia()" class="bg-orange-600 text-white px-10 py-2.5 rounded-lg font-black text-xs uppercase shadow hover:bg-orange-700 transition">Registrar</button></div>
+    <div class="card-premium p-4 mb-4 bg-slate-50 flex flex-wrap gap-4 items-center uppercase border border-slate-200"><div class="flex-1 min-w-[300px]"><input type="text" id="busca-assistencia" onkeyup="renderAssistencias()" placeholder="🔍 BUSCAR ASSISTÊNCIA..." class="border-2 p-2.5 rounded-xl text-xs font-bold w-full outline-orange-500"></div><select id="filtro-assistencia-status" onchange="renderAssistencias()" class="border-2 p-2.5 rounded-xl text-xs font-bold bg-white w-48 outline-orange-500 cursor-pointer"><option value="TODAS">TODOS OS STATUS</option><option value="Aguardando">AGUARDANDO</option><option value="Peça Solicitada">PEÇA SOLICITADA</option><option value="Concluído">CONCLUÍDO</option></select><span id="contador-assistencia" class="text-[10px] font-black bg-slate-900 text-white px-4 py-2 rounded-lg uppercase">0 ASSISTÊNCIAS</span></div>
+    <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50 text-[10px] uppercase text-slate-500 border-b"><th width="90">Data</th><th>Cliente</th><th>Produto / Defeito</th><th width="150">Fábrica</th><th width="140" class="text-center">Status</th><th width="80" class="text-center">Ação</th></tr></thead><tbody id="tabelaAssistencias"></tbody></table></div>
+</main>
 
-        const firebaseConfig = { 
-            apiKey: "AIzaSyA_fQSZJJcz5Wszw54W5EhMN9D5rNnjoCo", 
-            authDomain: "mercier-design.firebaseapp.com", 
-            projectId: "mercier-design", 
-            storageBucket: "mercier-design.firebasestorage.app", 
-            messagingSenderId: "1060891658513", 
-            appId: "1:1060891658513:web:2eefd15227203af39064b0", 
-            databaseURL: "https://mercier-design-default-rtdb.firebaseio.com/" 
-        };
+<main id="view-catalogo" class="hidden p-6 max-w-[1200px] mx-auto w-full">
+    <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-3 shadow-lg"><input id="cat_nome" placeholder="NOME DO MÓVEL" class="border-2 p-2.5 rounded-lg flex-1 font-bold uppercase outline-blue-500"><button onclick="cadastrarCatalogo()" class="bg-blue-600 text-white px-10 py-2.5 rounded-lg font-black text-xs uppercase shadow hover:bg-blue-700 transition">Salvar</button></div>
+    <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50 text-[10px] uppercase"><th>Nome do Item</th><th class="text-center" width="100">Remover</th></tr></thead><tbody id="tabelaCatalogo"></tbody></table></div>
+</main>
 
-        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+<main id="view-fornecedores" class="hidden max-w-4xl mx-auto p-6 w-full">
+    <div class="card-premium p-6 border-l-8 border-blue-600 mb-6 flex gap-3 shadow-lg"><input id="f_nome" placeholder="NOME DA FÁBRICA" class="border-2 p-2.5 rounded-lg flex-1 font-bold uppercase outline-blue-500"><input id="f_email" placeholder="EMAIL" class="border-2 p-2.5 rounded-lg flex-1 font-bold lowercase outline-blue-500"><button onclick="cadastrarFornecedor()" class="bg-blue-600 text-white px-10 py-2.5 rounded font-black text-xs uppercase hover:bg-blue-700 transition">Salvar</button></div>
+    <div class="card-premium overflow-hidden"><table class="w-full text-left"><thead><tr class="bg-slate-50 text-[10px] uppercase"><th>Fábrica</th><th>E-mail</th><th class="text-center" width="100">Remover</th></tr></thead><tbody id="tabelaFornecedores"></tbody></table></div>
+</main>
 
-        let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[], tarefasEquipe=[], entregas=[], lembretes=[], historicoAtividades=[];
-        let cestoItensTemporario=[], proximoID=255, notasMelhoria="", notasEstoque="";
-        let usuarioAtual="", modoMinhasTarefas=false, visaoPedidos='ATIVOS', visaoEstoque='ESTOQUE', filtrandoNaoEnviados=false, cpfValido=true;
-        let dataSelecionadaLogistica = new Date().toISOString().split('T')[0];
-        let dataAtualCalendario = new Date();
-        let eventosDoMes = {};
-        
-        const coresEquipe = { "LUCAS": "bg-emerald-100 text-emerald-700 border-emerald-400", "GUILHERME": "bg-blue-100 text-blue-700 border-blue-400", "CAROL": "bg-orange-100 text-orange-700 border-orange-400", "ISABELLA": "bg-amber-100 text-amber-700 border-amber-400", "ANGÉLICA": "bg-purple-100 text-purple-700 border-purple-400" };
-        let colsMinimizadas = { "TODO": false, "DOING": false, "DONE": false };
-        let filtrosEquipeAtivos = [];
+<!-- MODAIS GERAIS -->
+<div id="modal-detalhes" class="modal-overlay" onclick="if(event.target==this) this.style.display='none'"><div class="card-premium w-full max-w-2xl bg-white overflow-hidden flex flex-col max-h-[90vh] shadow-2xl"><div class="bg-indigo-600 p-5 text-white font-black flex justify-between items-center uppercase text-sm tracking-widest"><span>📄 Resumo Detalhado</span><button onclick="$('modal-detalhes').style.display='none'" class="text-xl">✕</button></div><div id="detalhe-corpo" class="p-8 overflow-y-auto space-y-4 bg-white text-slate-800 custom-scrollbar"></div></div></div>
+<div id="btn-sugestao-flutuante" onclick="togglePainelSugestoes()" class="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center text-2xl shadow-lg cursor-pointer z-50 text-white hover:bg-blue-700 transition">💡</div>
+<div id="painel-sugestoes" class="fixed bottom-[90px] right-6 w-80 h-[450px] bg-white rounded-2xl shadow-2xl z-50 hidden flex-col border overflow-hidden"><div id="drag-handle" class="bg-blue-600 p-4 text-white font-black text-[10px] flex justify-between items-center uppercase cursor-move"><span>💡 Bloco de Notas</span><button onclick="togglePainelSugestoes()">✕</button></div><textarea id="texto-melhorias" class="flex-1 p-4 text-sm font-bold uppercase border-0 outline-none resize-none custom-scrollbar" oninput="autoSalvarNotas()"></textarea></div>
+<input type="file" id="file-upload-global" accept="image/*" class="hidden" onchange="processarUploadImagem(event)">
+<datalist id="listaSugestaoProdutos"></datalist><datalist id="listaSugestaoClientes"></datalist>
 
-        try { usuarioAtual = localStorage.getItem('mercier_user') || ""; } catch(e) {}
-        try { modoMinhasTarefas = localStorage.getItem('mercier_so_minhas') === 'true'; } catch(e) {}
+<div id="modal-nova-entrega" class="modal-overlay" onclick="if(event.target==this) fecharModaisLogistica()">
+    <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-3xl border-t-8 border-emerald-500"><h2 class="font-black uppercase text-emerald-600 mb-4 text-sm flex justify-between">🚚 Agendar Entrega <button onclick="fecharModaisLogistica()" class="text-slate-400 hover:text-red-500 text-lg">✕</button></h2><div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4"><div class="md:col-span-1"><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Data</label><input type="date" id="ent_data" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-emerald-500"></div><div class="md:col-span-1"><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Hora</label><input type="time" id="ent_hora" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-emerald-500 bg-white"></div><div class="md:col-span-3"><label class="text-[10px] font-black text-slate-400 uppercase mb-1 flex justify-between"><span>Cliente</span><span class="text-emerald-500 hidden" id="aviso-magico">✨ Preenchido!</span></label><input list="listaSugestaoClientes" id="ent_cliente" onblur="buscarDadosInteligentes()" placeholder="NOME..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-emerald-500"></div></div><div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4"><div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Endereço (Para GPS)</label><textarea id="ent_endereco" rows="2" placeholder="Rua, Número, Bairro..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-emerald-500 resize-none"></textarea></div><div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Produtos</label><textarea id="ent_produtos" rows="2" placeholder="O que vai entregar?" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-emerald-500 resize-none"></textarea></div></div><button onclick="salvarEntrega()" class="w-full bg-emerald-600 text-white py-3 rounded-lg text-xs font-black uppercase shadow hover:bg-emerald-700 transition">Salvar Agendamento</button></div>
+</div>
 
-        window.onload = function() { 
-            try {
-                const s = document.getElementById('user-select'); if(s) s.value = usuarioAtual; 
-                const c = document.getElementById('check-minhas-tarefas'); if(c) c.checked = modoMinhasTarefas; 
-                renderFiltrosEquipe(); 
-                mostrarCamposTarefa('SIMPLES'); 
-                document.getElementById('ent_data').valueAsDate = new Date();
-                document.getElementById('lem_data').valueAsDate = new Date();
-            } catch(e) {
-                console.error("Erro no onload:", e);
-            }
-        };
+<div id="modal-novo-lembrete" class="modal-overlay" onclick="if(event.target==this) fecharModaisLogistica()">
+    <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-lg border-t-8 border-amber-500"><h2 class="font-black uppercase text-amber-600 mb-4 text-sm flex justify-between">⏰ Prender Lembrete <button onclick="fecharModaisLogistica()" class="text-slate-400 hover:text-red-500 text-lg">✕</button></h2><div class="mb-4"><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">O que lembrar?</label><input type="text" id="lem_titulo" placeholder="Ex: Cobrar cliente, Ligar fábrica..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-amber-500"></div><div class="grid grid-cols-2 gap-4 mb-4"><div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Quando?</label><input type="date" id="lem_data" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-amber-500"></div><div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Categoria</label><select id="lem_categoria" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-amber-500 bg-white"><option value="GERAL">🔔 Geral</option><option value="FINANCEIRO">💰 Financeiro</option><option value="FABRICA">🏭 Fábrica</option><option value="CLIENTE">❤️ Cliente</option></select></div></div><button onclick="salvarLembrete()" class="w-full bg-amber-500 text-white py-3 rounded-lg text-xs font-black uppercase shadow hover:bg-amber-600 transition">Salvar Lembrete</button></div>
+</div>
 
-        function setUsuario(nome) { 
-            usuarioAtual = nome; 
-            try { 
-                if(nome) localStorage.setItem('mercier_user', nome); else localStorage.removeItem('mercier_user'); 
-            } catch(e) {} 
-            renderFiltrosEquipe(); 
-            renderQuadroEquipe(); 
+<div id="modal-saida-estoque" class="modal-overlay" onclick="if(event.target==this) this.style.display='none'">
+    <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm border-t-8 border-red-500 flex flex-col gap-4"><h2 class="font-black uppercase text-slate-800 text-sm border-b pb-2">📉 Dar Saída do Estoque</h2><p id="saida-produto-nome" class="text-xs font-bold text-slate-600 uppercase bg-slate-50 p-2 rounded border"></p><input type="hidden" id="saida-uid"><div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Quantidade a retirar</label><input type="number" id="saida-qtd" value="1" min="1" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-red-500"></div><div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Motivo / Destino?</label><select id="saida-motivo" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-red-500 bg-white uppercase cursor-pointer"><option value="VENDIDO">🛒 Vendido (Cliente)</option><option value="ASSISTÊNCIA">🛠️ Assistência / Troca</option><option value="DEVOLUÇÃO FÁBRICA">🏭 Devolução p/ Fábrica</option></select></div><div><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Observação / Nome</label><input type="text" id="saida-obs" placeholder="Ex: Cliente Maria..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-red-500 uppercase"></div><button onclick="confirmarSaidaEstoque()" class="w-full bg-red-600 text-white py-3 mt-2 rounded-lg text-xs font-black uppercase shadow hover:bg-red-700 transition">Confirmar Saída</button></div>
+</div>
+
+<div id="overlay-historico" onclick="togglePainelHistorico()" class="fixed inset-0 bg-slate-900/50 z-[90] hidden backdrop-blur-sm transition-opacity"></div>
+<div id="painel-historico" class="fixed top-0 right-0 h-full w-80 max-w-[90vw] bg-slate-50 shadow-2xl transform translate-x-full transition-transform duration-300 z-[100] flex flex-col border-l border-slate-200"><div class="bg-slate-800 p-5 text-white font-black flex justify-between items-center uppercase text-sm shadow-md z-10"><span class="flex items-center gap-2">🔔 Diário de Bordo</span><button onclick="togglePainelHistorico()" class="text-xl hover:text-slate-300 transition">✕</button></div><div id="lista-historico" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 custom-scrollbar relative"></div></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const val = id => $(id) ? $(id).value : "";
+const $$ = sel => document.querySelectorAll(sel);
+const esc = s => (s||"").toString().replace(/[&<>'"]/g, t => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[t]||t));
+const noAcc = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const safeArr = d => { if(!d) return []; try { let a = Array.isArray(d) ? d : Object.values(d); return a.filter(i => i && typeof i === 'object'); } catch(e){ return []; }};
+
+window.addEventListener('error', e => { const er = $('error-log'); if(er) { er.classList.remove('hidden'); er.innerText = "ERRO: " + e.message; } });
+
+const firebaseConfig = { apiKey: "AIzaSyA_fQSZJJcz5Wszw54W5EhMN9D5rNnjoCo", authDomain: "mercier-design.firebaseapp.com", projectId: "mercier-design", storageBucket: "mercier-design.firebasestorage.app", messagingSenderId: "1060891658513", appId: "1:1060891658513:web:2eefd15227203af39064b0", databaseURL: "https://mercier-design-default-rtdb.firebaseio.com/" };
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[], tarefasEquipe=[], entregas=[], lembretes=[], historicoAtividades=[];
+let cestoItensTemporario=[], proximoID=255, notasMelhoria="", notasEstoque="";
+let usuarioAtual="", modoMinhasTarefas=false, visaoPedidos='ATIVOS', visaoEstoque='ESTOQUE', filtrandoNaoEnviados=false, cpfValido=true;
+let dataSelecionadaLogistica = new Date().toISOString().split('T')[0];
+let dataAtualCalendario = new Date();
+let eventosDoMes = {};
+const coresEquipe = { "LUCAS":"bg-emerald-100 text-emerald-700 border-emerald-400", "GUILHERME":"bg-blue-100 text-blue-700 border-blue-400", "CAROL":"bg-orange-100 text-orange-700 border-orange-400", "ISABELLA":"bg-amber-100 text-amber-700 border-amber-400", "ANGÉLICA":"bg-purple-100 text-purple-700 border-purple-400" };
+let colsMinimizadas = {"TODO":false, "DOING":false, "DONE":false}, filtrosEquipeAtivos = [];
+
+try { usuarioAtual = localStorage.getItem('mercier_user') || ""; } catch(e) {}
+try { modoMinhasTarefas = localStorage.getItem('mercier_so_minhas') === 'true'; } catch(e) {}
+
+window.onload = function() { 
+    if($('user-select') && usuarioAtual) $('user-select').value = usuarioAtual; 
+    if($('check-minhas-tarefas')) $('check-minhas-tarefas').checked = modoMinhasTarefas; 
+    renderFiltrosEquipe(); mostrarCamposTarefa('SIMPLES'); 
+    if($('ent_data')) $('ent_data').valueAsDate = new Date(); if($('lem_data')) $('lem_data').valueAsDate = new Date();
+};
+
+function setUsuario(nome) { usuarioAtual = nome; try { if(nome) localStorage.setItem('mercier_user', nome); else localStorage.removeItem('mercier_user'); } catch(e) {} renderFiltrosEquipe(); renderQuadroEquipe(); }
+function toggleModoMinhasTarefas() { if(!usuarioAtual) return alert("Selecione quem você é no topo primeiro!"); modoMinhasTarefas = $('check-minhas-tarefas').checked; try { localStorage.setItem('mercier_so_minhas', modoMinhasTarefas); } catch(e) {} if(modoMinhasTarefas) filtrosEquipeAtivos = []; renderFiltrosEquipe(); renderQuadroEquipe(); }
+function salvarColecao(col, d) { db.ref('dados/' + col).set(d); }
+
+db.ref('.info/connected').on('value', snap => { 
+    const st = $('status-db'); if(!st) return;
+    if(snap.val() === true) { st.innerText="ONLINE"; st.className="bg-emerald-500 text-white hidden md:flex h-10 items-center px-4 rounded-xl text-[10px] font-black uppercase shadow-inner transition-all"; } 
+    else { st.innerText="CONECTANDO..."; st.className="bg-orange-500 text-white hidden md:flex h-10 items-center px-4 rounded-xl text-[10px] font-black uppercase transition-all"; }
+});
+
+db.ref('dados').on('value', s => { 
+    try { 
+        const d = s.val() || {}; 
+        pedidos=safeArr(d.pedidos); fornecedores=safeArr(d.fornecedores); estoque=safeArr(d.estoque); catalogo=safeArr(d.catalogo); tarefas=safeArr(d.tarefas); assistencias=safeArr(d.assistencias); tarefasEquipe=safeArr(d.tarefasEquipe); historicoAtividades=safeArr(d.historico); entregas=safeArr(d.entregas); lembretes=safeArr(d.lembretes); proximoID=d.proximoID||255; 
+        if($('texto-melhorias')) $('texto-melhorias').value = d.notasMelhoria || ""; 
+        if($('estoque-notas-gerais')) $('estoque-notas-gerais').value = d.notasEstoque || ""; 
+        atualizarSelectsFornecedores(); atualizarSugestoes(); renderAll(); 
+    } catch(e) { console.error(e); } 
+});
+
+function registrarAcao(ic, ac, det) { const q = usuarioAtual || "SISTEMA"; const d = new Date(); const dH = d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); historicoAtividades.unshift({ uid:Date.now()+Math.random(), dataHora:dH, usuario:q, acao:ac, detalhe:det, icone:ic }); if(historicoAtividades.length > 150) historicoAtividades = historicoAtividades.slice(0, 150); salvarColecao('historico', historicoAtividades); }
+function togglePainelHistorico() { const p = $('painel-historico'), o = $('overlay-historico'), b = $('badge-historico'); if(p.classList.contains('translate-x-full')) { p.classList.remove('translate-x-full'); o.classList.remove('hidden'); if(b) b.classList.add('hidden'); } else { p.classList.add('translate-x-full'); o.classList.add('hidden'); } }
+function renderHistorico() { const lst = $('lista-historico'); if(!lst) return; if(historicoAtividades.length === 0) { lst.innerHTML = '<span class="text-slate-400 text-[10px] font-bold text-center uppercase block mt-10">Nenhuma atividade.</span>'; return; } lst.innerHTML = historicoAtividades.map(h => `<div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex gap-3 items-start"><div class="bg-slate-100 p-2 rounded-lg text-lg">${h.icone}</div><div class="flex flex-col flex-1"><div class="flex justify-between items-center mb-1"><span class="text-[9px] font-black uppercase text-slate-700 bg-slate-200 px-1.5 py-0.5 rounded">${esc(h.usuario)}</span><span class="text-[8px] font-bold text-slate-400">${h.dataHora}</span></div><span class="text-[11px] font-black uppercase text-slate-800 leading-tight">${esc(h.acao)}</span><span class="text-[9px] font-bold text-slate-500 uppercase mt-0.5">${esc(h.detalhe)}</span></div></div>`).join(''); }
+async function getProximoID() { const ref = db.ref('dados/proximoID'); const res = await ref.transaction(c => (c||255)+1); return res.snapshot.val(); }
+function renderAll() { try { renderPedidos(); renderTarefas(); renderFornecedores(); renderEstoque(); renderCatalogo(); renderAssistencias(); renderQuadroEquipe(); renderHistorico(); processarEventosCalendario(); } catch(e){} }
+
+// HELPERS
+function maskMoney(i){ let v = i.value.replace(/\D/g,""); v=(v/100).toFixed(2).replace(".",","); i.value="R$ "+v.replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1."); if(i.classList.contains('t-v-desc')) calcTotalTirarPedido(); }
+function parseMoney(v){ return parseFloat((v||"").replace("R$ ","").replace(/\./g,"").replace(",",".")) || 0; }
+function maskCPF(i){ let v=i.value.replace(/\D/g,""); if(v.length>11) v=v.slice(0,11); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d)/,"$1.$2"); i.value=v.replace(/(\d{3})(\d{1,2})$/,"$1-$2"); if(i.value.length===14) verifCPF(i); }
+function verifCPF(i){ const ok=validarCPF(i.value); i.style.borderColor = ok ? "#22c55e" : "#ef4444"; cpfValido=ok; }
+function validarCPF(c){ c=c.replace(/[^\d]+/g,''); if(c.length!==11 || !!c.match(/(\d)\1{10}/)) return false; let a=0; for(let i=0;i<9;i++) a+=parseInt(c.charAt(i))*(10-i); let r=11-(a%11); if(r===10||r===11) r=0; if(r!==parseInt(c.charAt(9))) return false; a=0; for(let i=0;i<10;i++) a+=parseInt(c.charAt(i))*(11-i); r=11-(a%11); return (r>=10?0:r)===parseInt(c.charAt(10)); }
+function copyText(v, el){ if(!v || v==="-") return; navigator.clipboard.writeText(v.toUpperCase()); if(el) { el.style.color="#22c55e"; setTimeout(() => el.style.color="#94a3b8", 1000); } }
+async function buscarCEP(i){ let cep=i.value.replace(/\D/g,""); if(cep.length===8){ $('loading-cep').classList.remove('hidden'); try{ let r=await fetch(`https://viacep.com.br/ws/${cep}/json/`); let d=await r.json(); if(!d.erro){ $('t_end').value=d.logradouro.toUpperCase(); $('t_bairro').value=d.bairro.toUpperCase(); $('t_cidade').value=d.localidade.toUpperCase(); $('t_num').focus(); } }catch(e){} finally { $('loading-cep').classList.add('hidden'); } } }
+function calcP(d, pr){ if(!d) return {dias:0, classe:""}; try { const pA=String(d).split("/"); let dF=new Date(pA[2], pA[1]-1, pA[0]); let s=String(pr||"30"); if(s.includes("util")){ let c=0; while(c<parseInt(s)){ dF.setDate(dF.getDate()+1); if(dF.getDay()!==0&&dF.getDay()!==6) c++; } } else { dF.setDate(dF.getDate()+parseInt(s)); } const df=Math.ceil((dF-new Date())/86400000); let cl = df<0 ? "prazo-vencido" : (df<=5 ? "prazo-urgente" : (df<=10 ? "prazo-alerta" : (df<=20 ? "prazo-atencao" : ""))); return {dias:df, classe:cl}; } catch(e) { return {dias:0, classe:""}; } }
+function calcDataExata(dataBR, pr) { if(!dataBR) return null; try { const pA=dataBR.split("/"); let dF=new Date(pA[2], pA[1]-1, pA[0]); let s=String(pr||"30"); if(s.includes("util")){ let c=0, lim=parseInt(s); while(c<lim){ dF.setDate(dF.getDate()+1); if(dF.getDay()!==0&&dF.getDay()!==6) c++; } } else { dF.setDate(dF.getDate()+parseInt(s)); } return `${dF.getFullYear()}-${String(dF.getMonth()+1).padStart(2,'0')}-${String(dF.getDate()).padStart(2,'0')}`; } catch(e) { return null; } }
+function switchTab(t){ window.scrollTo(0,0); $$('main').forEach(x => x.classList.add('hidden')); $('view-'+t).classList.remove('hidden'); $$('nav button').forEach(x => x.classList.remove('tab-active', 'text-white')); $('tab-'+t).classList.add('tab-active'); if(t === 'logistica') processarEventosCalendario(); }
+
+// PEDIDOS
+function activeInlineEdit(el, uid, fld, lstType) { const oV = el.innerText; const i = document.createElement('input'); i.value = oV==='-'?'':oV; i.className="w-full p-1 text-xs font-bold border-2 border-blue-500 rounded text-black outline-none uppercase"; if(fld==='custo') i.oninput = () => maskMoney(i); el.innerHTML=''; el.appendChild(i); i.focus(); const sv = () => { let nV = i.value.toUpperCase().trim(); if(nV==="") nV="-"; let lst = lstType==='estoque'?estoque:(lstType==='assistencias'?assistencias:pedidos); const it = lst.find(x => x.uid == uid); if(it) { it[fld] = fld==='qtd'?(parseInt(nV)||1):nV; salvarColecao(lstType, lst); } else el.innerText=oV; }; i.onblur=sv; i.onkeydown=e => { if(e.key==='Enter') sv(); if(e.key==='Escape'){ i.onblur=null; el.innerText=oV; } }; }
+function mudarVisaoPedidos(v) { visaoPedidos = v; const bA = $('btn-visao-ativos'), bF = $('btn-visao-finalizados'), bFn = $('btnFiltroNaoEnviado'); if(v === 'ATIVOS') { bA.classList.add('border-blue-600', 'text-blue-600', 'bg-white'); bA.classList.remove('border-transparent', 'text-slate-400'); bF.classList.remove('border-blue-600', 'text-blue-600', 'bg-white'); bF.classList.add('border-transparent', 'text-slate-400'); if(bFn) bFn.style.display = 'block'; } else { bF.classList.add('border-blue-600', 'text-blue-600', 'bg-white'); bF.classList.remove('border-transparent', 'text-slate-400'); bA.classList.remove('border-blue-600', 'text-blue-600', 'bg-white'); bA.classList.add('border-transparent', 'text-slate-400'); if(bFn) bFn.style.display = 'none'; } renderPedidos(); }
+function arquivarPedido(u) { const x = pedidos.find(y => y.uid == u); if(x){ x.finalizado = !x.finalizado; x.status = x.finalizado ? "Entregue/Finalizado" : "Pedido na loja"; salvarColecao('pedidos', pedidos); registrarAcao(x.finalizado ? '📦':'🔙', x.finalizado ? 'FINALIZOU':'RESTAUROU', `PEDIDO: ${x.cliente}`); renderPedidos(); } }
+function excluirPedido(uid) { const p = pedidos.find(x => x.uid == uid); if(!p) return; if(p.finalizado) { if(confirm("RETORNAR pedido para ativos?")) { p.finalizado=false; p.status="Pedido na loja"; salvarColecao('pedidos', pedidos); renderPedidos(); } } else { if(confirm("EXCLUIR PERMANENTEMENTE?")) { pedidos = pedidos.filter(x => x.uid != uid); salvarColecao('pedidos', pedidos); renderPedidos(); } } }
+function cycleStatus(u){ const x = pedidos.find(y => y.uid == u); if(!x || x.finalizado || x.status==="Entregue/Finalizado") return; const s = ["Não enviado","Pedido enviado","Aguardando fábrica","Pedido na loja"]; x.status = s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('pedidos', pedidos); }
+function marcarTodos(v){ $$('.ped-check').forEach(c => c.checked = v); }
+function toggleFiltroNaoEnviado(){ filtrandoNaoEnviados = !filtrandoNaoEnviados; $('btnFiltroNaoEnviado').classList.toggle('bg-red-600'); $('btnFiltroNaoEnviado').classList.toggle('text-white'); renderPedidos(); }
+function updPed(u,c,v){ pedidos.find(x => x.uid == u)[c] = v; salvarColecao('pedidos', pedidos); }
+function togPed(u,c){ const x = pedidos.find(y => y.uid == u); if(x) { x[c] = !x[c]; salvarColecao('pedidos', pedidos); } }
+async function dupPed(u){ const x = pedidos.find(y => y.uid == u); const nId = await getProximoID(); const idDoc = "ID#" + nId.toString().padStart(4,'0'); pedidos.unshift({...x, uid: Date.now()+Math.random(), idDoc}); salvarColecao('pedidos', pedidos); }
+
+function renderPedidos() { 
+    const tb = $('tabelaPedidos'); if(!tb) return; 
+    const b = noAcc(val('busca').toLowerCase()); 
+    let lst = pedidos.filter(x => noAcc((x.cliente||"").toLowerCase()).includes(b) || noAcc((x.produto||"").toLowerCase()).includes(b) || noAcc((x.idDoc||"").toLowerCase()).includes(b) || noAcc((x.fornecedor||"").toLowerCase()).includes(b)); 
+    if (visaoPedidos === 'ATIVOS') { lst = lst.filter(x => !x.finalizado && x.status !== "Entregue/Finalizado"); if(filtrandoNaoEnviados) lst = lst.filter(x => x.status === "Não enviado"); } else { lst = lst.filter(x => x.finalizado || x.status === "Entregue/Finalizado"); } 
+    $('contador').innerText = lst.length + " PEDIDOS"; 
+    tb.innerHTML = lst.map(x => { 
+        const p = calcP(x.dataPedido, x.prazo); let sC = "bg-blue-600"; if(x.status === "Não enviado") sC = "bg-red-600"; else if(x.status === "Pedido na loja") sC = "bg-green-700"; if (x.finalizado || x.status === "Entregue/Finalizado") sC = "bg-slate-500 opacity-70"; 
+        let btn = `<button onclick="copyText('${x.qtd}x ${esc(x.produto)} ${esc(x.cor)} (${esc(x.idDoc)})', this)">📋</button>`; 
+        if(!x.finalizado && x.status !== "Entregue/Finalizado") { btn += `<button onclick="arquivarPedido(${x.uid})">📦</button><button onclick="dupPed(${x.uid})">➕</button><button onclick="gerarAssistenciaRapida(${x.uid})">🛠️</button><button onclick="excluirPedido(${x.uid})" class="text-red-500 font-black">✕</button>`; } else { btn += `<button onclick="excluirPedido(${x.uid})" class="text-slate-400 font-black text-lg">🔙</button>`; } 
+        return `<tr class="${p.classe}"><td><input type="checkbox" class="ped-check" value="${x.uid}"></td><td><div class="flex flex-col gap-1 items-center"><span class="font-black text-[9px]">${p.dias}D</span><select onchange="updPed(${x.uid},'prazo',this.value)" class="bg-black text-white text-[8px] font-black rounded px-1 outline-none"><option value="15" ${x.prazo=='15'?'selected':''}>15C</option><option value="20" ${x.prazo=='20'?'selected':''}>20C</option><option value="30" ${x.prazo=='30'?'selected':''}>30C</option><option value="30-util" ${x.prazo=='30-util'?'selected':''}>30U</option><option value="40-util" ${x.prazo=='40-util'?'selected':''}>40U</option></select></div></td><td class="text-[10px] text-slate-400 font-black">${esc(x.idDoc)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'cliente', 'pedidos')" class="cursor-pointer uppercase">${esc(x.cliente)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'dataPedido', 'pedidos')" class="cursor-pointer text-[10px]">${esc(x.dataPedido)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'qtd', 'pedidos')" class="cursor-pointer text-center font-black">${esc(x.qtd)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'pedidos')" class="cursor-pointer uppercase">${esc(x.produto)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'medida', 'pedidos')" class="cursor-pointer uppercase">${esc(x.medida)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'cor', 'pedidos')" class="cursor-pointer uppercase">${esc(x.cor)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'custo', 'pedidos')" class="cursor-pointer">${esc(x.custo)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'fornecedor', 'pedidos')" class="cursor-pointer font-black text-blue-800 uppercase text-[10px]">${esc(x.fornecedor)}</td><td><button onclick="cycleStatus(${x.uid})" class="status-badge ${sC} text-white w-full">${esc(x.status)}</button></td><td><button onclick="togPed(${x.uid},'whatsEnviado')" class="status-badge ${x.whatsEnviado?'bg-green-700':'bg-red-700'} text-white w-full">${x.whatsEnviado?'SIM':'NÃO'}</button></td><td><button onclick="togPed(${x.uid},'confirmado')" class="status-badge ${x.confirmado?'bg-green-700':'bg-red-700'} text-white w-full">${x.confirmado?'SIM':'NÃO'}</button></td><td class="text-center flex gap-1.5 justify-center items-center">${btn}</td></tr>`; 
+    }).join(''); 
+}
+
+function adicionarItemAoCesto() { const p = val('m_produto').trim().toUpperCase(); if(!p) return alert("INFORME PRODUTO!"); cestoItensTemporario.push({ uid: Date.now(), q: val('m_qtd') || 1, p: p, m: val('m_medida') || "-", c: val('m_cor').toUpperCase() || "-", v: val('m_custo') || "R$ 0,00" }); renderCesto(); $('m_produto').value = ""; }
+function renderCesto() { $('cesto-itens').innerHTML = cestoItensTemporario.map((i, id) => `<div class="bg-blue-50 border border-blue-200 px-3 py-1 rounded-lg text-[10px] font-black text-blue-800 flex items-center gap-2"><span>${i.q}x</span><span>${esc(i.p)}</span><button onclick="cestoItensTemporario.splice(${id},1); renderCesto();" class="text-red-500 hover:text-red-700 ml-1">✕</button></div>`).join(''); }
+async function cadastrarManual() { const cli = val('m_cliente').trim().toUpperCase(); const forn = val('m_fornecedor_select'); if(!cli || cestoItensTemporario.length === 0) return alert("FALTA DADOS!"); const nId = await getProximoID(); const idDoc = "ID#" + nId.toString().padStart(4, '0'); cestoItensTemporario.forEach(i => { pedidos.unshift({ uid: Date.now()+Math.random(), idDoc: idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: val('m_prazo_select'), status: "Não enviado", whatsEnviado: false, confirmado: false, finalizado: false }); }); salvarColecao('pedidos', pedidos); registrarAcao('📋', 'NOVO PEDIDO', `CÓDIGO: ${idDoc} | CLIENTE: ${cli}`); cestoItensTemporario = []; $('m_cliente').value = ""; renderCesto(); }
+
+function gerarEmailLote() {
+    const checks = $$('.ped-check:checked');
+    if (!checks.length) return alert("Nenhum pedido selecionado!");
+    const uids = Array.from(checks).map(c => c.value);
+    const sel = pedidos.filter(p => uids.includes(String(p.uid)));
+    const fab = sel[0].fornecedor || "NÃO INFORMADA";
+    
+    let txt = `Olá, segue pedido para fábrica ${fab}:\n\n`;
+    sel.forEach(p => {
+        let prd = p.produto; if(p.medida && p.medida!=="-") prd += ` | Medida: ${p.medida}`; if(p.cor && p.cor!=="-") prd += ` | Cor: ${p.cor}`;
+        txt += `Qtde: ${String(p.qtd).padStart(2, '0')} - ${prd}\nREF: ID# ${p.idDoc.replace('ID#','').trim()}\n\n`;
+    });
+    txt += `Forma de pagamento: 30/60/90.\n\nIDs para controle interno, favor desconsiderar.\n\nFavor confirmar o recebimento e nos enviar o documento de confirmação dos itens acima para conferência.\n\nAtenciosamente,\nLucas Mercier..`;
+
+    navigator.clipboard.writeText(txt).then(() => {
+        if (confirm("✅ Texto copiado!\nDeseja alterar o status dos pedidos para 'Pedido enviado'?")) {
+            sel.forEach(p => { if(p.status === "Não enviado") p.status = "Pedido enviado"; });
+            salvarColecao('pedidos', pedidos); registrarAcao('📧', 'ENVIOU LOTE', `Marcou ${sel.length} pedidos como enviados.`);
+            if($('check-todos')) $('check-todos').checked = false; renderPedidos();
         }
+    }).catch(() => alert("Falha ao copiar automaticamente."));
+}
 
-        function toggleModoMinhasTarefas() { 
-            if (!usuarioAtual) { alert("Selecione quem você é no canto superior direito primeiro!"); document.getElementById('check-minhas-tarefas').checked = false; return; } 
-            modoMinhasTarefas = document.getElementById('check-minhas-tarefas').checked; 
-            try { localStorage.setItem('mercier_so_minhas', modoMinhasTarefas); } catch(e) {} 
-            if(modoMinhasTarefas) filtrosEquipeAtivos = []; 
-            renderFiltrosEquipe(); 
-            renderQuadroEquipe(); 
-        }
+// ---------------------------------------------
+// LOGÍSTICA & AGENDA
+// ---------------------------------------------
+function processarEventosCalendario() {
+    eventosDoMes = {}; const mE = $('filtro-cal-entregas')?.checked; const mL = $('filtro-cal-lembretes')?.checked; const mP = $('filtro-cal-prazos')?.checked;
+    if(mE) entregas.forEach(e => { if(!e.dataOrdem) return; if(!eventosDoMes[e.dataOrdem]) eventosDoMes[e.dataOrdem]=[]; eventosDoMes[e.dataOrdem].push({ tipo:'ENTREGA', obj:e, cor: e.status==='Entregue'?'bg-emerald-200 text-emerald-800 opacity-60 line-through':'bg-emerald-500 text-white', icone:'🚚', titulo:e.cliente }); });
+    if(mL) lembretes.forEach(l => { if(!l.dataOrdem) return; if(!eventosDoMes[l.dataOrdem]) eventosDoMes[l.dataOrdem]=[]; const cM={"GERAL":"bg-yellow-400 text-yellow-900","FINANCEIRO":"bg-emerald-400 text-emerald-900","FABRICA":"bg-blue-400 text-blue-900","CLIENTE":"bg-pink-400 text-pink-900"}; const iM={"GERAL":"🔔","FINANCEIRO":"💰","FABRICA":"🏭","CLIENTE":"❤️"}; eventosDoMes[l.dataOrdem].push({ tipo:'LEMBRETE', obj:l, cor:l.concluido?'bg-slate-200 text-slate-500 opacity-60 line-through':cM[l.categoria], icone:iM[l.categoria], titulo:l.titulo }); });
+    if(mP) pedidos.forEach(p => { if(p.finalizado || p.status==="Entregue/Finalizado") return; const dP = calcDataExata(p.dataPedido, p.prazo); if(dP){ if(!eventosDoMes[dP]) eventosDoMes[dP]=[]; eventosDoMes[dP].push({ tipo:'PRAZO', obj:p, cor:'bg-blue-100 text-blue-800', icone:'📋', titulo:`Prazo: ${p.cliente}` }); } });
+    renderCalendario(); renderPainelDia();
+}
 
-        function esc(str) { return (str || "").toString().replace(/[&<>'"]/g, function(t) { return ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[t] || t); }); }
-        function removeAcentos(str) { return str.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }
-        function safeArray(data) { if (!data) return []; try { let arr = Array.isArray(data) ? data : Object.values(data); return arr.filter(i => i && typeof i === 'object'); } catch (e) { return []; } }
-        function salvarColecao(col, d) { db.ref('dados/' + col).set(d); }
-
-        const statusEl = document.getElementById('status-db');
-        db.ref('.info/connected').on('value', function(snap) { 
-            if(statusEl) {
-                if (snap.val() === true) { 
-                    statusEl.innerText = "ONLINE"; 
-                    statusEl.className = "bg-emerald-500 text-white hidden md:flex h-10 items-center px-4 rounded-xl text-[10px] font-black uppercase shadow-inner transition-all duration-300"; 
-                } else { 
-                    statusEl.innerText = "CONECTANDO..."; 
-                    statusEl.className = "bg-orange-500 text-white hidden md:flex h-10 items-center px-4 rounded-xl text-[10px] font-black uppercase transition-all duration-300"; 
-                }
-            } 
-        });
-
-        db.ref('dados').on('value', function(s) { 
-            try { 
-                const d = s.val() || {}; 
-                pedidos = safeArray(d.pedidos); fornecedores = safeArray(d.fornecedores); estoque = safeArray(d.estoque); 
-                catalogo = safeArray(d.catalogo); tarefas = safeArray(d.tarefas); assistencias = safeArray(d.assistencias); 
-                tarefasEquipe = safeArray(d.tarefasEquipe); historicoAtividades = safeArray(d.historico); 
-                entregas = safeArray(d.entregas); lembretes = safeArray(d.lembretes);
-                
-                proximoID = d.proximoID || 255; 
-                
-                const elM = document.getElementById('texto-melhorias'); if(elM) elM.value = d.notasMelhoria || ""; 
-                const elE = document.getElementById('estoque-notas-gerais'); if(elE) elE.value = d.notasEstoque || ""; 
-                
-                atualizarSelectsFornecedores(); 
-                atualizarSugestoes(); 
-                renderAll(); 
-            } catch (err) { 
-                if(statusEl) { statusEl.innerText = "ERRO DE LEITURA"; statusEl.className = "bg-red-500 text-white hidden md:flex h-10 items-center px-4 rounded-xl text-[10px] font-black uppercase"; } 
-            } 
-        });
-
-        function registrarAcao(icone, acao, detalhe) { 
-            const quem = usuarioAtual || "SISTEMA"; 
-            const agora = new Date(); 
-            const dH = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}); 
-            historicoAtividades.unshift({ uid: Date.now() + Math.random(), dataHora: dH, usuario: quem, acao: acao, detalhe: detalhe, icone: icone }); 
-            if(historicoAtividades.length > 150) historicoAtividades = historicoAtividades.slice(0, 150); 
-            salvarColecao('historico', historicoAtividades); 
-        }
-
-        function togglePainelHistorico() { 
-            const p = document.getElementById('painel-historico'); const o = document.getElementById('overlay-historico'); const b = document.getElementById('badge-historico'); 
-            if(p.classList.contains('translate-x-full')) { p.classList.remove('translate-x-full'); o.classList.remove('hidden'); if(b) b.classList.add('hidden'); } 
-            else { p.classList.add('translate-x-full'); o.classList.add('hidden'); } 
-        }
-
-        function renderHistorico() { 
-            const lst = document.getElementById('lista-historico'); if(!lst) return; 
-            if(historicoAtividades.length === 0) { lst.innerHTML = '<span class="text-slate-400 text-[10px] font-bold text-center uppercase block mt-10">Nenhuma atividade.</span>'; return; } 
-            lst.innerHTML = historicoAtividades.map(h => `<div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex gap-3 items-start transition-all hover:bg-slate-50"><div class="bg-slate-100 p-2 rounded-lg text-lg">${h.icone}</div><div class="flex flex-col flex-1"><div class="flex justify-between items-center mb-1"><span class="text-[9px] font-black uppercase text-slate-700 bg-slate-200 px-1.5 py-0.5 rounded">${esc(h.usuario)}</span><span class="text-[8px] font-bold text-slate-400">${h.dataHora}</span></div><span class="text-[11px] font-black uppercase text-slate-800 leading-tight">${esc(h.acao)}</span><span class="text-[9px] font-bold text-slate-500 uppercase mt-0.5 leading-snug">${esc(h.detalhe)}</span></div></div>`).join(''); 
-        }
-
-        async function getProximoID() { const ref = db.ref('dados/proximoID'); const res = await ref.transaction(c => (c || 255) + 1); return res.snapshot.val(); }
-
-        function renderAll() { 
-            try { renderPedidos(); } catch(e){}
-            try { renderTarefas(); } catch(e){}
-            try { renderFornecedores(); } catch(e){}
-            try { renderEstoque(); } catch(e){}
-            try { renderCatalogo(); } catch(e){}
-            try { renderAssistencias(); } catch(e){}
-            try { renderQuadroEquipe(); } catch(e){}
-            try { renderHistorico(); } catch(e){}
-            try { processarEventosCalendario(); } catch(e){}
-        }
-
-        // ---------------------------------------------
-        // FUNÇÕES PEDIDOS / GERAIS
-        // ---------------------------------------------
-        function activeInlineEdit(element, uid, field, listType) { 
-            const oVal = element.innerText; const inp = document.createElement('input'); 
-            inp.value = (oVal === "-" ? "" : oVal); inp.className = "w-full p-1 text-xs font-bold border-2 border-blue-500 rounded bg-white text-black outline-none uppercase"; 
-            if(field === 'custo') inp.oninput = function() { let v = inp.value.replace(/\D/g,""); v = (v/100).toFixed(2).replace(".",","); v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1."); inp.value = "R$ " + v; }; 
-            element.innerHTML = ''; element.appendChild(inp); inp.focus(); 
-            const save = function() { 
-                let nVal = inp.value.toUpperCase().trim(); if (nVal === "") nVal = "-"; 
-                let lst = pedidos; if(listType === 'estoque') lst = estoque; else if(listType === 'assistencias') lst = assistencias; 
-                const it = lst.find(x => x.uid == uid); 
-                if (it) { if(field === 'qtd') it[field] = parseInt(nVal) || 1; else it[field] = nVal; salvarColecao(listType, lst); } else { element.innerText = oVal; } 
-            }; 
-            inp.onblur = save; inp.onkeydown = function(e) { if(e.key === 'Enter') save(); if(e.key === 'Escape') { inp.onblur = null; element.innerText = oVal; } }; 
-        }
-
-        function maskMoney(i){ let v = i.value.replace(/\D/g,""); v = (v/100).toFixed(2).replace(".",","); v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1."); i.value = "R$ " + v; if(i.classList.contains('t-v-desc')) calcTotalTirarPedido(); }
-        function parseMoney(v){ return parseFloat((v||"").replace("R$ ","").replace(/\./g,"").replace(",",".")) || 0; }
-        function maskCPF(i){ let v=i.value.replace(/\D/g,""); if(v.length>11) v=v.slice(0,11); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d{1,2})$/,"$1-$2"); i.value=v; if(v.length===14) verifCPF(i); }
-        function verifCPF(i){ const ok = validarCPF(i.value); i.style.borderColor = ok ? "#22c55e" : "#ef4444"; cpfValido=ok; }
-        function validarCPF(c){ c=c.replace(/[^\d]+/g,''); if(c.length!==11 || !!c.match(/(\d)\1{10}/)) return false; let a=0; for(let i=0;i<9;i++) a+=parseInt(c.charAt(i))*(10-i); let r=11-(a%11); if(r===10||r===11) r=0; if(r!==parseInt(c.charAt(9))) return false; a=0; for(let i=0;i<10;i++) a+=parseInt(c.charAt(i))*(11-i); r=11-(a%11); return (r>=10?0:r)===parseInt(c.charAt(10)); }
-        function copyText(v, el){ if(!v || v==="-") return; navigator.clipboard.writeText(v.toUpperCase()); if(el) { el.style.color="#22c55e"; setTimeout(() => { el.style.color="#94a3b8"; }, 1000); } }
-
-        async function buscarCEP(i){ 
-            let cep=i.value.replace(/\D/g,""); 
-            if(cep.length===8){ 
-                document.getElementById('loading-cep').classList.remove('hidden'); 
-                try{ let r=await fetch(`https://viacep.com.br/ws/${cep}/json/`); let d=await r.json(); if(!d.erro){ document.getElementById('t_end').value=d.logradouro.toUpperCase(); document.getElementById('t_bairro').value=d.bairro.toUpperCase(); document.getElementById('t_cidade').value=d.localidade.toUpperCase(); document.getElementById('t_num').focus(); } }catch(e){} finally { document.getElementById('loading-cep').classList.add('hidden'); } 
-            } 
-        }
-
-        function calcP(d, pr){ 
-            if(!d) return {dias:0, classe:""}; 
-            try { 
-                const pA = String(d).split("/"); const dt = new Date(pA[2], pA[1]-1, pA[0]); let dF = new Date(dt); let spr = String(pr || "30"); 
-                if(spr.includes("util")){ let c=0; while(c < parseInt(spr)){ dF.setDate(dF.getDate()+1); if(dF.getDay()!==0 && dF.getDay()!==6) c++; } } else { dF.setDate(dF.getDate() + parseInt(spr)); } 
-                const df = Math.ceil((dF - new Date()) / 86400000); 
-                let cl = df < 0 ? "prazo-vencido" : (df <= 5 ? "prazo-urgente" : (df <= 10 ? "prazo-alerta" : (df <= 20 ? "prazo-atencao" : ""))); 
-                return {dias: df, classe: cl}; 
-            } catch(e) { return {dias:0, classe:""}; } 
-        }
-
-        function calcDataExata(dataBR, pr) { 
-            if(!dataBR) return null; 
-            try { 
-                const pA = dataBR.split("/"); let dF = new Date(pA[2], pA[1]-1, pA[0]); let spr = String(pr || "30"); 
-                if(spr.includes("util")){ let c=0; let lim = parseInt(spr); while(c < lim){ dF.setDate(dF.getDate()+1); if(dF.getDay()!==0 && dF.getDay()!==6) c++; } } else { dF.setDate(dF.getDate() + parseInt(spr)); } 
-                let y = dF.getFullYear(); let m = String(dF.getMonth() + 1).padStart(2, '0'); let d = String(dF.getDate()).padStart(2, '0'); 
-                return `${y}-${m}-${d}`; 
-            } catch(e) { return null; } 
-        }
-
-        function mudarVisaoPedidos(v) { 
-            visaoPedidos = v; 
-            const bA = document.getElementById('btn-visao-ativos'); const bF = document.getElementById('btn-visao-finalizados'); const bFn = document.getElementById('btnFiltroNaoEnviado'); 
-            if(v === 'ATIVOS') { bA.classList.add('border-blue-600', 'text-blue-600', 'bg-white'); bA.classList.remove('border-transparent', 'text-slate-400'); bF.classList.remove('border-blue-600', 'text-blue-600', 'bg-white'); bF.classList.add('border-transparent', 'text-slate-400'); if(bFn) bFn.style.display = 'block'; } 
-            else { bF.classList.add('border-blue-600', 'text-blue-600', 'bg-white'); bF.classList.remove('border-transparent', 'text-slate-400'); bA.classList.remove('border-blue-600', 'text-blue-600', 'bg-white'); bA.classList.add('border-transparent', 'text-slate-400'); if(bFn) bFn.style.display = 'none'; } 
-            renderPedidos(); 
-        }
-
-        function arquivarPedido(u) { const x = pedidos.find(y => y.uid == u); if (x) { x.finalizado = !x.finalizado; x.status = x.finalizado ? "Entregue/Finalizado" : "Pedido na loja"; salvarColecao('pedidos', pedidos); registrarAcao(x.finalizado ? '📦' : '🔙', x.finalizado ? 'FINALIZOU' : 'RESTAUROU', `PEDIDO: ${x.cliente}`); renderPedidos(); } }
-        function excluirPedido(uid) { const p = pedidos.find(x => x.uid == uid); if(!p) return; if(p.finalizado) { if(confirm("Deseja RETORNAR este pedido para a aba principal?")) { p.finalizado = false; p.status = "Pedido na loja"; salvarColecao('pedidos', pedidos); renderPedidos(); } } else { if(confirm("EXCLUIR ESTE PEDIDO PERMANENTEMENTE?")) { pedidos = pedidos.filter(x => x.uid != uid); salvarColecao('pedidos', pedidos); renderPedidos(); } } }
-        function cycleStatus(u){ const x = pedidos.find(y => y.uid == u); if(!x) return; const s = ["Não enviado","Pedido enviado","Aguardando fábrica","Pedido na loja"]; if(!x.finalizado && x.status !== "Entregue/Finalizado") { x.status = s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('pedidos', pedidos); } }
-
-        function renderPedidos() { 
-            const tb = document.getElementById('tabelaPedidos'); if(!tb) return; 
-            const elBusca = document.getElementById('busca'); const b = removeAcentos((elBusca ? elBusca.value : "").toLowerCase()); 
-            let lista = pedidos.filter(x => { return removeAcentos((x.cliente||"").toLowerCase()).includes(b) || removeAcentos((x.produto||"").toLowerCase()).includes(b) || removeAcentos((x.idDoc||"").toLowerCase()).includes(b) || removeAcentos((x.fornecedor||"").toLowerCase()).includes(b); }); 
-            if (visaoPedidos === 'ATIVOS') { lista = lista.filter(x => !x.finalizado && x.status !== "Entregue/Finalizado"); if(filtrandoNaoEnviados) lista = lista.filter(x => x.status === "Não enviado"); } else { lista = lista.filter(x => x.finalizado || x.status === "Entregue/Finalizado"); } 
-            document.getElementById('contador').innerText = lista.length + " PEDIDOS"; 
-            tb.innerHTML = lista.map(x => { 
-                const p = calcP(x.dataPedido, x.prazo); let sCls = "bg-blue-600"; if(x.status === "Não enviado") sCls = "bg-red-600"; else if(x.status === "Pedido na loja") sCls = "bg-green-700"; if (x.finalizado || x.status === "Entregue/Finalizado") sCls = "bg-slate-500 opacity-70"; 
-                let btnAcoes = `<button onclick="copyText('${x.qtd}x ${esc(x.produto)} ${esc(x.cor)} (${esc(x.idDoc)})', this)" title="Copiar">📋</button>`; 
-                if(!x.finalizado && x.status !== "Entregue/Finalizado") { btnAcoes += `<button onclick="arquivarPedido(${x.uid})" title="Finalizar">📦</button><button onclick="dupPed(${x.uid})" title="Duplicar">➕</button><button onclick="gerarAssistenciaRapida(${x.uid})" title="Assistência">🛠️</button><button onclick="excluirPedido(${x.uid})" class="text-red-500 font-black">✕</button>`; } else { btnAcoes += `<button onclick="excluirPedido(${x.uid})" class="text-slate-400 font-black text-lg" title="Retornar">🔙</button>`; } 
-                return `<tr class="${p.classe}"><td><input type="checkbox" class="ped-check" value="${x.uid}"></td><td><div class="flex flex-col gap-1 items-center"><span class="font-black text-[9px]">${p.dias}D</span><select onchange="updPed(${x.uid},'prazo',this.value)" class="select-prazo-tabela"><option value="15" ${x.prazo=='15'?'selected':''}>15C</option><option value="20" ${x.prazo=='20'?'selected':''}>20C</option><option value="30" ${x.prazo=='30'?'selected':''}>30C</option><option value="30-util" ${x.prazo=='30-util'?'selected':''}>30U</option><option value="40-util" ${x.prazo=='40-util'?'selected':''}>40U</option></select></div></td><td class="text-[10px] text-slate-400 font-black">${esc(x.idDoc)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'cliente', 'pedidos')" class="editable-cell uppercase">${esc(x.cliente)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'dataPedido', 'pedidos')" class="editable-cell text-[10px]">${esc(x.dataPedido)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'qtd', 'pedidos')" class="editable-cell text-center font-black">${esc(x.qtd)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'pedidos')" class="editable-cell uppercase">${esc(x.produto)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'medida', 'pedidos')" class="editable-cell uppercase">${esc(x.medida)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'cor', 'pedidos')" class="editable-cell uppercase">${esc(x.cor)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'custo', 'pedidos')" class="editable-cell">${esc(x.custo)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'fornecedor', 'pedidos')" class="editable-cell font-black text-blue-800 uppercase text-[10px]">${esc(x.fornecedor)}</td><td><button onclick="cycleStatus(${x.uid})" class="status-badge ${sCls} text-white">${esc(x.status)}</button></td><td><button onclick="togPed(${x.uid},'whatsEnviado')" class="status-badge ${x.whatsEnviado?'btn-sim':'btn-nao'}">${x.whatsEnviado?'SIM':'NÃO'}</button></td><td><button onclick="togPed(${x.uid},'confirmado')" class="status-badge ${x.confirmado?'btn-sim':'btn-nao'}">${x.confirmado?'SIM':'NÃO'}</button></td><td class="text-center flex gap-1.5 justify-center items-center">${btnAcoes}</td></tr>`; 
-            }).join(''); 
-        }
-
-        function adicionarItemAoCesto() { const p = document.getElementById('m_produto').value.trim().toUpperCase(); if(!p) return alert("INFORME PRODUTO!"); cestoItensTemporario.push({ uid: Date.now(), q: document.getElementById('m_qtd').value || 1, p: p, m: document.getElementById('m_medida').value || "-", c: document.getElementById('m_cor').value.toUpperCase() || "-", v: document.getElementById('m_custo').value || "R$ 0,00" }); renderCesto(); document.getElementById('m_produto').value = ""; }
-        function renderCesto() { document.getElementById('cesto-itens').innerHTML = cestoItensTemporario.map((item, idx) => `<div class="bg-blue-50 border border-blue-200 px-3 py-1 rounded-lg text-[10px] font-black text-blue-800 flex items-center gap-2"><span>${item.q}x</span><span>${esc(item.p)}</span><button onclick="cestoItensTemporario.splice(${idx},1); renderCesto();" class="text-red-500 hover:text-red-700 ml-1">✕</button></div>`).join(''); }
-        async function cadastrarManual() { const cli = document.getElementById('m_cliente').value.trim().toUpperCase(); const forn = document.getElementById('m_fornecedor_select').value; if(!cli || cestoItensTemporario.length === 0) return alert("FALTA DADOS!"); const nId = await getProximoID(); const idDoc = "ID#" + nId.toString().padStart(4, '0'); cestoItensTemporario.forEach(i => { pedidos.unshift({ uid: Date.now()+Math.random(), idDoc: idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: document.getElementById('m_prazo_select').value, status: "Não enviado", whatsEnviado: false, confirmado: false, finalizado: false }); }); salvarColecao('pedidos', pedidos); registrarAcao('📋', 'NOVO PEDIDO', `CÓDIGO: ${idDoc} | CLIENTE: ${cli}`); cestoItensTemporario = []; document.getElementById('m_cliente').value = ""; renderCesto(); }
-
-        function gerarEmailLote() {
-            const checks = document.querySelectorAll('.ped-check:checked');
-            if (checks.length === 0) return alert("Nenhum pedido selecionado!");
-            const uids = Array.from(checks).map(c => c.value);
-            const selecionados = pedidos.filter(p => uids.includes(String(p.uid)));
-            const fabricaSelecionada = selecionados[0].fornecedor || "NÃO INFORMADA";
-            
-            let texto = `Olá, segue pedido para fábrica ${fabricaSelecionada}:\n\n`;
-            selecionados.forEach(p => {
-                let produtoCompleto = p.produto;
-                if (p.medida && p.medida !== "-") produtoCompleto += ` | Medida: ${p.medida}`;
-                if (p.cor && p.cor !== "-") produtoCompleto += ` | Cor: ${p.cor}`;
-                texto += `Qtde: ${String(p.qtd).padStart(2, '0')} - ${produtoCompleto}\n`;
-                texto += `REF: ${p.idDoc}\n\n`;
-            });
-            texto += `Forma de pagamento: 30/60/90.\n\nIDs para controle interno, favor desconsiderar.\n\nFavor confirmar o recebimento e nos enviar o documento de confirmação dos itens acima para conferência.\n\nAtenciosamente,\nLucas Mercier..`;
-
-            navigator.clipboard.writeText(texto).then(() => {
-                if (confirm("✅ Texto copiado!\nDeseja alterar o status dos pedidos para 'Pedido enviado'?")) {
-                    selecionados.forEach(p => { if(p.status === "Não enviado") p.status = "Pedido enviado"; });
-                    salvarColecao('pedidos', pedidos);
-                    const checkTodos = document.querySelector('input[onclick="marcarTodos(this.checked)"]');
-                    if(checkTodos) checkTodos.checked = false;
-                    renderPedidos();
-                }
-            }).catch(err => { alert("Não foi possível copiar o texto automaticamente."); console.error(err); });
-        }
-
-        function marcarTodos(v){ document.querySelectorAll('.ped-check').forEach(c => { c.checked = v; }); }
-        function toggleFiltroNaoEnviado(){ filtrandoNaoEnviados = !filtrandoNaoEnviados; document.getElementById('btnFiltroNaoEnviado').classList.toggle('bg-red-600'); document.getElementById('btnFiltroNaoEnviado').classList.toggle('text-white'); renderPedidos(); }
-        function updPed(u,c,v){ pedidos.find(x => x.uid == u)[c] = v; salvarColecao('pedidos', pedidos); }
-        function togPed(u,c){ const x = pedidos.find(y => y.uid == u); if(x) x[c] = !x[c]; salvarColecao('pedidos', pedidos); }
-        async function dupPed(u){ const x = pedidos.find(y => y.uid == u); const nId = await getProximoID(); const idDoc = "ID#" + nId.toString().padStart(4,'0'); pedidos.unshift({...x, uid: Date.now() + Math.random(), idDoc}); salvarColecao('pedidos', pedidos); }
-
-        // ---------------------------------------------
-        // LOGÍSTICA E CALENDÁRIO
-        // ---------------------------------------------
-        function processarEventosCalendario() {
-            eventosDoMes = {}; 
-            const mostraEnt = document.getElementById('filtro-cal-entregas')?.checked;
-            const mostraLem = document.getElementById('filtro-cal-lembretes')?.checked;
-            const mostraPrz = document.getElementById('filtro-cal-prazos')?.checked;
-
-            if(mostraEnt) {
-                entregas.forEach(e => {
-                    if(!e.dataOrdem) return;
-                    if(!eventosDoMes[e.dataOrdem]) eventosDoMes[e.dataOrdem] = [];
-                    const isFeito = e.status === "Entregue";
-                    eventosDoMes[e.dataOrdem].push({ tipo: 'ENTREGA', obj: e, cor: isFeito ? 'bg-emerald-200 text-emerald-800 opacity-60 line-through' : 'bg-emerald-500 text-white', icone: '🚚', titulo: e.cliente });
-                });
-            }
-            if(mostraLem) {
-                lembretes.forEach(l => {
-                    if(!l.dataOrdem) return;
-                    if(!eventosDoMes[l.dataOrdem]) eventosDoMes[l.dataOrdem] = [];
-                    const corM = { "GERAL": "bg-yellow-400 text-yellow-900", "FINANCEIRO": "bg-emerald-400 text-emerald-900", "FABRICA": "bg-blue-400 text-blue-900", "CLIENTE": "bg-pink-400 text-pink-900" };
-                    const iM = { "GERAL": "🔔", "FINANCEIRO": "💰", "FABRICA": "🏭", "CLIENTE": "❤️" };
-                    eventosDoMes[l.dataOrdem].push({ tipo: 'LEMBRETE', obj: l, cor: l.concluido ? 'bg-slate-200 text-slate-500 opacity-60 line-through' : corM[l.categoria], icone: iM[l.categoria], titulo: l.titulo });
-                });
-            }
-            if(mostraPrz) {
-                pedidos.forEach(p => {
-                    if(p.finalizado || p.status === "Entregue/Finalizado") return; 
-                    const dataPrazo = calcDataExata(p.dataPedido, p.prazo);
-                    if(dataPrazo) {
-                        if(!eventosDoMes[dataPrazo]) eventosDoMes[dataPrazo] = [];
-                        eventosDoMes[dataPrazo].push({ tipo: 'PRAZO', obj: p, cor: 'bg-blue-100 text-blue-800', icone: '📋', titulo: `Prazo: ${p.cliente}` });
-                    }
-                });
-            }
-            renderCalendario(); renderPainelDia();
-        }
-
-        function renderCalendario() {
-            const ano = dataAtualCalendario.getFullYear(); const mes = dataAtualCalendario.getMonth(); 
-            const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-            document.getElementById('mes-ano-display').innerText = `${nomesMeses[mes]} ${ano}`;
-
-            const primeiroDia = new Date(ano, mes, 1).getDay(); const diasNoMes = new Date(ano, mes + 1, 0).getDate();
-            let html = "";
-            for (let i = 0; i < primeiroDia; i++) html += `<div class="border-b border-r border-slate-200 bg-slate-50 opacity-40 min-h-[80px]"></div>`;
-
-            const hojeStr = new Date().toISOString().split('T')[0];
-
-            for (let dia = 1; dia <= diasNoMes; dia++) {
-                const dataChave = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-                const isHoje = (dataChave === hojeStr); const isSelecionado = (dataChave === dataSelecionadaLogistica);
-                let circleClass = isHoje ? "bg-amber-500 text-white shadow-md" : "text-slate-600";
-                let divBg = isSelecionado ? "bg-blue-50 ring-2 ring-inset ring-blue-400" : "hover:bg-slate-50";
-
-                let eventosHTML = "";
-                if(eventosDoMes[dataChave]) {
-                    const mostrar = eventosDoMes[dataChave].slice(0, 3);
-                    mostrar.forEach(ev => { eventosHTML += `<div class="${ev.cor} text-[8px] font-black truncate px-1 rounded shadow-sm mb-0.5 leading-tight py-0.5" title="${ev.titulo}">${ev.icone} ${esc(ev.titulo)}</div>`; });
-                    if(eventosDoMes[dataChave].length > 3) eventosHTML += `<div class="text-[8px] font-black text-slate-400 text-center">+${eventosDoMes[dataChave].length - 3}</div>`; 
-                }
-
-                html += `<div onclick="selecionarDiaLogistica('${dataChave}', '${dia} de ${nomesMeses[mes]}')" class="border-b border-r border-slate-200 p-1.5 min-h-[80px] transition cursor-pointer flex flex-col gap-1 ${divBg}"><div class="flex justify-end"><span class="w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-black ${circleClass}">${dia}</span></div><div class="flex-1 overflow-hidden flex flex-col gap-0.5">${eventosHTML}</div></div>`;
-            }
-            const grid = document.getElementById('grid-dias'); if(grid) grid.innerHTML = html;
-        }
-
-        function mudarMes(direcao) { dataAtualCalendario.setMonth(dataAtualCalendario.getMonth() + direcao); processarEventosCalendario(); }
-        function selecionarDiaLogistica(dataChave, dataFormatada) { dataSelecionadaLogistica = dataChave; renderCalendario(); renderPainelDia(); }
-
-        function renderPainelDia() {
-            const painel = document.getElementById('lista-eventos-dia'); if(!painel) return;
-            const dataObj = new Date(dataSelecionadaLogistica + "T12:00:00");
-            document.getElementById('titulo-painel-dia').innerText = "Dia " + dataObj.toLocaleDateString('pt-BR');
-            
-            const evs = eventosDoMes[dataSelecionadaLogistica] || [];
-            evs.sort((a, b) => {
-                const pesoA = a.tipo === 'ENTREGA' ? 1 : (a.tipo === 'LEMBRETE' ? 2 : 3);
-                const pesoB = b.tipo === 'ENTREGA' ? 1 : (b.tipo === 'LEMBRETE' ? 2 : 3);
-                if (pesoA !== pesoB) return pesoA - pesoB;
-                if (a.tipo === 'ENTREGA' && b.tipo === 'ENTREGA') { const hA = a.obj.hora || "23:59"; const hB = b.obj.hora || "23:59"; return hA.localeCompare(hB); }
-                return 0;
-            });
-
-            document.getElementById('badge-qtd-dia').innerText = evs.length + " Itens";
-
-            if(evs.length === 0) { painel.innerHTML = '<div class="text-center p-8 border-2 border-dashed border-slate-200 rounded-2xl"><span class="text-3xl block mb-2">🎈</span><span class="text-xs font-black text-slate-400 uppercase">Dia Livre!</span></div>'; return; }
-
-            painel.innerHTML = evs.map(ev => {
-                if(ev.tipo === 'ENTREGA') {
-                    const e = ev.obj; let corSt = "bg-slate-100 text-slate-600";
-                    if(e.status === 'Agendado') corSt = "bg-blue-100 text-blue-700"; else if(e.status === 'Em Rota') corSt = "bg-orange-100 text-orange-700"; else if(e.status === 'Entregue') corSt = "bg-emerald-100 text-emerald-700";
-                    const isFeito = e.status === 'Entregue' ? 'opacity-60' : '';
-                    const horaBadge = e.hora ? `<span class="bg-emerald-600 text-white px-2 py-0.5 rounded shadow-sm text-[9px] font-black tracking-wider ml-2">🕒 ${e.hora}</span>` : '';
-                    return `<div class="bg-white border-l-4 border-emerald-500 rounded-xl p-4 shadow-sm border border-slate-200 flex flex-col ${isFeito}"><div class="flex justify-between items-start mb-2"><span class="text-[10px] font-black uppercase text-emerald-600 flex items-center">🚚 Entrega ${horaBadge}</span><button onclick="cycleStatusEntrega(${e.uid})" class="${corSt} px-2 py-0.5 rounded text-[9px] font-black uppercase shadow-sm">${esc(e.status)}</button></div><h4 class="font-black text-sm uppercase text-slate-800 leading-tight">${esc(e.cliente)}</h4><p class="text-[9px] font-bold text-slate-500 uppercase mt-1 mb-2">📍 ${esc(e.endereco)}</p><div class="bg-emerald-50 p-2 rounded border border-emerald-100 text-[10px] font-bold text-emerald-800 uppercase mb-3 leading-snug">${esc(e.produtos).replace(/\n/g, '<br>• ')}</div><div class="flex justify-between items-center border-t border-slate-100 pt-3"><button onclick="abrirGPS('${esc(e.endereco)}')" class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase flex items-center gap-1 hover:bg-blue-100 transition">🗺️ GPS</button><div class="flex gap-2"><button onclick="abrirWhatsAppEntrega('${esc(e.cliente)}', '${esc(e.endereco)}', '${esc(e.produtos)}')" class="bg-green-50 text-green-600 p-1.5 rounded-lg hover:bg-green-100">💬</button><button onclick="excluirEntrega(${e.uid})" class="bg-red-50 text-red-500 p-1.5 rounded-lg hover:bg-red-100">🗑️</button></div></div></div>`;
-                }
-                else if(ev.tipo === 'LEMBRETE') {
-                    const l = ev.obj; const op = l.concluido ? 'opacity-50' : ''; const tx = l.concluido ? 'line-through text-slate-400' : 'text-slate-800';
-                    return `<div class="bg-white border-l-4 border-amber-500 rounded-xl p-4 shadow-sm border border-slate-200 flex flex-col gap-2 ${op}"><div class="flex justify-between items-center"><span class="text-[10px] font-black uppercase text-amber-600 tracking-wider">${ev.icone} Lembrete</span><button onclick="toggleConcluidoLembrete(${l.uid})" class="${l.concluido ? 'bg-slate-200 text-slate-500' : 'bg-green-100 text-green-700'} px-2 py-0.5 rounded text-[9px] font-black uppercase shadow-sm">${l.concluido ? '🔙' : '✅ Feito'}</button></div><h4 class="font-black text-xs uppercase ${tx} leading-snug">${esc(l.titulo)}</h4><div class="flex justify-end pt-1 mt-1 border-t border-slate-100"><button onclick="excluirLembrete(${l.uid})" class="text-red-400 hover:text-red-600 font-black text-xs">✕ Apagar</button></div></div>`;
-                }
-                else if(ev.tipo === 'PRAZO') {
-                    const p = ev.obj;
-                    return `<div class="bg-blue-50 border-l-4 border-blue-500 rounded-xl p-3 shadow-sm border border-blue-100"><span class="text-[9px] font-black uppercase text-blue-600 tracking-wider mb-1 block">📋 Prazo</span><h4 class="font-black text-xs uppercase text-slate-800">${esc(p.cliente)}</h4><p class="text-[9px] font-bold text-slate-500 uppercase mt-1">${p.qtd}x ${esc(p.produto)}</p></div>`;
-                }
-            }).join('');
-        }
-
-        function abrirModalNovaEntrega() { document.getElementById('ent_data').value = dataSelecionadaLogistica; document.getElementById('ent_hora').value = ""; document.getElementById('modal-nova-entrega').style.display='flex'; }
-        function buscarDadosInteligentes() { const nome = document.getElementById('ent_cliente').value.toUpperCase().trim(); if(!nome) return; const aviso = document.getElementById('aviso-magico'); let achouAlgo = false; const tarefa = tarefas.find(t => t.detalhes && t.detalhes.cliente && t.detalhes.cliente.includes(nome)); const elEnd = document.getElementById('ent_endereco'); if(tarefa && !elEnd.value) { const num = tarefa.detalhes.num ? `, ${tarefa.detalhes.num}` : ''; const bairro = tarefa.detalhes.bairro ? ` - ${tarefa.detalhes.bairro}` : ''; const cidade = tarefa.detalhes.cidade ? ` - ${tarefa.detalhes.cidade}` : ''; elEnd.value = `${tarefa.detalhes.end}${num}${bairro}${cidade}`.toUpperCase(); achouAlgo = true; } const prods = pedidos.filter(p => p.cliente && p.cliente.includes(nome) && !p.finalizado); const elProd = document.getElementById('ent_produtos'); if(prods.length > 0 && !elProd.value) { elProd.value = prods.map(p => `${p.qtd}x ${p.produto} ${p.cor}`).join('\n').toUpperCase(); achouAlgo = true; } if(achouAlgo) { aviso.classList.remove('hidden'); setTimeout(() => aviso.classList.add('hidden'), 3000); } }
-        function salvarEntrega() { const data = document.getElementById('ent_data').value; const hora = document.getElementById('ent_hora').value; const cliente = document.getElementById('ent_cliente').value.toUpperCase().trim(); const endereco = document.getElementById('ent_endereco').value.toUpperCase().trim(); const produtos = document.getElementById('ent_produtos').value.toUpperCase().trim(); if(!data || !cliente || !produtos) return alert("Preencha Data, Cliente e Produtos!"); entregas.push({ uid: Date.now(), dataOrdem: data, hora: hora, cliente: cliente, endereco: endereco || "Não informado", produtos: produtos, status: "Agendado" }); salvarColecao('entregas', entregas); fecharModaisLogistica(); }
-        function cycleStatusEntrega(uid) { const t = entregas.find(x => x.uid == uid); if(!t) return; const s = ["Agendado", "Em Rota", "Entregue"]; t.status = s[(s.indexOf(t.status) + 1) % s.length]; salvarColecao('entregas', entregas); }
-        function excluirEntrega(uid) { if(confirm("Apagar entrega?")) { entregas = entregas.filter(x => x.uid != uid); salvarColecao('entregas', entregas); } }
-        function abrirWhatsAppEntrega(cliente, end, prods) { const msg = `🚚 *Aviso de Entrega - Mercier Design*\n\nOlá ${cliente}! O seu pedido está a caminho.\n\n📦 *Itens:*\n${prods}\n\n📍 *Endereço registrado:*\n${end}`; window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank'); }
-        function abrirGPS(endereco) { if(!endereco || endereco === "NÃO INFORMADO") return alert("Sem endereço para rota."); window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}`, '_blank'); }
-
-        function abrirModalNovoLembrete() { document.getElementById('lem_data').value = dataSelecionadaLogistica; document.getElementById('modal-novo-lembrete').style.display='flex'; }
-        function salvarLembrete() { const titulo = document.getElementById('lem_titulo').value.toUpperCase().trim(); const data = document.getElementById('lem_data').value; const cat = document.getElementById('lem_categoria').value; if(!titulo || !data) return alert("Preencha título e data!"); lembretes.push({ uid: Date.now(), titulo: titulo, dataOrdem: data, categoria: cat, concluido: false }); salvarColecao('lembretes', lembretes); fecharModaisLogistica(); }
-        function toggleConcluidoLembrete(uid) { const l = lembretes.find(x => x.uid == uid); if(l) { l.concluido = !l.concluido; salvarColecao('lembretes', lembretes); } }
-        function excluirLembrete(uid) { if(confirm("Apagar lembrete?")) { lembretes = lembretes.filter(x => x.uid != uid); salvarColecao('lembretes', lembretes); } }
-        function fecharModaisLogistica() { document.getElementById('modal-nova-entrega').style.display = 'none'; document.getElementById('modal-novo-lembrete').style.display = 'none'; document.getElementById('ent_cliente').value = ""; document.getElementById('ent_endereco').value = ""; document.getElementById('ent_produtos').value = ""; document.getElementById('ent_hora').value = ""; document.getElementById('lem_titulo').value = ""; }
-
-        // ---------------------------------------------
-        // ESTOQUE
-        // ---------------------------------------------
-        function autoSalvarNotasEstoque() { notasEstoque = document.getElementById('estoque-notas-gerais').value; db.ref('dados/notasEstoque').set(notasEstoque); }
-        function mudarVisaoEstoque(visao) {
-            visaoEstoque = visao; const btnDisp = document.getElementById('btn-estoque-disponivel'); const btnSaid = document.getElementById('btn-estoque-saidas');
-            if(visao === 'ESTOQUE') { btnDisp.classList.add('border-green-500', 'text-green-600', 'bg-white'); btnDisp.classList.remove('border-transparent', 'text-slate-400'); btnSaid.classList.remove('border-green-500', 'text-green-600', 'bg-white'); btnSaid.classList.add('border-transparent', 'text-slate-400'); } 
-            else { btnSaid.classList.add('border-green-500', 'text-green-600', 'bg-white'); btnSaid.classList.remove('border-transparent', 'text-slate-400'); btnDisp.classList.remove('border-green-500', 'text-green-600', 'bg-white'); btnDisp.classList.add('border-transparent', 'text-slate-400'); }
-            renderEstoque();
-        }
-
-        function renderEstoque() {
-            const tb = document.getElementById('tabelaEstoque'); if(!tb) return;
-            const b = removeAcentos((document.getElementById('estoque-busca').value || "").toLowerCase());
-            const fFab = document.getElementById('estoque-filtro-fabrica') ? document.getElementById('estoque-filtro-fabrica').value : "TODAS";
-            let totEst = 0, totVen = 0;
-            
-            let lista = estoque.filter(x => {
-                const prod = removeAcentos((x.produto||"").toLowerCase()); const fab = removeAcentos((x.fabrica||"").toLowerCase()); const sit = x.situacao||"ESTOQUE";
-                if(sit === 'ESTOQUE') totEst += parseInt(x.qtd || 0); else totVen += parseInt(x.qtd || 0);
-                return (prod.includes(b) || fab.includes(b)) && (fFab === "TODAS" || x.fabrica === fFab);
-            });
-            
-            if (visaoEstoque === 'ESTOQUE') lista = lista.filter(x => x.situacao === 'ESTOQUE'); else lista = lista.filter(x => x.situacao !== 'ESTOQUE');
-            if(document.getElementById('resumo-estoque-total')) document.getElementById('resumo-estoque-total').innerText = totEst;
-            if(document.getElementById('resumo-estoque-vendidos')) document.getElementById('resumo-estoque-vendidos').innerText = totVen;
-            
-            tb.innerHTML = lista.map(x => { 
-                let sCls = "bg-green-100 text-green-700"; let txtSit = "DISPONÍVEL";
-                if(x.situacao === 'VENDIDO') { sCls = "bg-red-100 text-red-700"; txtSit = "VENDIDO"; } else if(x.situacao === 'ASSISTÊNCIA') { sCls = "bg-orange-100 text-orange-700"; txtSit = "ASSISTÊNCIA"; } else if(x.situacao === 'DEVOLUÇÃO FÁBRICA') { sCls = "bg-purple-100 text-purple-700"; txtSit = "DEVOLVIDO"; }
-                return `<tr><td class="text-[10px] text-slate-400 font-bold">${esc(x.data) || '-'}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'estoque')" class="editable-cell uppercase font-bold">${esc(x.produto)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'fabrica', 'estoque')" class="editable-cell text-blue-600 text-[10px] font-black uppercase">${esc(x.fabrica) || "-"}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'qtd', 'estoque')" class="editable-cell text-center">${esc(x.qtd)}</td><td class="text-center"><span class="px-2 py-1 rounded text-[9px] font-black w-full inline-block ${sCls}">${txtSit}</span></td><td class="text-center flex gap-1 justify-center">${x.situacao === 'ESTOQUE' ? `<button onclick="abrirModalSaidaEstoque(${x.uid})" class="bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded text-[10px] transition">📉 Saída</button>` : ''}<button onclick="if(confirm('EXCLUIR REGISTRO?')){estoque=estoque.filter(y => y.uid!=${x.uid}); salvarColecao('estoque', estoque);}" class="text-slate-300 hover:text-red-500 font-black px-2 transition">✕</button></td></tr>`; 
-            }).join('');
-        }
-
-        function abrirModalSaidaEstoque(uid) { const item = estoque.find(x => x.uid == uid); if(!item) return; document.getElementById('saida-uid').value = uid; document.getElementById('saida-produto-nome').innerText = item.produto; document.getElementById('saida-qtd').value = item.qtd; document.getElementById('saida-qtd').max = item.qtd; document.getElementById('saida-obs').value = ""; document.getElementById('saida-motivo').value = "VENDIDO"; document.getElementById('modal-saida-estoque').style.display = 'flex'; }
-        
-        function confirmarSaidaEstoque() {
-            const uid = document.getElementById('saida-uid').value; const qtdSaida = parseInt(document.getElementById('saida-qtd').value); const motivo = document.getElementById('saida-motivo').value; const obs = document.getElementById('saida-obs').value.toUpperCase().trim();
-            const it = estoque.find(x => x.uid == uid); if (!it || isNaN(qtdSaida) || qtdSaida <= 0 || qtdSaida > it.qtd) return alert("Quantidade inválida!"); 
-            let nomeFinal = it.produto; if(obs) nomeFinal += ` (${obs})`;
-            if (qtdSaida == it.qtd) { it.situacao = motivo; it.produto = nomeFinal; it.data = new Date().toLocaleDateString('pt-BR'); } 
-            else { it.qtd -= qtdSaida; estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: nomeFinal, fabrica: it.fabrica, qtd: qtdSaida, situacao: motivo }); } 
-            salvarColecao('estoque', estoque); registrarAcao('📉', `SAÍDA: ${motivo}`, `${qtdSaida}x ${it.produto}`); document.getElementById('modal-saida-estoque').style.display = 'none';
-        }
-
-        function processarEstoqueMassa() {
-            const texto = document.getElementById('e_massa').value; if(!texto || texto.trim() === "") return alert("Cole a lista na caixa mágica!");
-            const linhas = texto.split('\n'); let adicionados = 0;
-            linhas.forEach(linha => {
-                linha = linha.trim().replace(/^[\•\-\*]\s*/, ''); if(!linha) return;
-                let partes = linha.split(/;| , /);
-                let p1 = partes[0] ? partes[0].trim().toUpperCase() : ""; let p2 = partes[1] ? partes[1].trim().toUpperCase() : ""; let p3 = partes[2] ? partes[2].trim().toUpperCase() : "";
-                let qtd = 1; let produtoTexto = p1; let matchQtd = p1.match(/^(\d+)\s*(?:X|\-|UN|PÇ|MÓD)?\s+(.+)/i);
-                if(matchQtd && parseInt(matchQtd[1]) > 0) { qtd = parseInt(matchQtd[1]); produtoTexto = matchQtd[2].trim(); }
-                let fabrica = p2; let obsSit = p3; let situacao = "ESTOQUE";
-                if(obsSit) {
-                    if(obsSit.includes("VENDID")) { situacao = "VENDIDO"; let quem = obsSit.replace(/VENDID[AOOS]*\s*(PARA|P\/)?\s*/i, '').trim(); produtoTexto += quem ? " (VENDIDO: " + quem + ")" : " (VENDIDO)"; }
-                    else if(obsSit.includes("ASSIST")) { situacao = "ASSISTÊNCIA"; produtoTexto += " (ASSISTÊNCIA)"; }
-                    else if(obsSit.includes("DEVOL")) { situacao = "DEVOLUÇÃO FÁBRICA"; produtoTexto += " (DEVOLUÇÃO)"; }
-                    else { produtoTexto += " (" + obsSit + ")"; }
-                }
-                if(produtoTexto) { estoque.unshift({ uid: Date.now() + Math.random(), data: new Date().toLocaleDateString('pt-BR'), produto: produtoTexto, fabrica: fabrica, qtd: qtd, situacao: situacao }); adicionados++; }
-            });
-            if(adicionados > 0) { salvarColecao('estoque', estoque); document.getElementById('e_massa').value = ""; alert(`✅ ${adicionados} itens cadastrados!`); }
-        }
-
-        function cadastrarEstoque() { const p = document.getElementById('e_produto').value.toUpperCase().trim(); const f = document.getElementById('e_fabrica_select').value; const q = document.getElementById('e_qtd').value; if (p) { estoque.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), produto: p, fabrica: f, qtd: parseInt(q), situacao: 'ESTOQUE' }); salvarColecao('estoque', estoque); document.getElementById('e_produto').value = ""; } }
-
-        // ---------------------------------------------
-        // TAREFAS EQUIPE KANBAN
-        // ---------------------------------------------
-        function renderFiltrosEquipe() {
-            const div = document.getElementById('filtros-equipe'); if(!div) return;
-            if(modoMinhasTarefas) { div.style.opacity = '0.3'; div.style.pointerEvents = 'none'; } else { div.style.opacity = '1'; div.style.pointerEvents = 'auto'; }
-            let html = `<button onclick="toggleFiltroEquipe('TODOS')" class="px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition border-2 ${filtrosEquipeAtivos.length === 0 ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'}">🌟 TODOS</button>`;
-            Object.keys(coresEquipe).forEach(nome => { const corAtiva = coresEquipe[nome].split(' ')[1]; const isAtivo = filtrosEquipeAtivos.includes(nome); const style = isAtivo ? `${coresEquipe[nome]} border-2 border-transparent shadow-sm` : `bg-white ${corAtiva} border-2 border-slate-200 hover:border-slate-300`; html += `<button onclick="toggleFiltroEquipe('${nome}')" class="px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition ${style}">${nome}</button>`; });
-            div.innerHTML = html;
-        }
-
-        function renderQuadroEquipe() {
-            const colTodo = document.getElementById('col-todo'); const colDoing = document.getElementById('col-doing'); const colDone = document.getElementById('col-done'); if(!colTodo) return;
-            ['TODO', 'DOING', 'DONE'].forEach(col => {
-                const container = document.getElementById('col-' + col.toLowerCase() + '-container'); const content = document.getElementById('col-' + col.toLowerCase()); const btn = document.getElementById('btn-toggle-' + col.toLowerCase());
-                if(container && content && btn) { if(colsMinimizadas[col]) { container.classList.remove('min-h-[500px]'); container.classList.add('h-fit', 'pb-0'); content.classList.add('hidden'); btn.innerText = '➕'; } else { container.classList.add('min-h-[500px]'); container.classList.remove('h-fit', 'pb-0'); content.classList.remove('hidden'); btn.innerText = '➖'; } }
-            });
-
-            let cTodo = 0, cDoing = 0, cDone = 0; let htmlTodo = "", htmlDoing = "", htmlDone = "";
-            const pesoPrazo = { "AGORA": 1, "IMEDIATO": 2, "IMPORTANTE": 3, "REGULAR": 4, "TRANQUILO": 5, "": 6 };
-            let tarefasOrdenadas = [...tarefasEquipe].sort((a, b) => { let pA = pesoPrazo[a.prazo || ""] || 6; let pB = pesoPrazo[b.prazo || ""] || 6; if (pA !== pB) return pA - pB; return b.uid - a.uid; });
-
-            tarefasOrdenadas.forEach(t => {
-                if (modoMinhasTarefas && usuarioAtual && t.responsavel !== usuarioAtual) return;
-                if (!modoMinhasTarefas && filtrosEquipeAtivos.length > 0 && !filtrosEquipeAtivos.includes(t.responsavel)) return;
-                const cor = coresEquipe[t.responsavel] || "bg-slate-100 text-slate-700 border-slate-300"; const corBorda = cor.split(' ')[2]; 
-                const arrComent = safeArray(t.comentarios); let comentariosHtml = "";
-                if (arrComent.length > 0) { comentariosHtml = arrComent.map(c => { const cCor = coresEquipe[c.autor] ? coresEquipe[c.autor].split(' ')[1] : "text-slate-600"; const anexoHtml = c.anexo ? `<br><img src="${c.anexo}" class="mt-2 rounded-lg max-h-40 w-full cursor-pointer object-cover border border-slate-200" onclick="window.open('${c.anexo}', '_blank')" />` : ''; return `<div class="mb-2 leading-tight bg-white p-2 rounded-md border border-slate-100 shadow-sm"><span class="${cCor} font-black text-[9px] uppercase tracking-tighter">${esc(c.autor)}:</span> <span class="text-[10px] font-bold text-slate-700">${esc(c.texto)}</span>${anexoHtml}</div>`; }).join(''); }
-                
-                const isMin = t.minimizada || false; const badgePrazo = getBadgePrazo(t.prazo);
-                const btnMover = "text-slate-300 hover:text-blue-500 font-black text-xl p-1 bg-slate-50 hover:bg-blue-50 rounded-lg transition-colors";
-                const btnVoltar = "text-slate-300 hover:text-slate-500 font-black text-xl p-1 bg-slate-50 hover:bg-slate-200 rounded-lg transition-colors";
-                const btnConcluir = "text-slate-300 hover:text-green-500 font-black text-xl p-1 ml-1 bg-slate-50 hover:bg-green-50 rounded-lg transition-colors";
-
-                const card = `
-                    <div id="card-${t.uid}" draggable="true" ondragstart="dragTarefa(event, ${t.uid})" ondragend="dragEndTarefa(event)" class="bg-white p-3.5 rounded-2xl shadow-sm border-t-4 ${corBorda} flex flex-col gap-2 transition hover:shadow-md cursor-grab active:cursor-grabbing relative overflow-hidden">
-                        <div class="flex justify-between items-start"><div class="flex flex-col gap-1 items-start"><span class="${cor} px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">${esc(t.responsavel)}</span>${badgePrazo}</div><div class="flex gap-1 items-center"><button onclick="minimizarTarefaEquipe(${t.uid})" class="text-slate-400 hover:text-slate-800 font-black text-[12px] mr-2 bg-slate-100 px-3 py-1 rounded-lg transition shadow-sm">${isMin ? '➕' : '➖'}</button>${t.coluna === 'TODO' ? `<button onclick="moverTarefaEquipe(${t.uid}, 'DOING')" class="${btnMover}">➡️</button>` : ''}${t.coluna === 'DOING' ? `<button onclick="moverTarefaEquipe(${t.uid}, 'TODO')" class="${btnVoltar}">⬅️</button> <button onclick="moverTarefaEquipe(${t.uid}, 'DONE')" class="${btnConcluir}">✅</button>` : ''}${t.coluna === 'DONE' ? `<button onclick="moverTarefaEquipe(${t.uid}, 'DOING')" class="${btnVoltar}">⬅️</button>` : ''}<button onclick="excluirTarefaEquipe(${t.uid})" class="text-slate-200 hover:text-red-500 font-black text-lg ml-3 p-1">✕</button></div></div>
-                        ${!isMin ? `<span class="text-sm font-black uppercase text-slate-800 leading-snug mt-1">${esc(t.descricao)}</span><span class="text-[8px] font-black text-slate-300 border-b border-slate-100 pb-2">Criado em: ${t.data}</span><div class="mt-1 flex flex-col gap-1.5">${arrComent.length > 0 ? `<div id="chat-${t.uid}" class="bg-slate-50 p-2 rounded-lg max-h-48 overflow-y-auto shadow-inner custom-scrollbar">${comentariosHtml}</div>` : ''}<div class="flex gap-1 mt-1 items-center"><input type="text" placeholder="Responder..." onkeydown="if(event.key==='Enter') { adicionarComentarioInline(${t.uid}, this); }" class="flex-1 bg-white border border-slate-200 p-2 text-[10px] font-bold rounded-xl outline-blue-500 uppercase placeholder:text-slate-300 shadow-sm"><button onclick="acionarUploadImagem(${t.uid})" class="bg-slate-100 text-slate-400 hover:text-blue-600 px-2 rounded-xl font-black text-[12px] transition h-full border border-slate-200">📎</button><button onclick="adicionarComentarioInline(${t.uid}, this.previousElementSibling.previousElementSibling)" class="bg-blue-100 hover:bg-blue-600 hover:text-white text-blue-600 px-3 rounded-xl font-black text-[12px] transition h-full border border-transparent">➤</button></div></div>` : `<span class="text-[11px] font-black uppercase text-slate-800 leading-snug mt-1 truncate border-t pt-2">${esc(t.descricao)}</span>`}
-                    </div>
-                `;
-                if(t.coluna === 'TODO') { htmlTodo += card; cTodo++; } else if(t.coluna === 'DOING') { htmlDoing += card; cDoing++; } else if(t.coluna === 'DONE') { htmlDone += card; cDone++; }
-            });
-
-            if(document.getElementById('col-todo')) document.getElementById('col-todo').innerHTML = htmlTodo || '<span class="text-[10px] font-bold text-slate-400 text-center mt-6 uppercase">Limpo 🎉</span>';
-            if(document.getElementById('col-doing')) document.getElementById('col-doing').innerHTML = htmlDoing || '<span class="text-[10px] font-bold text-slate-400 text-center mt-6 uppercase">Nada</span>';
-            if(document.getElementById('col-done')) document.getElementById('col-done').innerHTML = htmlDone || '<span class="text-[10px] font-bold text-slate-400 text-center mt-6 uppercase">Nada</span>';
-            if(document.getElementById('count-todo')) document.getElementById('count-todo').innerText = cTodo;
-            if(document.getElementById('count-doing')) document.getElementById('count-doing').innerText = cDoing;
-            if(document.getElementById('count-done')) document.getElementById('count-done').innerText = cDone;
-            tarefasEquipe.forEach(t => { const chatBox = document.getElementById('chat-' + t.uid); if(chatBox) chatBox.scrollTop = chatBox.scrollHeight; });
-        }
-
-        function toggleColunaKanban(coluna) { colsMinimizadas[coluna] = !colsMinimizadas[coluna]; renderQuadroEquipe(); }
-        function toggleFiltroEquipe(nome) { if(nome === 'TODOS') { filtrosEquipeAtivos = []; } else { if(filtrosEquipeAtivos.includes(nome)) filtrosEquipeAtivos = filtrosEquipeAtivos.filter(x => x !== nome); else filtrosEquipeAtivos.push(nome); } renderFiltrosEquipe(); renderQuadroEquipe(); }
-        function adicionarTarefaEquipe() { const desc = document.getElementById('eq_desc').value.trim().toUpperCase(); const resp = document.getElementById('eq_resp').value; const prazo = document.getElementById('eq_prazo').value; if(!desc) return alert("DIGITE A DESCRIÇÃO DA TAREFA!"); const novaTarefa = { uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), descricao: desc, responsavel: resp, prazo: prazo, coluna: "TODO", comentarios:[], minimizada: false }; tarefasEquipe.push(novaTarefa); salvarColecao('tarefasEquipe', tarefasEquipe); document.getElementById('eq_desc').value = ""; document.getElementById('eq_prazo').value = ""; renderQuadroEquipe(); setTimeout(() => { notificarNoGrupoComPrint(novaTarefa, 'NOVA'); }, 300); }
-        function moverTarefaEquipe(uid, novaColuna) { const t = tarefasEquipe.find(x => x.uid == uid); if(t && t.coluna !== novaColuna) { t.coluna = novaColuna; salvarColecao('tarefasEquipe', tarefasEquipe); renderQuadroEquipe(); if (novaColuna === 'DONE') setTimeout(() => { notificarNoGrupoComPrint(t, 'CONCLUIDA'); }, 300); } }
-        function excluirTarefaEquipe(uid) { const t = tarefasEquipe.find(x => x.uid == uid); if(confirm("EXCLUIR TAREFA?")) { tarefasEquipe = tarefasEquipe.filter(x => x.uid != uid); salvarColecao('tarefasEquipe', tarefasEquipe); } }
-        function minimizarTarefaEquipe(uid) { const t = tarefasEquipe.find(x => x.uid == uid); if(t) { t.minimizada = !t.minimizada; salvarColecao('tarefasEquipe', tarefasEquipe); renderQuadroEquipe(); } }
-        function dragTarefa(ev, uid) { ev.dataTransfer.setData("text/plain", uid); setTimeout(() => { ev.target.classList.add('opacity-40'); }, 10); }
-        function dragEndTarefa(ev) { ev.target.classList.remove('opacity-40'); }
-        function allowDropTarefa(ev) { ev.preventDefault(); ev.dataTransfer.dropEffect = "move"; }
-        function dropTarefa(ev, col) { ev.preventDefault(); const uid = ev.dataTransfer.getData("text/plain"); if(uid) moverTarefaEquipe(uid, col); }
-
-        function getBadgePrazo(prazo) {
-            if(!prazo) return '';
-            if(prazo === 'AGORA') return `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-red-300 shadow-sm">🚨 AGORA</span>`;
-            if(prazo === 'IMEDIATO') return `<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-orange-300 shadow-sm">⚡ 1 DIA</span>`;
-            if(prazo === 'IMPORTANTE') return `<span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-amber-300 shadow-sm">⚠️ 2 DIAS</span>`;
-            if(prazo === 'REGULAR') return `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-blue-300 shadow-sm">📅 3 DIAS</span>`;
-            if(prazo === 'TRANQUILO') return `<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-emerald-300 shadow-sm">☕ + DIAS</span>`;
-            return '';
-        }
-
-        async function notificarNoGrupoComPrint(tarefa, tipoAcao) {
-            const quem = usuarioAtual || "A equipe"; const baseUrl = window.location.href.split('?')[0]; const linkAcesso = `${baseUrl}?tarefa=${tarefa.uid}`;
-            const mapaPrazo = { "AGORA": "🚨 AGORA (Urgente)", "IMEDIATO": "⚡ 1 DIA", "IMPORTANTE": "⚠️ 2 DIAS", "REGULAR": "📅 3 DIAS", "TRANQUILO": "☕ + DIAS", "": "Sem prazo" };
-            let msg = "";
-            if (tipoAcao === 'NOVA') { msg = `📢 *NOVA TAREFA*\nDesignada para: *${tarefa.responsavel}*\nCriada por: ${quem}\n\n📌 *${tarefa.descricao}*\n🗓️ Prazo: ${mapaPrazo[tarefa.prazo || ""]}\n\n🔗 *Acessar no sistema:*\n${linkAcesso}`; } 
-            else if (tipoAcao === 'CONCLUIDA') { msg = `✅ *TAREFA CONCLUÍDA*\nFinalizada por: *${quem}*\n\n📌 *${tarefa.descricao}*\n👤 Resp: ${tarefa.responsavel}\n\n🔗 *Ver histórico no sistema:*\n${linkAcesso}`; }
-            if(confirm(`Deseja notificar no WhatsApp da loja e tentar COPIAR A IMAGEM do cartão automaticamente?`)) {
-                if(tarefa.minimizada) minimizarTarefaEquipe(tarefa.uid);
-                const cardElement = document.getElementById('card-' + tarefa.uid);
-                if (cardElement && typeof html2canvas !== 'undefined') {
-                    try {
-                        const canvas = await html2canvas(cardElement, { scale: 2, backgroundColor: null });
-                        canvas.toBlob(async function(blob) {
-                            try {
-                                if(typeof ClipboardItem !== 'undefined') { const item = new ClipboardItem({ "image/png": blob }); await navigator.clipboard.write([item]); alert("📸 A FOTO DA TAREFA FOI COPIADA!"); } 
-                            } catch (err) { }
-                            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-                        }, "image/png");
-                        return; 
-                    } catch (error) {}
-                }
-                window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-            }
-        }
-
-        let uidUploadPendente = null;
-        function acionarUploadImagem(uid) { if(!usuarioAtual) return alert("Selecione quem você é no topo da tela antes de anexar imagens!"); uidUploadPendente = uid; document.getElementById('file-upload-global').click(); }
-        function processarUploadImagem(event) {
-            const file = event.target.files[0]; if(!file || !uidUploadPendente) return;
-            const t = tarefasEquipe.find(x => x.uid == uidUploadPendente); if(!t) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas'); const MAX_WIDTH = 800; const MAX_HEIGHT = 800; let width = img.width; let height = img.height;
-                    if (width > height) { if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } } else { if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; } }
-                    canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
-                    const base64Data = canvas.toDataURL('image/jpeg', 0.6); 
-                    t.comentarios = safeArray(t.comentarios); const agora = new Date(); const strData = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-                    t.comentarios.push({ id: Date.now(), autor: usuarioAtual, texto: "📷 FOTO ANEXADA", anexo: base64Data, dataHora: strData });
-                    salvarColecao('tarefasEquipe', tarefasEquipe); renderQuadroEquipe(); event.target.value = ""; 
-                }; img.src = e.target.result;
-            }; reader.readAsDataURL(file);
-        }
-        function adicionarComentarioInline(uid, inputElement) {
-            if(!usuarioAtual) return alert("Selecione quem você é no topo da tela antes de comentar!");
-            const txt = inputElement.value.trim().toUpperCase(); if(!txt) return;
-            const t = tarefasEquipe.find(x => x.uid == uid); if(!t) return;
-            t.comentarios = safeArray(t.comentarios); const agora = new Date(); const strData = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-            t.comentarios.push({ id: Date.now(), autor: usuarioAtual, texto: txt, dataHora: strData });
-            salvarColecao('tarefasEquipe', tarefasEquipe); inputElement.value = ""; 
-            setTimeout(() => { const chatBox = document.getElementById('chat-' + uid); if(chatBox) chatBox.scrollTop = chatBox.scrollHeight; }, 100);
-        }
-
-        // ---------------------------------------------
-        // TAREFAS / VENDAS
-        // ---------------------------------------------
-        function processarFichaWhatsApp(texto) {
-            if(!texto) return;
-            const mNome = texto.match(/Nome(?: Completo)?\s*[:\-]?\s*(.+)/i); const mCpf = texto.match(/CPF\s*[:\-]?\s*([\d\.\-]+)/i); const mCep = texto.match(/CEP\s*[:\-]?\s*([\d\.\-]+)/i); const mEnd = texto.match(/Endere[çc]o\s*[:\-]?\s*(.+)/i); const mContato = texto.match(/(?:^|\n)\s*Contato(?: 1)?\s*[:\-]?\s*(.+)/i); const mContato2 = texto.match(/(?:^|\n)\s*Contato\s*2\s*[:\-]?\s*(.+)/i); const mNum = texto.match(/(?:^|\n)\s*N(?:[°ºoúu]mero)?\s*[:\-]?\s*([A-Za-z0-9]+)/i); const mObs = texto.match(/(?:OBS|OBSERVA[CÇ][AÃ]O)(?:ES)?\s*[:\-]?\s*([\s\S]+)/i); const mPrev = texto.match(/Previs[ãa]o(?: de Entrega)?\s*[:\-]?\s*([\d]{2}\/[\d]{2}\/[\d]{4})/i);
-            if (mNome) document.getElementById('t_nome').value = mNome[1].trim().toUpperCase(); if (mEnd) document.getElementById('t_end').value = mEnd[1].trim().toUpperCase(); if (mContato) document.getElementById('t_contato').value = mContato[1].trim().toUpperCase(); if (mContato2) document.getElementById('t_contato2').value = mContato2[1].trim().toUpperCase(); if (mNum) document.getElementById('t_num').value = mNum[1].trim().toUpperCase(); if (mObs) document.getElementById('t_obs').value = mObs[1].trim().toUpperCase();
-            if (mCpf) { let cpfInput = document.getElementById('t_cpf'); cpfInput.value = mCpf[1].trim(); maskCPF(cpfInput); }
-            if (mCep) { let cepInput = document.getElementById('t_cep'); cepInput.value = mCep[1].trim(); buscarCEP(cepInput); }
-            if (mPrev) { let pts = mPrev[1].split('/'); if(pts.length === 3) document.getElementById('t_previsao').value = `${pts[2]}-${pts[1]}-${pts[0]}`; }
-        }
-
-        function mostrarCamposTarefa(t){
-            const c=document.getElementById('container-campos-tarefa'); c.innerHTML = "";
-            if(t === 'TIRAR PEDIDO'){
-                c.innerHTML=`<div class="col-span-1 md:col-span-4 mb-2 bg-indigo-50 p-4 rounded-xl border-2 border-dashed border-indigo-300 w-full"><label class="text-[10px] font-black text-indigo-800 uppercase mb-2 block flex items-center gap-2">✨ Cole a ficha do WhatsApp aqui:</label><textarea id="t_magic_box" oninput="processarFichaWhatsApp(this.value)" placeholder="Ficha de Cadastro..." class="w-full border p-3 rounded-lg text-xs font-bold outline-indigo-500 h-24 resize-none shadow-inner"></textarea></div><input id="t_nome" placeholder="CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold md:col-span-2 w-full uppercase outline-indigo-500"><input id="t_cpf" placeholder="CPF" class="border-2 p-2 rounded-lg text-xs font-bold w-full outline-indigo-500" oninput="maskCPF(this)"><input id="t_contato" placeholder="CONTATO 1" class="border-2 p-2 rounded-lg text-xs font-bold w-full outline-indigo-500"><input id="t_contato2" placeholder="CONTATO 2" class="border-2 p-2 rounded-lg text-xs font-bold w-full outline-indigo-500"><input id="t_cep" placeholder="CEP" class="border-2 p-2 rounded-lg text-xs font-bold w-full outline-indigo-500" oninput="buscarCEP(this)"><input id="t_end" placeholder="RUA" class="border-2 p-2 rounded-lg text-xs font-bold md:col-span-2 w-full uppercase outline-indigo-500"><input id="t_bairro" placeholder="BAIRRO" class="border-2 p-2 rounded-lg text-xs font-bold w-full uppercase outline-indigo-500"><input id="t_cidade" placeholder="CIDADE" class="border-2 p-2 rounded-lg text-xs font-bold w-full uppercase outline-indigo-500"><input id="t_num" placeholder="NÚMERO" class="border-2 p-2 rounded-lg text-xs font-bold w-full outline-indigo-500"><input id="t_torre" placeholder="TORRE" class="border-2 p-2 rounded-lg text-xs font-bold w-full uppercase outline-indigo-500"><div class="md:col-span-2 flex flex-col justify-center"><label class="text-[9px] font-black text-slate-400 uppercase mb-1">Previsão de Entrega *</label><input type="date" id="t_previsao" class="border-2 p-2 rounded-lg text-xs font-bold w-full outline-indigo-500 bg-white text-slate-600"></div><div class="col-span-1 md:col-span-4 border-t mt-4 pt-4 w-full"><div id="lista-produtos-tarefa" class="flex flex-col gap-2 w-full"></div><button onclick="addProdutoLinha()" class="text-[10px] font-black text-blue-600 mt-2 uppercase hover:underline">+ MÓVEL</button><div id="total-pedido-tarefa" class="text-right text-indigo-600 font-black text-xs mt-1 uppercase italic">Total: R$ 0,00</div></div><div class="col-span-1 md:col-span-4 border-t mt-4 pt-4 w-full"><div id="lista-pagamentos-tarefa" class="flex flex-col gap-2 w-full"></div><button onclick="addPagamentoLinha()" class="text-[10px] font-black text-emerald-600 mt-2 uppercase hover:underline">+ PAGAMENTO</button></div><textarea id="t_obs" placeholder="OBSERVAÇÕES DO PEDIDO..." class="col-span-1 md:col-span-4 border-2 p-2 rounded-lg text-xs font-bold h-16 uppercase mt-2 w-full outline-indigo-500"></textarea>`; addProdutoLinha(); addPagamentoLinha();
-        } else { c.innerHTML = `<input id="t_raw" placeholder="DESCRICAO..." class="border-2 p-2 rounded-lg text-xs font-bold col-span-4 uppercase w-full outline-indigo-500">`; }
+function renderCalendario() {
+    const a = dataAtualCalendario.getFullYear(), m = dataAtualCalendario.getMonth(); 
+    const nm = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+    $('mes-ano-display').innerText = `${nm[m]} ${a}`;
+    const pD = new Date(a, m, 1).getDay(), dM = new Date(a, m+1, 0).getDate(); let h = "";
+    for (let i=0; i<pD; i++) h += `<div class="border-b border-r border-slate-200 bg-slate-50 opacity-40 min-h-[80px]"></div>`;
+    const hj = new Date().toISOString().split('T')[0];
+    for (let d=1; d<=dM; d++) {
+        const dK = `${a}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        let eH = ""; if(eventosDoMes[dK]) { eventosDoMes[dK].slice(0,3).forEach(ev => eH+=`<div class="${ev.cor} text-[8px] font-black truncate px-1 rounded shadow-sm mb-0.5">${ev.icone} ${esc(ev.titulo)}</div>`); if(eventosDoMes[dK].length>3) eH+=`<div class="text-[8px] font-black text-slate-400 text-center">+${eventosDoMes[dK].length-3} itens</div>`; }
+        h += `<div onclick="selecionarDiaLogistica('${dK}')" class="border-b border-r border-slate-200 p-1.5 min-h-[80px] cursor-pointer flex flex-col gap-1 ${dK===dataSelecionadaLogistica?'bg-blue-50 ring-2 ring-inset ring-blue-400':'hover:bg-slate-50'}"><div class="flex justify-end"><span class="w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-black ${dK===hj?'bg-amber-500 text-white shadow-md':'text-slate-600'}">${d}</span></div><div class="flex-1 overflow-hidden flex flex-col gap-0.5">${eH}</div></div>`;
     }
+    if($('grid-dias')) $('grid-dias').innerHTML = h;
+}
 
-    function addProdutoLinha(){ const d = document.getElementById('lista-produtos-tarefa'); const r = document.createElement('div'); r.className = "flex flex-col md:flex-row gap-2 mb-2 items-start md:items-center row-prod bg-slate-50 p-3 rounded-lg border border-dashed w-full"; r.innerHTML = `<div class="flex justify-between w-full md:flex-1 gap-2"><input class="t-p-nome border-2 p-2 rounded text-xs font-bold flex-1 uppercase w-full outline-indigo-500" placeholder="MÓVEL"><button onclick="this.parentElement.parentElement.remove(); calcTotalTirarPedido();" class="text-red-500 font-black px-3 py-1 md:hidden bg-red-100 rounded-lg">✕</button></div><div class="flex w-full md:w-auto gap-2"><input class="t-v-orig border-2 p-2 rounded text-xs font-bold w-1/2 md:w-28 outline-indigo-500" placeholder="ORIGINAL" oninput="maskMoney(this)"><input class="t-v-desc border-2 p-2 rounded text-xs font-bold w-1/2 md:w-28 text-indigo-600 outline-indigo-500" placeholder="DESCONTO" oninput="maskMoney(this)"><button onclick="this.parentElement.parentElement.remove(); calcTotalTirarPedido();" class="text-red-500 font-black px-2 hidden md:block hover:text-red-700">✕</button></div>`; d.appendChild(r); }
-    function addPagamentoLinha(){ const d = document.getElementById('lista-pagamentos-tarefa'); let total = 0; document.querySelectorAll('.t-v-desc').forEach(i => { total += parseMoney(i.value); }); let pago = 0; document.querySelectorAll('.t-p-val').forEach(i => { pago += parseMoney(i.value); }); let saldo = total - pago; if(saldo < 0) saldo = 0; const r = document.createElement('div'); r.className = "flex flex-col bg-slate-50 p-3 rounded-lg border mb-3 row-pag w-full gap-2"; r.innerHTML = `<div class="flex gap-2 mb-1 flex-wrap md:flex-nowrap w-full"><button onclick="setP(this,'PIX')" class="btn-pag-opt active flex-1 md:flex-none text-center px-1 py-2 text-[10px]">PIX</button><button onclick="setP(this,'CRÉDITO')" class="btn-pag-opt flex-1 md:flex-none text-center px-1 py-2 text-[10px]">CRÉDITO</button><button onclick="setP(this,'DÉBITO')" class="btn-pag-opt flex-1 md:flex-none text-center px-1 py-2 text-[10px]">DÉBITO</button><button onclick="setP(this,'CHEQUE')" class="btn-pag-opt flex-1 md:flex-none text-center px-1 py-2 text-[10px]">CHEQUE</button><input type="hidden" class="t-p-tipo" value="PIX"><select class="t-p-parc hidden border-2 p-1 rounded text-[10px] font-bold bg-white w-full md:w-auto mt-2 md:mt-0 outline-emerald-500">${[...Array(12).keys()].map(n => `<option value="${n+1}x">${n+1}x</option>`).join('')}</select></div><div class="flex flex-col md:flex-row gap-2 w-full"><input class="t-p-val border-2 p-2 rounded-lg text-xs font-bold w-full md:w-48 text-emerald-600 outline-emerald-500" placeholder="VALOR" oninput="maskMoney(this)" value="R$ ${saldo.toLocaleString('pt-BR',{minimumFractionDigits:2})}"><div class="flex w-full gap-2 md:flex-1"><input class="t-p-obs border-2 p-2 rounded-lg text-xs font-bold flex-1 uppercase outline-emerald-500" placeholder="OBS/DATA"><button onclick="this.parentElement.parentElement.parentElement.remove()" class="text-red-500 font-black px-3 py-1 bg-red-100 md:bg-transparent rounded-lg md:hover:text-red-700">✕</button></div></div>`; d.appendChild(r); }
-    function setP(b,v){ const p = b.parentElement; p.querySelectorAll('button').forEach(x => { x.classList.remove('active'); }); b.classList.add('active'); p.querySelector('.t-p-tipo').value = v; const s = p.querySelector('.t-p-parc'); if(v === 'CRÉDITO') s.classList.remove('hidden'); else s.classList.add('hidden'); }
-    function calcTotalTirarPedido(){ let t = 0; document.querySelectorAll('.t-v-desc').forEach(i => { t += parseMoney(i.value); }); document.getElementById('total-pedido-tarefa').innerText = "Total: R$ " + t.toLocaleString('pt-BR',{minimumFractionDigits:2}); }
+function mudarMes(dr) { dataAtualCalendario.setMonth(dataAtualCalendario.getMonth() + dr); processarEventosCalendario(); }
+function selecionarDiaLogistica(dK) { dataSelecionadaLogistica = dK; renderCalendario(); renderPainelDia(); }
 
-    function cadastrarTarefa(){ const t = document.getElementById('t_tipo').value; let obj = { uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), tipo: t, status: "Não Iniciado" }; if(t === 'TIRAR PEDIDO'){ const cli = document.getElementById('t_nome').value; const elPrev = document.getElementById('t_previsao'); const prev = elPrev ? elPrev.value : ""; if(!cli) return alert("FALTA NOME DO CLIENTE!"); if(!prev) return alert("FALTA A PREVISÃO DE ENTREGA!"); const prevFormatada = prev.split('-').reverse().join('/'); let total = 0; document.querySelectorAll('.t-v-desc').forEach(i => { total += parseMoney(i.value); }); obj.descricao = "PEDIDO: " + cli.toUpperCase(); obj.detalhes = { cliente: cli.toUpperCase(), cpf: document.getElementById('t_cpf').value, contato: document.getElementById('t_contato').value, contato2: document.getElementById('t_contato2').value, cep: document.getElementById('t_cep').value, end: document.getElementById('t_end').value, bairro: document.getElementById('t_bairro').value, cidade: document.getElementById('t_cidade').value, num: document.getElementById('t_num').value, torre: document.getElementById('t_torre').value, obs: document.getElementById('t_obs').value, previsao: prevFormatada, totalDesc: "R$ " + total.toLocaleString('pt-BR',{minimumFractionDigits:2}), produtos: [], pagamentos: [] }; document.querySelectorAll('.row-prod').forEach(row => { if(row.querySelector('.t-p-nome').value) { obj.detalhes.produtos.push({ n: row.querySelector('.t-p-nome').value.toUpperCase(), o: row.querySelector('.t-v-orig').value, d: row.querySelector('.t-v-desc').value }); } }); document.querySelectorAll('.row-pag').forEach(row => { const tipo = row.querySelector('.t-p-tipo').value; const parcelas = (tipo === 'CRÉDITO') ? row.querySelector('.t-p-parc').value : ""; obj.detalhes.pagamentos.push({ t: tipo + (parcelas ? " " + parcelas : ""), v: row.querySelector('.t-p-val').value, o: row.querySelector('.t-p-obs').value.toUpperCase() }); }); salvarColecao('tarefas', tarefas); registrarAcao('📋', 'NOVA TAREFA DE PEDIDO', `CLIENTE: ${cli}`); } else { obj.descricao = (document.getElementById('t_raw') ? document.getElementById('t_raw').value : "").toUpperCase(); salvarColecao('tarefas', tarefas); registrarAcao('📝', 'NOVA ANOTAÇÃO', obj.descricao); } if(!obj.descricao) return; tarefas.unshift(obj); salvarColecao('tarefas', tarefas); mostrarCamposTarefa(t); renderTarefas(); }
-    function renderTarefas() { const tb = document.getElementById('tabelaTarefas'); if(!tb) return; const f = document.getElementById('filtro-tarefa-status').value; let lista = (f === 'TODAS') ? tarefas : tarefas.filter(x => x.status === f); tb.innerHTML = lista.map(x => { return `<tr onclick="verDetalhesTarefa(${x.uid})" class="hover:bg-slate-50 cursor-pointer border-b transition"><td>${esc(x.data)}</td><td class="font-black text-xs uppercase">${esc(x.descricao)}</td><td class="text-[10px] uppercase">${esc(x.tipo)}</td><td><button onclick="event.stopPropagation(); cycleTarefaStatus(${x.uid})" class="status-badge bg-slate-100">${esc(x.status)}</button></td><td class="text-center"><button onclick="event.stopPropagation(); if(confirm('Excluir?')){tarefas = tarefas.filter(y => y.uid!=${x.uid}); salvarColecao('tarefas', tarefas);}" class="text-red-400 hover:text-red-600 font-black text-lg">✕</button></td></tr>`; }).join(''); }
-    function cycleTarefaStatus(u){ const x = tarefas.find(y => y.uid == u); const s = ["Não Iniciado","Em Andamento","Feito"]; x.status = s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('tarefas', tarefas); renderTarefas(); }
-    
-    function verDetalhesTarefa(uid){ 
-        const t = tarefas.find(x => x.uid == uid); if(!t) return; 
-        document.getElementById('modal-detalhes').style.display = 'flex'; const c = document.getElementById('detalhe-corpo'); 
-        if(!t.detalhes){ c.innerHTML = `<div class="font-black uppercase">${esc(t.descricao)}</div>`; return; } 
-        const d = t.detalhes; let enderecoCompleto = `${d.end || ''}${d.num ? ', ' + d.num : ''}${d.torre ? ' - ' + d.torre : ''}${d.bairro ? ' - ' + d.bairro : ''}${d.cidade ? ' - ' + d.cidade : ''}`; 
-        let h = `<div class="grid grid-cols-2 gap-2">${l_i("CLIENTE", d.cliente)}${l_i("PREVISÃO", d.previsao || "NÃO INFORMADA")}${l_i("CPF", d.cpf)}${l_i("CONTATO 1", d.contato)}${l_i("CONTATO 2", d.contato2 || "-")}${l_i("CEP", d.cep)}${l_i("ENDEREÇO", enderecoCompleto)}</div><div class="mt-4 font-black text-xs uppercase border-b text-blue-600">Móveis:</div>`; 
-        const prods = safeArray(d.produtos); prods.forEach(p => { h += `<div class="text-xs font-bold border-b py-1 flex justify-between items-center"><span>${esc(p.n)} <span class="text-slate-400 line-through text-[10px] ml-1">${esc(p.o)}</span> <span class="text-indigo-600 ml-1">${esc(p.d)}</span></span><button onclick="copyText('${esc(p.n)} - De: ${esc(p.o)} Por: ${esc(p.d)}', this)">📋</button></div>`; }); 
-        h += `<div class="mt-4 font-black text-xs uppercase border-b text-emerald-600">Pagamento:</div>`; const pags = safeArray(d.pagamentos); pags.forEach(p => { h += `<div class="text-xs font-bold border-b py-1 flex justify-between"><span>${esc(p.t)}: ${esc(p.v)} (${esc(p.o)})</span><button onclick="copyText('${esc(p.t)}: ${esc(p.v)}', this)">📋</button></div>`; }); 
-        if(d.obs && d.obs !== "") { h += `<div class="mt-4 font-black text-xs uppercase border-b text-orange-600">Observações:</div><div class="text-xs font-bold py-2 bg-slate-50 p-2 rounded mt-1">${esc(d.obs)}</div>`; } 
-        c.innerHTML = h; 
-    }
-    
-    function l_i(l, v){ return `<div class="border p-2 rounded text-[10px] font-bold uppercase flex justify-between"><span>${l}: ${esc(v)}</span><button onclick="copyText('${esc(v)}', this)">📋</button></div>`; }
+function renderPainelDia() {
+    const pn = $('lista-eventos-dia'); if(!pn) return;
+    $('titulo-painel-dia').innerText = "Dia " + new Date(dataSelecionadaLogistica+"T12:00:00").toLocaleDateString('pt-BR');
+    let evs = eventosDoMes[dataSelecionadaLogistica] || [];
+    evs.sort((a,b) => { let pA = a.tipo==='ENTREGA'?1:(a.tipo==='LEMBRETE'?2:3); let pB = b.tipo==='ENTREGA'?1:(b.tipo==='LEMBRETE'?2:3); if(pA!==pB) return pA-pB; if(a.tipo==='ENTREGA'&&b.tipo==='ENTREGA') return (a.obj.hora||"23:59").localeCompare(b.obj.hora||"23:59"); return 0; });
+    $('badge-qtd-dia').innerText = evs.length + " Itens";
+    if(evs.length===0) { pn.innerHTML = '<div class="text-center p-8 border-2 border-dashed border-slate-200 rounded-2xl"><span class="text-3xl block mb-2">🎈</span><span class="text-xs font-black text-slate-400 uppercase">Dia Livre!</span></div>'; return; }
+    pn.innerHTML = evs.map(ev => {
+        if(ev.tipo === 'ENTREGA') {
+            const e = ev.obj; let cS = e.status==='Agendado'?"bg-blue-100 text-blue-700":(e.status==='Em Rota'?"bg-orange-100 text-orange-700":"bg-emerald-100 text-emerald-700");
+            let hB = e.hora ? `<span class="bg-emerald-600 text-white px-2 py-0.5 rounded text-[9px] ml-2">🕒 ${e.hora}</span>` : '';
+            return `<div class="bg-white border-l-4 border-emerald-500 rounded-xl p-4 shadow-sm border flex flex-col ${e.status==='Entregue'?'opacity-60':''}"><div class="flex justify-between items-start mb-2"><span class="text-[10px] font-black uppercase text-emerald-600 flex items-center">🚚 Entrega ${hB}</span><button onclick="cycleStatusEntrega(${e.uid})" class="${cS} px-2 py-0.5 rounded text-[9px] font-black uppercase">${esc(e.status)}</button></div><h4 class="font-black text-sm uppercase text-slate-800">${esc(e.cliente)}</h4><p class="text-[9px] font-bold text-slate-500 uppercase mt-1 mb-2">📍 ${esc(e.endereco)}</p><div class="bg-emerald-50 p-2 rounded text-[10px] font-bold text-emerald-800 uppercase mb-3 leading-snug">${esc(e.produtos).replace(/\n/g,'<br>• ')}</div><div class="flex justify-between items-center border-t pt-3"><button onclick="abrirGPS('${esc(e.endereco)}')" class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase flex items-center gap-1 hover:bg-blue-100">🗺️ GPS</button><div class="flex gap-2"><button onclick="abrirWhatsAppEntrega('${esc(e.cliente)}', '${esc(e.endereco)}', '${esc(e.produtos)}')" class="bg-green-50 text-green-600 p-1.5 rounded-lg hover:bg-green-100">💬</button><button onclick="excluirEntrega(${e.uid})" class="bg-red-50 text-red-500 p-1.5 rounded-lg hover:bg-red-100">🗑️</button></div></div></div>`;
+        } else if(ev.tipo === 'LEMBRETE') {
+            const l = ev.obj;
+            return `<div class="bg-white border-l-4 border-amber-500 rounded-xl p-4 shadow-sm border flex flex-col gap-2 ${l.concluido?'opacity-50':''}"><div class="flex justify-between items-center"><span class="text-[10px] font-black uppercase text-amber-600">${ev.icone} Lembrete</span><button onclick="toggleConcluidoLembrete(${l.uid})" class="${l.concluido?'bg-slate-200 text-slate-500':'bg-green-100 text-green-700'} px-2 py-0.5 rounded text-[9px] font-black uppercase">${l.concluido?'🔙':'✅ Feito'}</button></div><h4 class="font-black text-xs uppercase ${l.concluido?'line-through text-slate-400':'text-slate-800'}">${esc(l.titulo)}</h4><div class="flex justify-end pt-1 mt-1 border-t"><button onclick="excluirLembrete(${l.uid})" class="text-red-400 hover:text-red-600 font-black text-xs">✕ Apagar</button></div></div>`;
+        } else {
+            return `<div class="bg-blue-50 border-l-4 border-blue-500 rounded-xl p-3 shadow-sm border border-blue-100"><span class="text-[9px] font-black uppercase text-blue-600 mb-1 block">📋 Prazo</span><h4 class="font-black text-xs uppercase text-slate-800">${esc(ev.obj.cliente)}</h4><p class="text-[9px] font-bold text-slate-500 uppercase mt-1">${ev.obj.qtd}x ${esc(ev.obj.produto)}</p></div>`;
+        }
+    }).join('');
+}
 
-    // ---------------------------------------------
-    // OUTRAS ABAS (ASSISTÊNCIA, FÁBRICAS, CATÁLOGO)
-    // ---------------------------------------------
-    function renderAssistencias() { const tb = document.getElementById('tabelaAssistencias'); if(!tb) return; const elBusca = document.getElementById('busca-assistencia'); const b = removeAcentos((elBusca ? elBusca.value : "").toLowerCase()); const elFiltro = document.getElementById('filtro-assistencia-status'); const fStatus = elFiltro ? elFiltro.value : "TODAS"; let lista = assistencias.filter(x => { const cliente = removeAcentos((x.cliente || "").toLowerCase()); const produto = removeAcentos((x.produto || "").toLowerCase()); const fabrica = removeAcentos((x.fabrica || "").toLowerCase()); const status = x.status || "Aguardando"; return (cliente.includes(b) || produto.includes(b) || fabrica.includes(b)) && (fStatus === "TODAS" || status === fStatus); }); const cnt = document.getElementById('contador-assistencia'); if(cnt) cnt.innerText = lista.length + " ASSISTÊNCIAS"; tb.innerHTML = lista.map(x => { let sCls = "bg-slate-200 text-slate-700"; if(x.status === "Aguardando") sCls = "bg-red-100 text-red-700 hover:bg-red-200"; else if(x.status === "Peça Solicitada") sCls = "bg-blue-100 text-blue-700 hover:bg-blue-200"; else if(x.status === "Concluído") sCls = "bg-green-100 text-green-700 hover:bg-green-200"; return `<tr class="border-b border-slate-50 hover:bg-slate-50 transition"><td class="text-[10px] font-bold text-slate-400">${esc(x.data)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'cliente', 'assistencias')" class="editable-cell uppercase font-bold">${esc(x.cliente)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'assistencias')" class="editable-cell uppercase">${esc(x.produto)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'fabrica', 'assistencias')" class="editable-cell font-black text-blue-800 uppercase text-[10px]">${esc(x.fabrica)}</td><td class="text-center"><button onclick="cycleAssisStatus(${x.uid})" class="px-2 py-1.5 rounded text-[9px] font-black w-full text-center transition ${sCls}">${esc(x.status)}</button></td><td class="text-center flex gap-1 justify-center"><button onclick="if(confirm('EXCLUIR ASSISTÊNCIA?')){ assistencias = assistencias.filter(y => y.uid != ${x.uid}); salvarColecao('assistencias', assistencias); }" class="text-red-500 font-black px-2 hover:text-red-700 text-lg">✕</button></td></tr>`; }).join(''); }
-    function cadastrarAssistencia(){ const c = document.getElementById('as_cliente').value.toUpperCase().trim(); const p = document.getElementById('as_produto').value.toUpperCase().trim(); const f = document.getElementById('as_fabrica').value; if(c && p){ assistencias.unshift({uid:Date.now(), data:new Date().toLocaleDateString('pt-BR'), cliente:c, produto:p, fabrica:f, status:"Aguardando"}); salvarColecao('assistencias', assistencias); registrarAcao('🛠️', 'REGISTROU ASSISTÊNCIA', `CLIENTE: ${c} | DEFEITO: ${p}`); document.getElementById('as_cliente').value=""; document.getElementById('as_produto').value=""; } else { alert("PREENCHA O CLIENTE E O PRODUTO/DEFEITO!"); } }
-    function cycleAssisStatus(u){ const x = assistencias.find(y => y.uid == u); const s = ["Aguardando","Peça Solicitada","Concluído"]; x.status = s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('assistencias', assistencias); renderAssistencias(); }
-    
-    function renderFornecedores() { const tb = document.getElementById('tabelaFornecedores'); if(!tb) return; tb.innerHTML = fornecedores.map((f, i) => { return `<tr><td class="font-bold uppercase">${esc(f.nome)}</td><td class="lowercase text-blue-600">${esc(f.email)}</td><td class="text-center"><button onclick="fornecedores.splice(${i},1); salvarColecao('fornecedores', fornecedores);" class="text-red-500 font-black">✕</button></td></tr>`; }).join(''); }
-    function cadastrarFornecedor(){ const n = document.getElementById('f_nome').value.toUpperCase().trim(); const e = document.getElementById('f_email').value.toLowerCase().trim(); if(n && e){ fornecedores.push({nome:n,email:e}); salvarColecao('fornecedores', fornecedores); document.getElementById('f_nome').value=""; document.getElementById('f_email').value=""; } }
-    
-    function renderCatalogo() { const tb = document.getElementById('tabelaCatalogo'); if(!tb) return; tb.innerHTML = catalogo.map((c,i) => { return `<tr><td class="uppercase">${esc(c.nome)}</td><td class="text-center"><button onclick="catalogo.splice(${i},1); salvarColecao('catalogo', catalogo);">✕</button></td></tr>`; }).join(''); }
-    function cadastrarCatalogo(){ const n = document.getElementById('cat_nome').value.toUpperCase(); if(n){ catalogo.push({nome:n}); salvarColecao('catalogo', catalogo); document.getElementById('cat_nome').value=""; } }
+function abrirModalNovaEntrega() { $('ent_data').value=dataSelecionadaLogistica; $('ent_hora').value=""; $('modal-nova-entrega').style.display='flex'; }
+function buscarDadosInteligentes() { const n = val('ent_cliente').toUpperCase().trim(); if(!n) return; const a = $('aviso-magico'); let f = false; const t = tarefas.find(x => x.detalhes && x.detalhes.cliente && x.detalhes.cliente.includes(n)); const eE = $('ent_endereco'); if(t && !eE.value) { const num = t.detalhes.num?`, ${t.detalhes.num}`:''; const br = t.detalhes.bairro?` - ${t.detalhes.bairro}`:''; const cd = t.detalhes.cidade?` - ${t.detalhes.cidade}`:''; eE.value = `${t.detalhes.end}${num}${br}${cd}`.toUpperCase(); f = true; } const ps = pedidos.filter(p => p.cliente && p.cliente.includes(n) && !p.finalizado); const eP = $('ent_produtos'); if(ps.length>0 && !eP.value) { eP.value = ps.map(p => `${p.qtd}x ${p.produto} ${p.cor}`).join('\n').toUpperCase(); f = true; } if(f) { a.classList.remove('hidden'); setTimeout(()=>a.classList.add('hidden'), 3000); } }
+function salvarEntrega() { const d=val('ent_data'), h=val('ent_hora'), c=val('ent_cliente').toUpperCase().trim(), e=val('ent_endereco').toUpperCase().trim(), p=val('ent_produtos').toUpperCase().trim(); if(!d||!c||!p) return alert("Preencha Data, Cliente e Produtos!"); entregas.push({ uid:Date.now(), dataOrdem:d, hora:h, cliente:c, endereco:e||"Não informado", produtos:p, status:"Agendado" }); salvarColecao('entregas', entregas); fecharModaisLogistica(); }
+function cycleStatusEntrega(uid) { const t = entregas.find(x => x.uid == uid); if(t) { const s = ["Agendado", "Em Rota", "Entregue"]; t.status = s[(s.indexOf(t.status)+1)%s.length]; salvarColecao('entregas', entregas); } }
+function excluirEntrega(uid) { if(confirm("Apagar entrega?")) { entregas = entregas.filter(x => x.uid != uid); salvarColecao('entregas', entregas); } }
+function abrirWhatsAppEntrega(c, e, p) { window.open(`https://wa.me/?text=${encodeURIComponent(`🚚 *Aviso de Entrega - Mercier Design*\n\nOlá ${c}! O seu pedido está a caminho.\n\n📦 *Itens:*\n${p}\n\n📍 *Endereço registrado:*\n${e}`)}`, '_blank'); }
+function abrirGPS(e) { if(!e || e==="NÃO INFORMADO") return alert("Sem endereço."); window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(e)}`, '_blank'); }
 
-    function switchTab(t){ window.scrollTo(0,0); document.querySelectorAll('main').forEach(x => { x.classList.add('hidden'); }); document.getElementById('view-'+t).classList.remove('hidden'); document.querySelectorAll('nav button').forEach(x => { x.classList.remove('tab-active', 'text-slate-200'); }); document.getElementById('tab-'+t).classList.add('tab-active'); if(t === 'logistica') processarEventosCalendario(); }
-    function togglePainelSugestoes(){ const p = document.getElementById('painel-sugestoes'); p.style.display = (p.style.display === 'flex') ? 'none' : 'flex'; }
-    function autoSalvarNotas(){ notasMelhoria = document.getElementById('texto-melhorias').value; db.ref('dados/notasMelhoria').set(notasMelhoria); }
+function abrirModalNovoLembrete() { $('lem_data').value=dataSelecionadaLogistica; $('modal-novo-lembrete').style.display='flex'; }
+function salvarLembrete() { const t=val('lem_titulo').toUpperCase().trim(), d=val('lem_data'), c=val('lem_categoria'); if(!t||!d) return alert("Preencha título e data!"); lembretes.push({ uid:Date.now(), titulo:t, dataOrdem:d, categoria:c, concluido:false }); salvarColecao('lembretes', lembretes); fecharModaisLogistica(); }
+function toggleConcluidoLembrete(uid) { const l = lembretes.find(x => x.uid == uid); if(l){ l.concluido=!l.concluido; salvarColecao('lembretes', lembretes); } }
+function excluirLembrete(uid) { if(confirm("Apagar lembrete?")) { lembretes = lembretes.filter(x => x.uid != uid); salvarColecao('lembretes', lembretes); } }
+function fecharModaisLogistica() { $('modal-nova-entrega').style.display='none'; $('modal-novo-lembrete').style.display='none'; $('ent_cliente').value=""; $('ent_endereco').value=""; $('ent_produtos').value=""; $('ent_hora').value=""; $('lem_titulo').value=""; }
 
-    </script>
-</body>
-</html>
+// ---------------------------------------------
+// ESTOQUE
+// ---------------------------------------------
+function autoSalvarNotasEstoque() { notasEstoque = val('estoque-notas-gerais'); db.ref('dados/notasEstoque').set(notasEstoque); }
+function mudarVisaoEstoque(v) { visaoEstoque = v; const bD = $('btn-estoque-disponivel'), bS = $('btn-estoque-saidas'); if(v==='ESTOQUE') { bD.classList.add('border-green-500','text-green-600','bg-white'); bD.classList.remove('border-transparent','text-slate-400'); bS.classList.remove('border-green-500','text-green-600','bg-white'); bS.classList.add('border-transparent','text-slate-400'); } else { bS.classList.add('border-green-500','text-green-600','bg-white'); bS.classList.remove('border-transparent','text-slate-400'); bD.classList.remove('border-green-500','text-green-600','bg-white'); bD.classList.add('border-transparent','text-slate-400'); } renderEstoque(); }
+function renderEstoque() {
+    const tb = $('tabelaEstoque'); if(!tb) return;
+    const b = noAcc(val('estoque-busca').toLowerCase()); const fF = val('estoque-filtro-fabrica')||"TODAS"; let tE=0, tV=0;
+    let lst = estoque.filter(x => { const p=noAcc((x.produto||"").toLowerCase()), f=noAcc((x.fabrica||"").toLowerCase()), s=x.situacao||"ESTOQUE"; if(s==='ESTOQUE') tE+=parseInt(x.qtd||0); else tV+=parseInt(x.qtd||0); return (p.includes(b)||f.includes(b))&&(fF==="TODAS"||x.fabrica===fF); });
+    if(visaoEstoque==='ESTOQUE') lst=lst.filter(x => x.situacao==='ESTOQUE'); else lst=lst.filter(x => x.situacao!=='ESTOQUE');
+    if($('resumo-estoque-total')) $('resumo-estoque-total').innerText = tE; if($('resumo-estoque-vendidos')) $('resumo-estoque-vendidos').innerText = tV;
+    tb.innerHTML = lst.map(x => {
+        let sC="bg-green-100 text-green-700", tS="DISPONÍVEL"; if(x.situacao==='VENDIDO'){ sC="bg-red-100 text-red-700"; tS="VENDIDO"; }else if(x.situacao==='ASSISTÊNCIA'){ sC="bg-orange-100 text-orange-700"; tS="ASSISTÊNCIA"; }else if(x.situacao==='DEVOLUÇÃO FÁBRICA'){ sC="bg-purple-100 text-purple-700"; tS="DEVOLVIDO"; }
+        return `<tr><td class="text-[10px] text-slate-400">${esc(x.data)||'-'}</td><td onclick="activeInlineEdit(this, ${x.ui
