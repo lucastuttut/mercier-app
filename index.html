@@ -295,9 +295,14 @@
     <datalist id="listaSugestaoProdutos"></datalist><datalist id="listaSugestaoClientes"></datalist>
 
     <!-- MODAL NOVA ENTREGA -->
+<!-- MODAL NOVA ENTREGA / EDITAR -->
     <div id="modal-nova-entrega" class="modal-overlay" onclick="if(event.target==this) fecharModaisLogistica()">
         <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-3xl border-t-8 border-emerald-500">
-            <h2 class="font-black uppercase text-emerald-600 mb-4 text-sm flex justify-between">🚚 Agendar Entrega <button onclick="fecharModaisLogistica()" class="text-slate-400 hover:text-red-500 text-lg">✕</button></h2>
+            <h2 id="titulo-modal-entrega" class="font-black uppercase text-emerald-600 mb-4 text-sm flex justify-between">🚚 Agendar Entrega <button onclick="fecharModaisLogistica()" class="text-slate-400 hover:text-red-500 text-lg">✕</button></h2>
+            
+            <!-- CAMPO INVISÍVEL PARA SABER SE ESTAMOS EDITANDO -->
+            <input type="hidden" id="ent_uid">
+
             <div class="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
                 <div class="md:col-span-1"><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Data</label><input type="date" id="ent_data" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-emerald-500"></div>
                 <div class="md:col-span-1"><label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Hora</label><input type="time" id="ent_hora" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-emerald-500 bg-white"></div>
