@@ -923,4 +923,108 @@ function renderEstoque() {
     });
     
     if(visaoEstoque==='ESTOQUE') lst=lst.filter(function(x){ return x.situacao==='ESTOQUE'; }); 
-    else lst=lst.filter(function(x){ return x.sit
+    else lst=lst.filter(function(x){ return x.situacao!=='ESTOQUE'; });
+    
+    if(getEl('resumo-estoque-total')) getEl('resumo-estoque-total').innerText = tE; 
+    if(getEl('resumo-estoque-vendidos')) getEl('resumo-estoque-vendidos').innerText = tV;
+    
+    let html = "";
+    lst.forEach(function(x) {
+        let sC="bg-green-100 text-green-700", tS="DISPONÍVEL"; 
+        if(x.situacao==='VENDIDO'){ sC="bg-red-100 text-red-700"; tS="VENDIDO"; }
+        else if(x.situacao==='ASSISTÊNCIA'){ sC="bg-orange-100 text-orange-700"; tS="ASSISTÊNCIA"; }
+        else if(x.situacao==='DEVOLUÇÃO FÁBRICA'){ sC="bg-purple-100 text-purple-700"; tS="DEVOLVIDO"; }
+        
+        let btnAcao = x.situacao==='ESTOQUE' ? `<button onclick="abrirModalSaidaEstoque(${x.uid})" class="bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded text-[10px] shadow-sm">📉 Saída</button>` : '';
+        html += `<tr class="border-b transition hover:bg-slate-50"><td class="text-[10px] text-slate-400">${esc(x.data)||'-'}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'estoque')" class="cursor-pointer uppercase font-bold">${esc(x.produto)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'fabrica', 'estoque')" class="cursor-pointer text-blue-600 text-[10px] font-black uppercase">${esc(x.fabrica)||"-"}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'qtd', 'estoque')" class="cursor-pointer text-center font-bold">${esc(x.qtd)}</td><td class="text-center"><span class="px-2 py-1 rounded text-[9px] font-black w-full inline-block ${sC}">${tS}</span></td><td class="text-center flex gap-1 justify-center">${btnAcao}<button onclick="if(confirm('EXCLUIR REGISTRO?')){estoque=estoque.filter(function(y){return y.uid!=${x.uid};}); salvarColecao('estoque', estoque);}" class="text-slate-300 hover:text-red-500 font-black px-2">✕</button></td></tr>`;
+    });
+    tb.innerHTML = html;
+}
+
+function abrirModalSaidaEstoque(uid) { 
+    const i = estoque.find(function(x){ return x.uid == uid; }); if(!i) return; 
+    getEl('saida-uid').value=uid; getEl('saida-produto-nome').innerText=i.produto; getEl('saida-qtd').value=i.qtd; getEl('saida-qtd').max=i.qtd; getEl('saida-obs').value=""; getEl('saida-motivo').value="VENDIDO"; getEl('modal-saida-estoque').style.display='flex'; 
+}
+
+function confirmarSaidaEstoque() { 
+    const uid=val('saida-uid'), qS=parseInt(val('saida-qtd')), m=val('saida-motivo'), o=val('saida-obs').toUpperCase().trim(); 
+    const it = estoque.find(function(x){ return x.uid == uid; }); 
+    if(!it||isNaN(qS)||qS<=0||qS>it.qtd) return alert("Quantidade inválida!"); 
+    
+    let nF = it.produto; if(o) nF+=` (${o})`; 
+    
+    if(qS==it.qtd){ it.situacao=m; it.produto=nF; it.data=new Date().toLocaleDateString('pt-BR'); } 
+    else { it.qtd-=qS; estoque.unshift({ uid:Date.now(), data:new Date().toLocaleDateString('pt-BR'), produto:nF, fabrica:it.fabrica, qtd:qS, situacao:m }); } 
+    
+    salvarColecao('estoque', estoque); registrarAcao('📉', `SAÍDA: ${m}`, `${qS}x ${it.produto}`); getEl('modal-saida-estoque').style.display='none'; 
+}
+
+function processarEstoqueMassa() { 
+    const txt = val('e_massa'); if(!txt||txt.trim()==="") return alert("Cole a lista na caixa mágica!"); 
+    const lins = txt.split('\n'); let ad = 0; 
+    
+    lins.forEach(function(l) { 
+        l=l.trim().replace(/^[\•\-\*]\s*/, ''); if(!l) return; 
+        let pts=l.split(/;| , /); let p1=pts[0]?pts[0].trim().toUpperCase():"", p2=pts[1]?pts[1].trim().toUpperCase():"", p3=pts[2]?pts[2].trim().toUpperCase():""; 
+        let q=1, pT=p1; let mQ=p1.match(/^(\d+)\s*(?:X|\-|UN|PÇ|MÓD)?\s+(.+)/i); 
+        if(mQ && parseInt(mQ[1])>0){ q=parseInt(mQ[1]); pT=mQ[2].trim(); } 
+        let f=p2, oS=p3, st="ESTOQUE"; 
+        
+        if(oS) { 
+            if(oS.includes("VENDID")){ st="VENDIDO"; let qm=oS.replace(/VENDID[AOOS]*\s*(PARA|P\/)?\s*/i, '').trim(); pT+=qm?" (VENDIDO: "+qm+")":" (VENDIDO)"; } 
+            else if(oS.includes("ASSIST")){ st="ASSISTÊNCIA"; pT+=" (ASSISTÊNCIA)"; } 
+            else if(oS.includes("DEVOL")){ st="DEVOLUÇÃO FÁBRICA"; pT+=" (DEVOLUÇÃO)"; } 
+            else pT+=" ("+oS+")"; 
+        } 
+        
+        if(pT) { estoque.unshift({uid:Date.now()+Math.random(), data:new Date().toLocaleDateString('pt-BR'), produto:pT, fabrica:f, qtd:q, situacao:st}); ad++; } 
+    }); 
+    
+    if(ad>0) { salvarColecao('estoque', estoque); registrarAcao('📦', 'CADASTRO EM MASSA', `${ad} itens.`); getEl('e_massa').value = ""; alert(`✅ ${ad} itens cadastrados!`); } 
+}
+
+function cadastrarEstoque() { 
+    const p=val('e_produto').toUpperCase().trim(), f=val('e_fabrica_select'), q=val('e_qtd'); 
+    if(p) { estoque.unshift({uid:Date.now(), data:new Date().toLocaleDateString('pt-BR'), produto:p, fabrica:f, qtd:parseInt(q), situacao:'ESTOQUE'}); salvarColecao('estoque', estoque); registrarAcao('📦', 'ADICIONOU AO ESTOQUE', `${q}x ${p}`); getEl('e_produto').value = ""; } 
+}
+
+// =========================================================
+// 12. ASSISTÊNCIAS, FORNECEDORES E CATÁLOGO
+// =========================================================
+function renderAssistencias() { 
+    const tb=getEl('tabelaAssistencias'); if(!tb) return; 
+    const b=noAcc(val('busca-assistencia').toLowerCase()), f=val('filtro-assistencia-status')||"TODAS"; 
+    
+    let lst = assistencias.filter(function(x) { 
+        return (noAcc((x.cliente||"").toLowerCase()).includes(b)||noAcc((x.produto||"").toLowerCase()).includes(b)||noAcc((x.fabrica||"").toLowerCase()).includes(b))&&(f==="TODAS"||(x.status||"Aguardando")===f); 
+    }); 
+    
+    if(getEl('contador-assistencia')) getEl('contador-assistencia').innerText = lst.length + " ASSISTÊNCIAS"; 
+    
+    tb.innerHTML = lst.map(function(x) { 
+        let sC="bg-slate-200 text-slate-700"; if(x.status==="Aguardando") sC="bg-red-100 text-red-700"; else if(x.status==="Peça Solicitada") sC="bg-blue-100 text-blue-700"; else if(x.status==="Concluído") sC="bg-green-100 text-green-700"; 
+        return `<tr class="border-b transition hover:bg-slate-50"><td class="text-[10px] font-bold text-slate-400">${esc(x.data)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'cliente', 'assistencias')" class="uppercase font-bold cursor-pointer">${esc(x.cliente)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'assistencias')" class="uppercase cursor-pointer">${esc(x.produto)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'fabrica', 'assistencias')" class="font-black text-blue-800 uppercase text-[10px] cursor-pointer">${esc(x.fabrica)}</td><td class="text-center"><button onclick="cycleAssisStatus(${x.uid})" class="px-2 py-1.5 rounded text-[9px] font-black w-full transition ${sC}">${esc(x.status)}</button></td><td class="text-center"><button onclick="if(confirm('EXCLUIR ASSISTÊNCIA?')){ assistencias=assistencias.filter(function(y){return y.uid!=${x.uid}}); salvarColecao('assistencias', assistencias); }" class="text-red-500 font-black text-lg">✕</button></td></tr>`; 
+    }).join(''); 
+}
+
+function cadastrarAssistencia(){ 
+    const c=val('as_cliente').toUpperCase().trim(), p=val('as_produto').toUpperCase().trim(), f=val('as_fabrica'); 
+    if(c&&p){ assistencias.unshift({uid:Date.now(), data:new Date().toLocaleDateString('pt-BR'), cliente:c, produto:p, fabrica:f, status:"Aguardando"}); salvarColecao('assistencias', assistencias); getEl('as_cliente').value=""; getEl('as_produto').value=""; } 
+    else alert("PREENCHA CLIENTE E PRODUTO!"); 
+}
+
+function cycleAssisStatus(u){ const x = assistencias.find(function(y){ return y.uid == u; }); const s = ["Aguardando","Peça Solicitada","Concluído"]; x.status = s[(s.indexOf(x.status||"Aguardando")+1)%s.length]; salvarColecao('assistencias', assistencias); renderAssistencias(); }
+
+function renderFornecedores() { const tb=getEl('tabelaFornecedores'); if(!tb) return; tb.innerHTML=fornecedores.map(function(f,i){ return `<tr><td class="font-bold uppercase">${esc(f.nome)}</td><td class="lowercase text-blue-600">${esc(f.email)}</td><td class="text-center"><button onclick="fornecedores.splice(${i},1); salvarColecao('fornecedores', fornecedores);" class="text-red-500 font-black">✕</button></td></tr>`; }).join(''); }
+function cadastrarFornecedor(){ const n=val('f_nome').toUpperCase().trim(), e=val('f_email').toLowerCase().trim(); if(n&&e){ fornecedores.push({nome:n,email:e}); salvarColecao('fornecedores', fornecedores); getEl('f_nome').value=""; getEl('f_email').value=""; } }
+function renderCatalogo() { const tb=getEl('tabelaCatalogo'); if(!tb) return; tb.innerHTML=catalogo.map(function(c,i){ return `<tr><td class="uppercase">${esc(c.nome)}</td><td class="text-center"><button onclick="catalogo.splice(${i},1); salvarColecao('catalogo', catalogo);">✕</button></td></tr>`; }).join(''); }
+function cadastrarCatalogo(){ const n=val('cat_nome').toUpperCase(); if(n){ catalogo.push({nome:n}); salvarColecao('catalogo', catalogo); getEl('cat_nome').value=""; } }
+function atualizarSelectsFornecedores(){ const h = fornecedores.map(function(f){ return `<option value="${esc(f.nome)}">${esc(f.nome)}</option>`; }).join(''); if(getEl('m_fornecedor_select')) getEl('m_fornecedor_select').innerHTML=h||"<option>...</option>"; if(getEl('as_fabrica')) getEl('as_fabrica').innerHTML=h||"<option>...</option>"; if(getEl('e_fabrica_select')) getEl('e_fabrica_select').innerHTML=h||"<option>...</option>"; if(getEl('estoque-filtro-fabrica')) getEl('estoque-filtro-fabrica').innerHTML='<option value="TODAS">TODAS AS FÁBRICAS</option>'+h; }
+function atualizarSugestoes(){ const n = [...new Set(pedidos.map(function(p){ return p.cliente; }))].sort(); if(getEl('listaSugestaoClientes')) getEl('listaSugestaoClientes').innerHTML=n.map(function(x){ return `<option value="${esc(x)}">`; }).join(''); }
+function togglePainelSugestoes(){ const p=getEl('painel-sugestoes'); p.style.display=(p.style.display==='flex')?'none':'flex'; }
+function autoSalvarNotas(){ notasMelhoria=val('texto-melhorias'); db.ref('dados/notasMelhoria').set(notasMelhoria); }
+
+const painelS = getEl('painel-sugestoes'); const dragH = getEl('drag-handle'); let isDrag=false, offX, offY;
+if(dragH) dragH.addEventListener('mousedown', function(e) { isDrag=true; offX=e.clientX-painelS.getBoundingClientRect().left; offY=e.clientY-painelS.getBoundingClientRect().top; painelS.style.bottom='auto'; painelS.style.right='auto'; });
+document.addEventListener('mousemove', function(e) { if(!isDrag) return; painelS.style.left=(e.clientX-offX)+'px'; painelS.style.top=(e.clientY-offY)+'px'; });
+document.addEventListener('mouseup', function() { isDrag=false; });
