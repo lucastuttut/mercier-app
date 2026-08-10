@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minhas Comissões - Mercier</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; }
+        .glass-header { background: #0f172a; border-bottom: 4px solid #10b981; }
+        .card { background: white; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.8); z-index: 50; display: none; align-items: center; justify-content: center; padding: 20px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- CABEÇALHO -->
+    <header class="glass-header text-white p-5 shadow-xl flex justify-between items-center sticky top-0 z-50">
+        <div class="flex items-center gap-4">
+            <h1 class="text-xl font-black tracking-tighter uppercase italic">MERCIER <span class="text-emerald-400">COMISSÕES</span></h1>
+            <span class="bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full text-[10px] font-black uppercase border border-emerald-500/50">Taxa: 5%</span>
+        </div>
+        <div class="flex gap-3 items-center">
+            <span id="status-db" class="bg-orange-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase">Conectando...</span>
+            <button onclick="window.close()" class="text-slate-400 hover:text-white text-xs font-bold uppercase transition">Voltar</button>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto p-4 md:p-6 w-full flex-1 flex flex-col gap-6">
+        
+        <!-- CONTROLE DE MÊS E BOTÃO NOVA VENDA -->
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+            <div class="flex items-center gap-4">
+                <button onclick="mudarMes(-1)" class="bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg font-black text-slate-600 transition">◀</button>
+                <div class="text-center min-w-[200px]">
+                    <h2 id="mes-display" class="text-lg font-black uppercase text-slate-800 tracking-wider">Agosto 2026</h2>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase">Fechamento do Mês</p>
+                </div>
+                <button onclick="mudarMes(1)" class="bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg font-black text-slate-600 transition">▶</button>
+            </div>
+            <button onclick="abrirModalVenda()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl text-xs font-black uppercase shadow-lg transition transform hover:-translate-y-0.5">
+                ➕ Registrar Venda
+            </button>
+        </div>
+
+        <!-- RESUMO FINANCEIRO DO MÊS -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="card p-5 border-l-8 border-slate-300">
+                <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Total Vendido (No Mês)</p>
+                <h3 id="resumo-vendas" class="text-2xl font-black text-slate-700">R$ 0,00</h3>
+            </div>
+            <div class="card p-5 border-l-8 border-amber-400 bg-amber-50">
+                <p class="text-[10px] font-black text-amber-600 uppercase mb-1">Comissão Pendente (Aguardando Pgto)</p>
+                <h3 id="resumo-pendente" class="text-2xl font-black text-amber-700">R$ 0,00</h3>
+                <p class="text-[9px] font-bold text-amber-600/60 mt-1 uppercase">Parcelas que vencem este mês</p>
+            </div>
+            <div class="card p-5 border-l-8 border-emerald-500 bg-emerald-50 shadow-md transform scale-105 z-10">
+                <p class="text-[10px] font-black text-emerald-600 uppercase mb-1 flex justify-between">
+                    Comissão Garantida <span>💰</span>
+                </p>
+                <h3 id="resumo-garantido" class="text-3xl font-black text-emerald-600">R$ 0,00</h3>
+                <p class="text-[9px] font-bold text-emerald-600/70 mt-1 uppercase">Clientes que pagaram este mês</p>
+            </div>
+        </div>
+
+        <!-- TABELA DE PARCELAS DO MÊS -->
+        <div class="card flex-1 flex flex-col overflow-hidden border border-slate-200">
+            <div class="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center">
+                <h3 class="font-black text-slate-700 uppercase text-xs">Acompanhamento de Parcelas</h3>
+                <span id="contador-parcelas" class="bg-slate-200 text-slate-600 px-3 py-1 rounded-full text-[10px] font-black">0 Parcelas</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[800px]">
+                    <thead class="bg-white border-b-2 border-emerald-500">
+                        <tr class="text-slate-400 uppercase text-[9px] font-black">
+                            <th class="p-3">Vencimento</th>
+                            <th class="p-3">Cliente / Venda</th>
+                            <th class="p-3">Parcela</th>
+                            <th class="p-3">Valor da Parcela</th>
+                            <th class="p-3 text-emerald-600">Sua Comissão (5%)</th>
+                            <th class="p-3 text-center">Status do Pagamento</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-parcelas" class="text-xs font-bold text-slate-700">
+                        <!-- Injetado pelo JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL NOVA VENDA E PARCELAMENTO -->
+    <div id="modal-venda" class="modal-overlay" onclick="if(event.target==this) fecharModalVenda()">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl border-t-8 border-emerald-500 flex flex-col max-h-[90vh]">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                <h2 class="font-black uppercase text-emerald-600 text-sm">💰 Registrar Nova Venda</h2>
+                <button onclick="fecharModalVenda()" class="text-slate-400 hover:text-red-500 text-xl font-black">✕</button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto custom-scrollbar">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Nome do Cliente</label>
+                        <input type="text" id="v_cliente" placeholder="Ex: João da Silva..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-emerald-500 bg-slate-50">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Data do Fechamento</label>
+                        <input type="date" id="v_data" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-emerald-500 bg-slate-50">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 pb-6 border-b border-slate-100">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Valor Total da Venda</label>
+                        <input type="text" id="v_total" oninput="maskMoney(this)" placeholder="R$ 0,00" class="w-full border-2 p-2.5 rounded-lg text-sm font-black text-emerald-600 outline-emerald-500">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Qtd de Parcelas</label>
+                        <select id="v_qtd_parcelas" onchange="gerarInputsParcelas()" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-emerald-500 bg-white cursor-pointer">
+                            <option value="1">1x (À vista / 30 dias)</option>
+                            <option value="2">2x (30/60 dias)</option>
+                            <option value="3">3x (30/60/90 dias)</option>
+                            <option value="4">4x</option>
+                            <option value="5">5x</option>
+                            <option value="6">6x</option>
+                            <option value="10">10x</option>
+                            <option value="12">12x</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">1º Vencimento</label>
+                        <input type="date" id="v_primeiro_venc" onchange="gerarInputsParcelas()" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-emerald-500 bg-slate-50">
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-[10px] font-black text-emerald-600 uppercase mb-3 flex justify-between items-end">
+                        Plano de Recebimento
+                        <span class="text-slate-400 text-[9px] font-bold lowercase italic">Ajuste os valores se as parcelas forem diferentes</span>
+                    </h3>
+                    <div id="container-parcelas" class="flex flex-col gap-3">
+                        <!-- Parcelas geradas pelo JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
+                <button onclick="salvarVenda()" class="w-full bg-emerald-600 text-white py-3 rounded-lg text-xs font-black uppercase shadow-lg hover:bg-emerald-700 transition">💾 Salvar Venda e Plano de Comissão</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT DO SISTEMA -->
+    <script>
+        // CONFIGURAÇÃO FIREBASE (A mesma do seu sistema)
+        const firebaseConfig = { 
+            apiKey: "AIzaSyA_fQSZJJcz5Wszw54W5EhMN9D5rNnjoCo", 
+            authDomain: "mercier-design.firebaseapp.com", 
+            projectId: "mercier-design", 
+            storageBucket: "mercier-design.firebasestorage.app", 
+            messagingSenderId: "1060891658513", 
+            appId: "1:1060891658513:web:2eefd15227203af39064b0", 
+            databaseURL: "https://mercier-design-default-rtdb.firebaseio.com/" 
+        };
+
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let vendas = [];
+        let dataFiltro = new Date(); // Mês e ano que estamos visualizando na tela
+
+        // Inicialização
+        window.onload = function() {
+            document.getElementById('v_data').valueAsDate = new Date();
+            
+            // Sugere o primeiro vencimento para daqui a 30 dias
+            let d30 = new Date();
+            d30.setDate(d30.getDate() + 30);
+            document.getElementById('v_primeiro_venc').valueAsDate = d30;
+            
+            atualizarNomeMes();
+            gerarInputsParcelas();
+        };
+
+        // Conexão Firebase
+        db.ref('.info/connected').on('value', function(snap) { 
+            const st = document.getElementById('status-db'); 
+            if(snap.val() === true) { 
+                st.innerText="SISTEMA CONECTADO"; st.className="bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase shadow-inner"; 
+            } else { 
+                st.innerText="CONECTANDO..."; st.className="bg-orange-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase"; 
+            }
+        });
+
+        // Lendo as vendas
+        db.ref('dados/comissoes').on('value', function(s) { 
+            const d = s.val();
+            vendas = [];
+            if(d) {
+                // Converte o objeto Firebase para Array seguro
+                vendas = Array.isArray(d) ? d : Object.values(d);
+                vendas = vendas.filter(v => v && typeof v === 'object');
+            }
+            renderTabela();
+        });
+
+        function salvarDados() {
+            db.ref('dados/comissoes').set(vendas);
+        }
+
+        // ==========================================
+        // UTILITÁRIOS E MÁSCARAS
+        // ==========================================
+        function maskMoney(i){ 
+            let v = i.value.replace(/\D/g,""); v=(v/100).toFixed(2).replace(".",","); 
+            i.value="R$ "+v.replace(/(\d)(?=(\d{3})+(?!\d))/g,"$1."); 
+        }
+
+        function parseMoney(v){ 
+            return parseFloat((v||"").toString().replace("R$ ","").replace(/\./g,"").replace(",",".")) || 0; 
+        }
+
+        function formatMoney(n) {
+            return "R$ " + n.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+        }
+
+        function formataDataBR(dataISO) {
+            if(!dataISO) return "-";
+            const p = dataISO.split('-');
+            if(p.length !== 3) return dataISO;
+            return `${p[2]}/${p[1]}/${p[0]}`;
+        }
+
+        // ==========================================
+        // CONTROLE DO MÊS (FILTRO)
+        // ==========================================
+        function mudarMes(direcao) {
+            dataFiltro.setMonth(dataFiltro.getMonth() + direcao);
+            atualizarNomeMes();
+            renderTabela();
+        }
+
+        function atualizarNomeMes() {
+            const meses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+            const nome = meses[dataFiltro.getMonth()];
+            const ano = dataFiltro.getFullYear();
+            document.getElementById('mes-display').innerText = `${nome} ${ano}`;
+        }
+
+        // ==========================================
+        // GERADOR DE PARCELAS NO MODAL
+        // ==========================================
+        function abrirModalVenda() {
+            document.getElementById('modal-venda').style.display = 'flex';
+        }
+
+        function fecharModalVenda() {
+            document.getElementById('modal-venda').style.display = 'none';
+            document.getElementById('v_cliente').value = "";
+            document.getElementById('v_total').value = "";
+            document.getElementById('v_qtd_parcelas').value = "1";
+        }
+
+        function gerarInputsParcelas() {
+            const container = document.getElementById('container-parcelas');
+            const total = parseMoney(document.getElementById('v_total').value);
+            const qtd = parseInt(document.getElementById('v_qtd_parcelas').value);
+            const dataBaseStr = document.getElementById('v_primeiro_venc').value;
+            
+            if(!dataBaseStr) return;
+            
+            const valorParcela = total / qtd;
+            let html = "";
+
+            let dataVenc = new Date(dataBaseStr + "T12:00:00");
+
+            for(let i = 1; i <= qtd; i++) {
+                // Formata a data para ISO YYYY-MM-DD para o campo input date
+                let mesStr = String(dataVenc.getMonth() + 1).padStart(2, '0');
+                let diaStr = String(dataVenc.getDate()).padStart(2, '0');
+                let anoStr = dataVenc.getFullYear();
+                let isoDate = `${anoStr}-${mesStr}-${diaStr}`;
+
+                html += `
+                <div class="flex gap-3 items-center bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <span class="bg-emerald-100 text-emerald-700 font-black text-[10px] px-2 py-1 rounded w-10 text-center">${i}x</span>
+                    <div class="flex-1">
+                        <label class="text-[8px] font-black text-slate-400 uppercase block mb-0.5">Vencimento</label>
+                        <input type="date" id="p_data_${i}" value="${isoDate}" class="w-full border p-2 rounded text-xs font-bold outline-emerald-500 bg-white">
+                    </div>
+                    <div class="flex-1">
+                        <label class="text-[8px] font-black text-slate-400 uppercase block mb-0.5">Valor (R$)</label>
+                        <input type="text" id="p_valor_${i}" value="${formatMoney(valorParcela)}" oninput="maskMoney(this)" class="w-full border p-2 rounded text-xs font-bold text-slate-700 outline-emerald-500 bg-white">
+                    </div>
+                </div>`;
+
+                // Soma 1 mês para a próxima parcela
+                dataVenc.setMonth(dataVenc.getMonth() + 1);
+            }
+
+            container.innerHTML = html;
+        }
+
+        // Se o usuário digitar o valor total, recria as parcelas
+        document.getElementById('v_total').addEventListener('blur', gerarInputsParcelas);
+
+        function salvarVenda() {
+            const cliente = document.getElementById('v_cliente').value.toUpperCase().trim();
+            const dataVenda = document.getElementById('v_data').value;
+            const total = parseMoney(document.getElementById('v_total').value);
+            const qtdParcelas = parseInt(document.getElementById('v_qtd_parcelas').value);
+
+            if(!cliente || total <= 0) return alert("Preencha o cliente e o valor total da venda!");
+
+            let parcelasGeradas = [];
+            let idVenda = Date.now().toString();
+
+            for(let i = 1; i <= qtdParcelas; i++) {
+                let dtVenc = document.getElementById(`p_data_${i}`).value;
+                let valParc = parseMoney(document.getElementById(`p_valor_${i}`).value);
+                
+                parcelasGeradas.push({
+                    id_parcela: "P" + i,
+                    numero: i,
+                    de: qtdParcelas,
+                    vencimento: dtVenc,
+                    valor: valParc,
+                    comissao: valParc * 0.05, // 5% do valor da parcela
+                    status: "Pendente",
+                    dataPagamento: null
+                });
+            }
+
+            const novaVenda = {
+                id_venda: idVenda,
+                cliente: cliente,
+                dataVenda: dataVenda,
+                valorTotal: total,
+                parcelas: parcelasGeradas
+            };
+
+            vendas.unshift(novaVenda);
+            salvarDados();
+            fecharModalVenda();
+            renderTabela();
+        }
+
+        // ==========================================
+        // RENDERIZAÇÃO DA TELA
+        // ==========================================
+        function renderTabela() {
+            const tb = document.getElementById('tabela-parcelas');
+            if(!tb) return;
+
+            const mesFiltro = dataFiltro.getMonth();
+            const anoFiltro = dataFiltro.getFullYear();
+
+            // Vamos achatar (flatten) todas as parcelas de todas as vendas em uma única lista
+            let listaGeral = [];
+
+            let totalVendidoMes = 0;   // Somatório de vendas feitas neste mês
+            let comissaoPendente = 0;  // Somatório das parcelas que VENCEM neste mês e não foram pagas
+            let comissaoGarantida = 0; // Somatório das parcelas que FORAM PAGAS neste mês
+
+            vendas.forEach(venda => {
+                // Calcula Venda Total do mês
+                if(venda.dataVenda) {
+                    let dVenda = new Date(venda.dataVenda + "T12:00:00");
+                    if(dVenda.getMonth() === mesFiltro && dVenda.getFullYear() === anoFiltro) {
+                        totalVendidoMes += venda.valorTotal;
+                    }
+                }
+
+                // Avalia cada parcela
+                if(venda.parcelas) {
+                    venda.parcelas.forEach(p => {
+                        let pertenceAOTable = false;
+
+                        // Se está pendente, olhamos para a data de VENCIMENTO
+                        if(p.status === "Pendente" && p.vencimento) {
+                            let dVenc = new Date(p.vencimento + "T12:00:00");
+                            if(dVenc.getMonth() === mesFiltro && dVenc.getFullYear() === anoFiltro) {
+                                comissaoPendente += p.comissao;
+                                pertenceAOTable = true;
+                            }
+                        } 
+                        // Se está paga, olhamos para a data em que FOI PAGA (dataPagamento)
+                        else if (p.status === "Pago" && p.dataPagamento) {
+                            let dPgto = new Date(p.dataPagamento + "T12:00:00");
+                            if(dPgto.getMonth() === mesFiltro && dPgto.getFullYear() === anoFiltro) {
+                                comissaoGarantida += p.comissao;
+                                pertenceAOTable = true;
+                            }
+                        }
+
+                        // Se a parcela pertence ao filtro atual, joga na lista da tabela
+                        if(pertenceAOTable) {
+                            listaGeral.push({
+                                venda: venda,
+                                parcela: p
+                            });
+                        }
+                    });
+                }
+            });
+
+            // Atualiza Resumo
+            document.getElementById('resumo-vendas').innerText = formatMoney(totalVendidoMes);
+            document.getElementById('resumo-pendente').innerText = formatMoney(comissaoPendente);
+            document.getElementById('resumo-garantido').innerText = formatMoney(comissaoGarantida);
+            document.getElementById('contador-parcelas').innerText = listaGeral.length + " Lançamentos";
+
+            // Ordena a lista geral pela data de vencimento
+            listaGeral.sort((a, b) => new Date(a.parcela.vencimento) - new Date(b.parcela.vencimento));
+
+            // Desenha a tabela
+            if(listaGeral.length === 0) {
+                tb.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400 font-bold uppercase border-b border-slate-100">Nenhum recebimento ou vencimento para este mês.</td></tr>`;
+                return;
+            }
+
+            let html = "";
+            listaGeral.forEach(item => {
+                const p = item.parcela;
+                const v = item.venda;
+                const isPago = p.status === "Pago";
+
+                let rowClass = isPago ? "bg-emerald-50/50 opacity-80" : "hover:bg-slate-50 transition";
+                let statusBadge = isPago 
+                    ? `<span class="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider block w-full border border-emerald-200">✅ Paga em ${formataDataBR(p.dataPagamento)}</span>` 
+                    : `<button onclick="marcarComoPago('${v.id_venda}', '${p.id_parcela}')" class="bg-amber-100 hover:bg-emerald-500 hover:text-white text-amber-700 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition block w-full shadow-sm">⏳ Marcar como Pago</button>`;
+
+                html += `
+                <tr class="${rowClass} border-b border-slate-100">
+                    <td class="p-3 text-[10px] text-slate-500">${formataDataBR(p.vencimento)}</td>
+                    <td class="p-3">
+                        <span class="block uppercase text-slate-800 leading-tight">${esc(v.cliente)}</span>
+                        <span class="text-[9px] text-slate-400 font-normal">Venda efetuada em: ${formataDataBR(v.dataVenda)}</span>
+                    </td>
+                    <td class="p-3 text-[10px] text-slate-600">
+                        <span class="bg-slate-200 px-2 py-0.5 rounded-md text-[9px]">${p.numero} de ${p.de}</span>
+                    </td>
+                    <td class="p-3">${formatMoney(p.valor)}</td>
+                    <td class="p-3 text-emerald-600 font-black text-sm">${formatMoney(p.comissao)}</td>
+                    <td class="p-3 w-40 text-center">${statusBadge}</td>
+                </tr>`;
+            });
+
+            tb.innerHTML = html;
+        }
+
+        // ==========================================
+        // MUDAR STATUS DA PARCELA PARA PAGA
+        // ==========================================
+        function marcarComoPago(idVenda, idParcela) {
+            const v = vendas.find(x => x.id_venda === idVenda);
+            if(!v) return;
+
+            const p = v.parcelas.find(x => x.id_parcela === idParcela);
+            if(!p) return;
+
+            // Pergunta que dia o cliente pagou (Sempre sugere hoje)
+            let dataHoje = new Date().toISOString().split('T')[0];
+            let resp = prompt("Qual foi a data exata do pagamento? (Formato: AAAA-MM-DD)", dataHoje);
+            
+            if(resp === null) return; // Cancelou
+            if(resp.trim() === "") resp = dataHoje; // Deixou vazio, assume hoje
+
+            p.status = "Pago";
+            p.dataPagamento = resp;
+
+            salvarDados();
+            renderTabela();
+        }
+
+    </script>
+</body>
+</html>
