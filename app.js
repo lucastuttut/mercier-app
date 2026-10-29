@@ -1904,3 +1904,129 @@ function renderHoje() {}
 
   try { window.renderPainelDia(); } catch (e) {}
 })();
+
+// =====================================================================
+// CATEGORIA: DEFEITO / AVARIA / ASSISTÊNCIA (separa do estoque real)
+// Cole TUDO isto no FINAL do app.js
+// =====================================================================
+(function () {
+
+  var REGEX_DEF = /ASSIST|DEFEIT|AVARI/;
+  var modoDef = false;
+
+  function semAcento(s) {
+    return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+  }
+
+  // Item em estoque cujo nome ou comentário tenha defeito, avaria ou assistência
+  function ehDefeito(it) {
+    if (!it) return false;
+    if ((it.situacao || 'ESTOQUE') !== 'ESTOQUE') return false;
+    return REGEX_DEF.test(semAcento(it.produto) + ' ' + semAcento(it.comentario));
+  }
+
+  function pecas(lista) {
+    return lista.reduce(function (t, it) { return t + (parseInt(it.qtd) || 0); }, 0);
+  }
+
+  // ---------------------------------------------------------------
+  // Barra com os dois botões, no topo da aba Estoque
+  // ---------------------------------------------------------------
+  function getBarra() {
+    var v = getEl('view-estoque');
+    if (!v) return null;
+    var b = getEl('est-cat-bar');
+    if (b) return b;
+    b = document.createElement('div');
+    b.id = 'est-cat-bar';
+    b.className = 'mb-4';
+    v.insertBefore(b, v.firstChild);
+    return b;
+  }
+
+  function atualizarBarra(todos, soDef) {
+    var b = getBarra();
+    if (!b) return;
+    var base = 'px-4 py-2 rounded-xl text-[11px] font-black uppercase border-2 transition ';
+    var defeitos = todos.filter(ehDefeito);
+    var reais = todos.filter(function (it) {
+      return (it.situacao || 'ESTOQUE') === 'ESTOQUE' && !ehDefeito(it);
+    });
+
+    b.innerHTML =
+      '<div class="flex gap-2 flex-wrap">' +
+        '<button data-estcat="real" class="' + base +
+          (!soDef ? 'bg-green-600 text-white border-green-600' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400') + '">' +
+          '📦 Estoque real · ' + pecas(reais) + ' peças</button>' +
+        '<button data-estcat="def" class="' + base +
+          (soDef ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-orange-600 border-orange-200 hover:border-orange-400') + '">' +
+          '⚠️ Defeito / Avaria / Assistência · ' + pecas(defeitos) + ' peças</button>' +
+      '</div>' +
+      (soDef
+        ? '<div class="mt-2 text-[10px] font-bold text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">' +
+          'Estes itens NÃO entram na contagem de estoque disponível. Para devolver um item ao estoque real, apague a palavra defeito, avaria ou assistência do nome ou do comentário.</div>'
+        : '');
+  }
+
+  // ---------------------------------------------------------------
+  // A tela do estoque passa a enxergar só a categoria escolhida
+  // ---------------------------------------------------------------
+  var _renderEstoque = window.renderEstoque;
+  window.renderEstoque = function () {
+    if (typeof _renderEstoque !== 'function') return;
+    var todos = estoque;
+    var visao = (typeof visaoEstoque !== 'undefined') ? visaoEstoque : 'ESTOQUE';
+    var soDef = modoDef && visao === 'ESTOQUE';
+
+    estoque = todos.filter(function (it) {
+      return soDef ? ehDefeito(it) : !ehDefeito(it);
+    });
+    try { _renderEstoque(); } finally { estoque = todos; }
+
+    try { atualizarBarra(todos, soDef); } catch (e) { console.error(e); }
+  };
+
+  // ---------------------------------------------------------------
+  // Cadastro em massa: "ASSISTÊNCIA" na 3ª coluna vira item em estoque
+  // da categoria de defeito (e não uma saída)
+  // ---------------------------------------------------------------
+  var _massa = window.processarEstoqueMassa;
+  if (typeof _massa === 'function') {
+    window.processarEstoqueMassa = function () {
+      var antes = {};
+      estoque.forEach(function (it) { antes[it.uid] = true; });
+      var r = _massa.apply(this, arguments);
+      var ajustou = false;
+      estoque.forEach(function (it) {
+        if (antes[it.uid]) return;
+        if (it.situacao === 'ASSISTÊNCIA' && REGEX_DEF.test(semAcento(it.produto))) {
+          it.situacao = 'ESTOQUE';
+          ajustou = true;
+        }
+      });
+      if (ajustou) salvarColecao('estoque', estoque);
+      return r;
+    };
+  }
+
+  // ---------------------------------------------------------------
+  // Cliques nos botões da barra
+  // ---------------------------------------------------------------
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-estcat]');
+    if (t) {
+      modoDef = t.dataset.estcat === 'def';
+      if (typeof visaoEstoque !== 'undefined' && visaoEstoque !== 'ESTOQUE' && typeof mudarVisaoEstoque === 'function') {
+        mudarVisaoEstoque('ESTOQUE');
+      } else {
+        window.renderEstoque();
+      }
+      return;
+    }
+    // Ao clicar nas abas "Em estoque" ou "Saídas", volta para o estoque real
+    if (e.target.closest('#btn-estoque-disponivel, #btn-estoque-saidas')) modoDef = false;
+  }, true);
+
+  try { window.renderEstoque(); } catch (e) {}
+  setTimeout(function () { try { window.renderEstoque(); } catch (e) {} }, 800);
+})();
