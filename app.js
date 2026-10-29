@@ -1478,7 +1478,7 @@ function cartaoHoje(icone, titulo, corBadge, qtd, corpo, vazio) {
 }
 
 function linhaHoje(principal, secundario, direita, acao) {
-    const clicavel = acao ? ' cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition' : '';
+    const clicavel = acao ? ' linha-clicavel' : '';
     const onclick = acao ? ` onclick="${acao}" title="Clique para abrir"` : '';
     return `<div${onclick} class="flex justify-between items-start gap-2 bg-slate-50 rounded-lg p-2 border border-slate-100${clicavel}"><div class="flex flex-col min-w-0"><span class="text-[11px] font-black uppercase text-slate-800">${principal}</span><span class="text-[9px] font-bold uppercase text-slate-500">${secundario}</span></div>${direita || ''}</div>`;
 }
@@ -1824,7 +1824,7 @@ function salvarVenda() {
     }
     salvarColecao('comissoes', comissoes);
     fecharModalVenda(); renderComissoes(); renderHoje();
-
+    }
     // =========================================================
 // TELA "HOJE" - VERSÃO 2 (cole no FINAL do app.js)
 // =========================================================
@@ -1839,8 +1839,8 @@ function hojeDiasDesde(dataBR) {
     return Math.max(0, Math.floor((new Date() - d) / 86400000));
 }
 
-function hojeBotao(txt, acao, cor) {
-    return `<button onclick="${acao}" class="${cor || 'bg-slate-800 text-white'} px-2 py-1 rounded text-[9px] font-black uppercase whitespace-nowrap">${txt}</button>`;
+function function hojeBotao(txt, acao, cor) {
+    return `<button onclick="event.stopPropagation(); ${acao}" class="${cor || 'bg-slate-800 text-white'} px-2 py-1 rounded text-[9px] font-black uppercase whitespace-nowrap">${txt}</button>`;
 }
 
 function hojeDireita() {
@@ -2009,8 +2009,12 @@ function renderHoje() {
             .sort(function(a, b) { return (pP[a.prazo || ""] || 6) - (pP[b.prazo || ""] || 6); });
         const htmlT = minhas.map(function(t) {
             const bt = t.coluna === 'DOING' ? hojeBotao('✅ Concluir', "hojeMoverTarefa(" + t.uid + ",'DONE')", 'bg-emerald-600 text-white') : hojeBotao('▶ Iniciar', "hojeMoverTarefa(" + t.uid + ",'DOING')", 'bg-blue-600 text-white');
-            return linhaHoje(esc(t.descricao), t.coluna === 'DOING' ? 'Em andamento' : 'A fazer', hojeDireita(rotPrazo[t.prazo] ? etiquetaHoje(rotPrazo[t.prazo], 'bg-slate-200 text-slate-700') : '', bt));
-        }).join('');
+            return linhaHoje(
+    esc(t.descricao),
+    t.coluna === 'DOING' ? 'Em andamento' : 'A fazer',
+    hojeDireita(rotPrazo[t.prazo] ? etiquetaHoje(rotPrazo[t.prazo], 'bg-slate-200 text-slate-700') : '', bt),
+    'irParaTarefa(' + t.uid + ')'
+);
         add('👤', 'Minhas tarefas', 'bg-blue-100 text-blue-700', minhas.length, htmlT);
     }
 
@@ -2079,12 +2083,12 @@ if (!window.__hojeTimer) {
         const v = getEl('view-hoje');
         if (v && !v.classList.contains('hidden')) renderHoje();
     }, 300000);
+}
 
-    // ==========================================
+// ==========================================
 // IR DIRETO PARA UMA TAREFA (usado pela aba Hoje)
 // ==========================================
 function irParaTarefa(uid, tipo) {
-    // Tarefas da aba "Tarefas" (anotações e pedidos)
     if (tipo === 'TAREFA') {
         const tb = getEl('tabelaTarefas');
         const mainT = tb ? tb.closest('main') : null;
@@ -2093,13 +2097,12 @@ function irParaTarefa(uid, tipo) {
         return;
     }
 
-    // Tarefas da aba "Equipe" (quadro Kanban)
     const t = tarefasEquipe.find(function(x) { return x.uid == uid; });
     if (!t) return alert("Tarefa não encontrada.");
 
     if (modoMinhasTarefas && usuarioAtual && t.responsavel !== usuarioAtual) {
         modoMinhasTarefas = false;
-        try { localStorage.setItem('mercier_so_minhas', false); } catch (e) {}
+        try { localStorage.setItem('mercier_so_minhas', 'false'); } catch (e) {}
         if (getEl('check-minhas-tarefas')) getEl('check-minhas-tarefas').checked = false;
     }
     if (filtrosEquipeAtivos.length > 0 && !filtrosEquipeAtivos.includes(t.responsavel)) {
@@ -2122,6 +2125,3 @@ function irParaTarefa(uid, tipo) {
         setTimeout(function() { card.classList.remove('ring-4', 'ring-blue-500'); }, 2500);
     }, 150);
 }
-}
-}
-
