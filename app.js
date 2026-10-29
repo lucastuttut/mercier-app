@@ -1303,16 +1303,492 @@ function confirmarSaidaEstoque() {
 }
 
 function processarEstoqueMassa() {
-    const txt = val('e_massa'); if(!txt||txt.trim()==="") return alert("Cole a lista na caixa mágica!");
+    const txt = val('e_massa'); if (!txt || txt.trim() === "") return alert("Cole a lista na caixa mágica!");
     const lins = txt.split('\n'); let ad = 0;
 
     lins.forEach(function(l) {
-        l=l.trim().replace(/^[\•\-\*]\s*/, ''); if(!l) return;
-        let pts=l.split(/;| , /); let p1=pts[0]?pts[0].trim().toUpperCase():"", p2=pts[1]?pts[1].trim().toUpperCase():"", p3=pts[2]?pts[2].trim().toUpperCase():"";
-        let q=1, pT=p1; let mQ=p1.match(/^(\d+)\s*(?:X|\-|UN|PÇ|MÓD)?\s+(.+)/i);
-        if(mQ && parseInt(mQ[1])>0){ q=parseInt(mQ[1]); pT=mQ[2].trim(); }
-        let f=p2, oS=p3, st="ESTOQUE";
+        l = l.trim().replace(/^[\•\-\*]\s*/, ''); if (!l) return;
+        let pts = l.split(/;| , /); let p1 = pts[0] ? pts[0].trim().toUpperCase() : "", p2 = pts[1] ? pts[1].trim().toUpperCase() : "", p3 = pts[2] ? pts[2].trim().toUpperCase() : "";
+        let q = 1, pT = p1; let mQ = p1.match(/^(\d+)\s*(?:X|\-|UN|PÇ|MÓD)?\s+(.+)/i);
+        if (mQ && parseInt(mQ[1]) > 0) { q = parseInt(mQ[1]); pT = mQ[2].trim(); }
+        let f = p2, oS = p3, st = "ESTOQUE";
 
-        if(oS) {
-            if(oS.includes("VENDID")){ st="VENDIDO"; let qm=oS.replace(/VENDID[AOOS]*\s*(PARA|P\/)?\s*/i, '').tr
+        if (oS) {
+            if (oS.includes("VENDID")) { st = "VENDIDO"; let qm = oS.replace(/VENDID[AOS]*\s*(PARA|P\/)?\s*/i, '').trim(); pT += qm ? " (VENDIDO: " + qm + ")" : " (VENDIDO)"; }
+            else if (oS.includes("ASSIST")) { st = "ASSISTÊNCIA"; pT += " (ASSISTÊNCIA)"; }
+            else if (oS.includes("DEVOL")) { st = "DEVOLUÇÃO FÁBRICA"; pT += " (DEVOLUÇÃO)"; }
+            else pT += " (" + oS + ")";
+        }
+
+        if (pT) { estoque.unshift({ uid: gerarUid(), data: new Date().toLocaleDateString('pt-BR'), produto: pT, fabrica: f, qtd: q, situacao: st }); ad++; }
+    });
+
+    if (ad > 0) { salvarColecao('estoque', estoque); registrarAcao('📦', 'CADASTRO EM MASSA', ad + ' itens.'); getEl('e_massa').value = ""; alert("✅ " + ad + " itens cadastrados!"); }
+}
+
+function cadastrarEstoque() {
+    const p = val('e_produto').toUpperCase().trim(), f = val('e_fabrica_select'), q = parseInt(val('e_qtd')) || 1;
+    if (p) {
+        estoque.unshift({ uid: gerarUid(), data: new Date().toLocaleDateString('pt-BR'), produto: p, fabrica: f, qtd: q, situacao: 'ESTOQUE' });
+        salvarColecao('estoque', estoque); registrarAcao('📦', 'ADICIONOU AO ESTOQUE', q + 'x ' + p); getEl('e_produto').value = "";
+    }
+}
+
+// =========================================================
+// 12. ASSISTÊNCIAS, FÁBRICAS E CATÁLOGO
+// =========================================================
+function renderAssistencias() {
+    const tb = getEl('tabelaAssistencias'); if (!tb) return;
+    const b = noAcc(val('busca-assistencia').toLowerCase()), f = val('filtro-assistencia-status') || "TODAS";
+
+    let lst = assistencias.filter(function(x) {
+        return (noAcc((x.cliente || "").toLowerCase()).includes(b) || noAcc((x.produto || "").toLowerCase()).includes(b) || noAcc((x.fabrica || "").toLowerCase()).includes(b)) && (f === "TODAS" || (x.status || "Aguardando") === f);
+    });
+
+    if (getEl('contador-assistencia')) getEl('contador-assistencia').innerText = lst.length + " ASSISTÊNCIAS";
+
+    tb.innerHTML = lst.map(function(x) {
+        let sC = "bg-slate-200 text-slate-700"; if (x.status === "Aguardando") sC = "bg-red-100 text-red-700"; else if (x.status === "Peça Solicitada") sC = "bg-blue-100 text-blue-700"; else if (x.status === "Concluído") sC = "bg-green-100 text-green-700";
+        return `<tr class="border-b transition hover:bg-slate-50"><td class="text-[10px] font-bold text-slate-400">${esc(x.data)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'cliente', 'assistencias')" class="uppercase font-bold cursor-pointer">${esc(x.cliente)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'assistencias')" class="uppercase cursor-pointer">${esc(x.produto)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'fabrica', 'assistencias')" class="font-black text-blue-800 uppercase text-[10px] cursor-pointer">${esc(x.fabrica)}</td><td class="text-center"><button onclick="cycleAssisStatus(${x.uid})" class="px-2 py-1.5 rounded text-[9px] font-black w-full transition ${sC}">${esc(x.status)}</button></td><td class="text-center"><button onclick="if(confirm('EXCLUIR ASSISTÊNCIA?')){ assistencias=assistencias.filter(function(y){return y.uid!=${x.uid}}); salvarColecao('assistencias', assistencias); }" class="text-red-500 font-black text-lg">✕</button></td></tr>`;
+    }).join('');
+}
+
+function cadastrarAssistencia() {
+    const c = val('as_cliente').toUpperCase().trim(), p = val('as_produto').toUpperCase().trim(), f = val('as_fabrica');
+    if (c && p) {
+        assistencias.unshift({ uid: gerarUid(), data: new Date().toLocaleDateString('pt-BR'), cliente: c, produto: p, fabrica: f, status: "Aguardando" });
+        salvarColecao('assistencias', assistencias); getEl('as_cliente').value = ""; getEl('as_produto').value = "";
+    } else alert("PREENCHA CLIENTE E PRODUTO!");
+}
+
+function cycleAssisStatus(u) {
+    const x = assistencias.find(function(y) { return y.uid == u; }); if (!x) return;
+    const s = ["Aguardando", "Peça Solicitada", "Concluído"];
+    x.status = s[(s.indexOf(x.status || "Aguardando") + 1) % s.length];
+    salvarColecao('assistencias', assistencias); renderAssistencias();
+}
+
+function renderFornecedores() {
+    const tb = getEl('tabelaFornecedores'); if (!tb) return;
+    tb.innerHTML = fornecedores.map(function(f) {
+        const pg = f.pagamento || TEXTO_FABRICA.pagamento, as = f.assinatura || TEXTO_FABRICA.assinatura;
+        return `<tr><td class="font-bold uppercase">${esc(f.nome)}<div class="text-[9px] text-slate-400 normal-case font-bold">Pgto: ${esc(pg)} | Assinatura: ${esc(as)}</div></td><td class="lowercase text-blue-600">${esc(f.email)}</td><td class="text-center"><button onclick="editarDadosFabrica(${f.uid})" class="text-amber-500 px-2" title="Editar e-mail, pagamento e assinatura">✏️</button><button onclick="removerFornecedor(${f.uid})" class="text-red-500 font-black">✕</button></td></tr>`;
+    }).join('');
+}
+
+function cadastrarFornecedor() {
+    const n = val('f_nome').toUpperCase().trim(), e = val('f_email').toLowerCase().trim();
+    if (n && e) {
+        fornecedores.push({ uid: gerarUid(), nome: n, email: e, pagamento: "", assinatura: "" });
+        salvarColecao('fornecedores', fornecedores); getEl('f_nome').value = ""; getEl('f_email').value = "";
+    }
+}
+
+function removerFornecedor(uid) {
+    if (!confirm("Remover esta fábrica?")) return;
+    fornecedores = fornecedores.filter(function(f) { return f.uid != uid; });
+    salvarColecao('fornecedores', fornecedores);
+}
+
+function editarDadosFabrica(uid) {
+    const f = fornecedores.find(function(x) { return x.uid == uid; }); if (!f) return;
+    const email = prompt("E-mail da fábrica:", f.email || ""); if (email === null) return;
+    const pg = prompt("Forma de pagamento que vai no pedido (ex: 30/60/90):", f.pagamento || TEXTO_FABRICA.pagamento); if (pg === null) return;
+    const as = prompt("Assinatura do pedido:", f.assinatura || TEXTO_FABRICA.assinatura); if (as === null) return;
+    f.email = email.trim().toLowerCase(); f.pagamento = pg.trim(); f.assinatura = as.trim();
+    salvarColecao('fornecedores', fornecedores); renderFornecedores();
+}
+
+function renderCatalogo() {
+    const tb = getEl('tabelaCatalogo'); if (!tb) return;
+    tb.innerHTML = catalogo.map(function(c) {
+        return `<tr><td class="uppercase">${esc(c.nome)}</td><td class="text-center"><button onclick="removerCatalogo(${c.uid})">✕</button></td></tr>`;
+    }).join('');
+}
+function cadastrarCatalogo() { const n = val('cat_nome').toUpperCase().trim(); if (n) { catalogo.push({ uid: gerarUid(), nome: n }); salvarColecao('catalogo', catalogo); getEl('cat_nome').value = ""; } }
+function removerCatalogo(uid) { catalogo = catalogo.filter(function(c) { return c.uid != uid; }); salvarColecao('catalogo', catalogo); }
+
+function atualizarSelectsFornecedores() {
+    const h = fornecedores.map(function(f) { return `<option value="${esc(f.nome)}">${esc(f.nome)}</option>`; }).join('');
+    if (getEl('m_fornecedor_select')) getEl('m_fornecedor_select').innerHTML = h || "<option>...</option>";
+    if (getEl('as_fabrica')) getEl('as_fabrica').innerHTML = h || "<option>...</option>";
+    if (getEl('e_fabrica_select')) getEl('e_fabrica_select').innerHTML = h || "<option>...</option>";
+    if (getEl('estoque-filtro-fabrica')) getEl('estoque-filtro-fabrica').innerHTML = '<option value="TODAS">TODAS AS FÁBRICAS</option>' + h;
+}
+
+function atualizarSugestoes() {
+    const n = [...new Set(pedidos.map(function(p) { return p.cliente; }))].sort();
+    if (getEl('listaSugestaoClientes')) getEl('listaSugestaoClientes').innerHTML = n.map(function(x) { return `<option value="${esc(x)}">`; }).join('');
+}
+
+function togglePainelSugestoes() { const p = getEl('painel-sugestoes'); if (p) p.style.display = (p.style.display === 'flex') ? 'none' : 'flex'; }
+function autoSalvarNotas() { notasMelhoria = val('texto-melhorias'); db.ref('dados/notasMelhoria').set(notasMelhoria); }
+
+const painelS = getEl('painel-sugestoes'); const dragH = getEl('drag-handle'); let isDrag = false, offX, offY;
+if (dragH && painelS) dragH.addEventListener('mousedown', function(e) { isDrag = true; offX = e.clientX - painelS.getBoundingClientRect().left; offY = e.clientY - painelS.getBoundingClientRect().top; painelS.style.bottom = 'auto'; painelS.style.right = 'auto'; });
+document.addEventListener('mousemove', function(e) { if (!isDrag || !painelS) return; painelS.style.left = (e.clientX - offX) + 'px'; painelS.style.top = (e.clientY - offY) + 'px'; });
+document.addEventListener('mouseup', function() { isDrag = false; });
+
+// =========================================================
+// 13. AUXILIARES DE DATA E DINHEIRO
+// =========================================================
+function pad2(n) { return String(n).padStart(2, '0'); }
+function formatMoney(n) { return "R$ " + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function fmtBR(iso) { const p = String(iso || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : '-'; }
+
+function somaMeses(iso, k) {
+    const p = String(iso).split('-'); const y = parseInt(p[0]), m = parseInt(p[1]), d = parseInt(p[2]);
+    const ultimo = new Date(y, m - 1 + k + 1, 0).getDate();
+    return dataLocalISO(new Date(y, m - 1 + k, Math.min(d, ultimo)));
+}
+
+// =========================================================
+// 14. CRIAÇÃO DAS TELAS "HOJE" E "COMISSÕES"
+// =========================================================
+function criarTelaHoje() {
+    const nav = document.querySelector('nav');
+    const modelo = nav ? nav.querySelector('button') : null;
+    const classeBtn = modelo ? modelo.className.replace(/\btab-active\b/g, '') : 'px-4 py-3 text-xs font-black uppercase';
+    const refMain = document.querySelector('main');
+    const classeMain = refMain ? refMain.className.replace(/\bhidden\b/g, '').trim() : 'p-4 max-w-7xl mx-auto';
+
+    if (!getEl('tab-hoje') && nav) {
+        const b = document.createElement('button');
+        b.id = 'tab-hoje'; b.className = classeBtn; b.innerText = '🏠 Hoje';
+        b.onclick = function() { switchTab('hoje'); };
+        nav.insertBefore(b, nav.firstChild);
+    }
+    if (!getEl('view-hoje')) {
+        const m = document.createElement('main');
+        m.id = 'view-hoje'; m.className = classeMain + ' hidden';
+        const mains = document.querySelectorAll('main'); const ultimo = mains[mains.length - 1];
+        if (ultimo) ultimo.insertAdjacentElement('afterend', m); else document.body.appendChild(m);
+    }
+    criarTelaComissoes(classeBtn, classeMain);
+}
+
+function cartaoHoje(icone, titulo, corBadge, qtd, corpo, vazio) {
+    const badge = qtd > 0
+        ? `<span class="${corBadge} text-[10px] font-black px-2 py-0.5 rounded-full">${qtd}</span>`
+        : `<span class="text-[10px] font-black text-emerald-500">✔</span>`;
+    return `<div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-col gap-2">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-2"><h3 class="text-xs font-black uppercase text-slate-700">${icone} ${titulo}</h3>${badge}</div>
+        ${qtd > 0 ? corpo : `<span class="text-[10px] font-bold uppercase text-slate-400 py-3 text-center">${vazio}</span>`}
+    </div>`;
+}
+
+function linhaHoje(principal, secundario, direita) {
+    return `<div class="flex justify-between items-start gap-2 bg-slate-50 rounded-lg p-2 border border-slate-100"><div class="flex flex-col min-w-0"><span class="text-[11px] font-black uppercase text-slate-800">${principal}</span><span class="text-[9px] font-bold uppercase text-slate-500">${secundario}</span></div>${direita || ''}</div>`;
+}
+
+function etiquetaHoje(txt, cor) { return `<span class="${cor} text-[9px] font-black px-2 py-0.5 rounded whitespace-nowrap">${txt}</span>`; }
+
+function renderHoje() {
+    const v = getEl('view-hoje'); if (!v) return;
+    const hoje = hojeLocal();
+    const hora = new Date().getHours();
+    const saud = hora < 12 ? 'Bom dia' : (hora < 18 ? 'Boa tarde' : 'Boa noite');
+    const nome = usuarioAtual ? usuarioAtual.charAt(0) + usuarioAtual.slice(1).toLowerCase() : '';
+    const dataExtenso = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+    // Backup
+    let ultimoBackup = ''; try { ultimoBackup = localStorage.getItem('mercier_ultimo_backup') || ''; } catch (e) {}
+    const diasBackup = ultimoBackup ? Math.round((new Date(hoje + 'T12:00:00') - new Date(ultimoBackup + 'T12:00:00')) / 86400000) : null;
+    const alertaBackup = diasBackup === null || diasBackup > 7;
+    const msgBackup = diasBackup === null ? 'Nenhum backup baixado neste aparelho ainda.' : 'Último backup neste aparelho: ' + fmtBR(ultimoBackup) + ' (' + diasBackup + ' dia(s) atrás).';
+    const blocoBackup = `<div class="${alertaBackup ? 'bg-red-50 border-red-300' : 'bg-emerald-50 border-emerald-200'} border rounded-2xl p-3 flex flex-col md:flex-row md:items-center justify-between gap-2">
+        <span class="text-[11px] font-black uppercase ${alertaBackup ? 'text-red-700' : 'text-emerald-700'}">${alertaBackup ? '⚠️ ' : '💾 '}${msgBackup}</span>
+        <button onclick="baixarBackupManual()" class="bg-slate-800 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase">💾 Baixar backup agora</button></div>`;
+
+    // Entregas
+    const entHoje = entregas.filter(function(e) { return e.dataOrdem === hoje && e.status !== 'Entregue'; }).sort(function(a, b) { return (a.hora || '23:59').localeCompare(b.hora || '23:59'); });
+    const entAtrasadas = entregas.filter(function(e) { return e.dataOrdem && e.dataOrdem < hoje && e.status !== 'Entregue'; });
+    let htmlEnt = entHoje.map(function(e) {
+        return linhaHoje(esc(e.cliente), '📍 ' + esc(e.endereco), etiquetaHoje(e.hora ? '🕒 ' + esc(e.hora) : 'SEM HORA', 'bg-emerald-100 text-emerald-700'));
+    }).join('');
+    htmlEnt += entAtrasadas.map(function(e) {
+        return linhaHoje(esc(e.cliente), 'Era para ' + fmtBR(e.dataOrdem) + ' e não foi marcada como entregue', etiquetaHoje('ATRASADA', 'bg-red-100 text-red-700'));
+    }).join('');
+
+    // Pedidos com prazo curto
+    const ativos = pedidos.filter(function(p) { return !p.finalizado && p.status !== "Entregue/Finalizado"; });
+    const prazo = ativos.filter(function(p) { return p.dataPedido; }).map(function(p) { return { p: p, dias: calcP(p.dataPedido, p.prazo).dias }; })
+        .filter(function(x) { return x.dias <= 5; }).sort(function(a, b) { return a.dias - b.dias; });
+    let htmlPrazo = prazo.slice(0, 10).map(function(x) {
+        const rot = x.dias < 0 ? 'VENCIDO ' + (-x.dias) + 'D' : (x.dias === 0 ? 'HOJE' : x.dias + 'D');
+        const cor = x.dias < 0 ? 'bg-red-100 text-red-700' : (x.dias <= 2 ? 'bg-orange-100 text-orange-700' : 'bg-amber-100 text-amber-700');
+        return linhaHoje(esc(x.p.cliente) + ' - ' + esc(x.p.produto), esc(x.p.fornecedor) + ' | ' + esc(x.p.status), etiquetaHoje(rot, cor));
+    }).join('');
+    if (prazo.length > 10) htmlPrazo += `<span class="text-[9px] font-black text-slate-400 text-center">+ ${prazo.length - 10} pedidos na aba Pedidos</span>`;
+
+    // Não enviados
+    const naoEnv = ativos.filter(function(p) { return p.status === "Não enviado"; });
+    let htmlNE = naoEnv.slice(0, 8).map(function(p) {
+        return linhaHoje(esc(p.cliente) + ' - ' + esc(p.produto), esc(p.fornecedor) + ' | ' + esc(p.idDoc), '');
+    }).join('');
+    if (naoEnv.length > 8) htmlNE += `<span class="text-[9px] font-black text-slate-400 text-center">+ ${naoEnv.length - 8} na aba Pedidos</span>`;
+    htmlNE += `<button onclick="irParaAba('pedidos')" class="text-[10px] font-black text-blue-600 uppercase mt-1 hover:underline">Ir para Pedidos →</button>`;
+
+    // Tarefas da pessoa
+    let cartaoTarefas = '';
+    if (!usuarioAtual) {
+        cartaoTarefas = cartaoHoje('👤', 'Minhas tarefas', 'bg-blue-100 text-blue-700', 0, '', 'Selecione quem você é no topo da tela');
+    } else {
+        const pP = { "AGORA": 1, "IMEDIATO": 2, "IMPORTANTE": 3, "REGULAR": 4, "TRANQUILO": 5, "": 6 };
+        const rotPrazo = { "AGORA": '🚨 AGORA', "IMEDIATO": '⚡ 1 DIA', "IMPORTANTE": '⚠️ 2 DIAS', "REGULAR": '📅 3 DIAS', "TRANQUILO": '☕ + DIAS' };
+        const minhas = tarefasEquipe.filter(function(t) { return t.responsavel === usuarioAtual && t.coluna !== 'DONE'; })
+            .sort(function(a, b) { return (pP[a.prazo || ""] || 6) - (pP[b.prazo || ""] || 6); });
+        const htmlT = minhas.map(function(t) {
+            return linhaHoje(esc(t.descricao), t.coluna === 'DOING' ? 'Em andamento' : 'A fazer', rotPrazo[t.prazo] ? etiquetaHoje(rotPrazo[t.prazo], 'bg-slate-200 text-slate-700') : '');
+        }).join('') + `<button onclick="irParaAba('equipe')" class="text-[10px] font-black text-blue-600 uppercase mt-1 hover:underline">Ir para Equipe →</button>`;
+        cartaoTarefas = cartaoHoje('👤', 'Minhas tarefas', 'bg-blue-100 text-blue-700', minhas.length, htmlT, 'Nenhuma tarefa pendente');
+    }
+
+    // Lembretes
+    const lemb = lembretes.filter(function(l) { return !l.concluido && l.dataOrdem && l.dataOrdem <= hoje; });
+    const htmlL = lemb.map(function(l) {
+        return linhaHoje(esc(l.titulo), esc(l.categoria), etiquetaHoje(l.dataOrdem < hoje ? 'ATRASADO' : 'HOJE', l.dataOrdem < hoje ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'));
+    }).join('');
+
+    // Parcelas a receber
+    const parc = [];
+    comissoes.forEach(function(venda) {
+        const ps = safeArray(venda.parcelas);
+        ps.forEach(function(p, i) { if (!p.pago && p.venc && p.venc <= hoje) parc.push({ v: venda, p: p, i: i, n: ps.length }); });
+    });
+    parc.sort(function(a, b) { return String(a.p.venc).localeCompare(String(b.p.venc)); });
+    const htmlP = parc.slice(0, 8).map(function(x) {
+        return linhaHoje(esc(x.v.cliente), 'Parcela ' + (x.i + 1) + '/' + x.n + ' | ' + formatMoney(x.p.valor), etiquetaHoje(x.p.venc < hoje ? 'ATRASADA' : 'HOJE', x.p.venc < hoje ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'));
+    }).join('') + `<button onclick="irParaAba('comissoes')" class="text-[10px] font-black text-blue-600 uppercase mt-1 hover:underline">Ir para Comissões →</button>`;
+
+    v.innerHTML = `
+    <div class="flex flex-col gap-4">
+        <div><h2 class="text-xl font-black text-slate-800">${saud}${nome ? ', ' + esc(nome) : ''}!</h2><span class="text-[11px] font-bold uppercase text-slate-400">${dataExtenso}</span></div>
+        ${blocoBackup}
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            ${cartaoHoje('🚚', 'Entregas de hoje e atrasadas', 'bg-emerald-100 text-emerald-700', entHoje.length + entAtrasadas.length, htmlEnt, 'Nenhuma entrega pendente')}
+            ${cartaoHoje('⏳', 'Pedidos vencidos ou até 5 dias', 'bg-red-100 text-red-700', prazo.length, htmlPrazo, 'Nenhum pedido com prazo curto')}
+            ${cartaoHoje('📧', 'Pedidos não enviados à fábrica', 'bg-orange-100 text-orange-700', naoEnv.length, htmlNE, 'Tudo enviado')}
+            ${cartaoTarefas}
+            ${cartaoHoje('🔔', 'Lembretes de hoje e atrasados', 'bg-amber-100 text-amber-700', lemb.length, htmlL, 'Nenhum lembrete pendente')}
+            ${cartaoHoje('💰', 'Parcelas a receber (hoje e atrasadas)', 'bg-emerald-100 text-emerald-700', parc.length, htmlP, 'Nenhuma parcela pendente')}
+        </div>
+    </div>`;
+}
+
+// =========================================================
+// 15. COMISSÕES (DENTRO DO SISTEMA)
+// =========================================================
+const TAXA_COMISSAO = 5;
+let mesComissao = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+
+function comissaoDe(valor) { return (Number(valor) || 0) * TAXA_COMISSAO / 100; }
+
+function criarTelaComissoes(classeBtn, classeMain) {
+    const nav = document.querySelector('nav');
+
+    // Aba: troca o link antigo por um botão
+    if (!getEl('tab-comissoes')) {
+        const b = document.createElement('button');
+        b.id = 'tab-comissoes'; b.className = classeBtn; b.innerText = '💰 Comissões';
+        b.onclick = function() { switchTab('comissoes'); };
+        const link = document.querySelector('a[href="comissoes.html"]');
+        if (link) link.replaceWith(b); else if (nav) nav.appendChild(b);
+    }
+
+    // Tela
+    const velha = getEl('view-comissoes'); if (velha) velha.remove();
+    const m = document.createElement('main');
+    m.id = 'view-comissoes'; m.className = classeMain + ' hidden';
+    m.innerHTML = `
+    <div class="flex flex-col gap-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+                <button onclick="mudarMesComissao(-1)" class="bg-white border px-3 py-2 rounded-lg font-black">◀</button>
+                <h2 id="com-mes" class="text-lg font-black text-slate-800 uppercase w-48 text-center"></h2>
+                <button onclick="mudarMesComissao(1)" class="bg-white border px-3 py-2 rounded-lg font-black">▶</button>
+            </div>
+            <button onclick="abrirModalVenda()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-black uppercase shadow">➕ Registrar Venda</button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white rounded-2xl border p-4"><span class="text-[10px] font-black uppercase text-slate-400">Total vendido no mês</span><div id="com-vendido" class="text-xl font-black text-slate-800">R$ 0,00</div></div>
+            <div class="bg-white rounded-2xl border p-4"><span class="text-[10px] font-black uppercase text-slate-400">Comissão pendente (parcelas do mês)</span><div id="com-pendente" class="text-xl font-black text-amber-600">R$ 0,00</div></div>
+            <div class="bg-white rounded-2xl border p-4"><span class="text-[10px] font-black uppercase text-slate-400">Comissão garantida 💰 (já pagas)</span><div id="com-garantida" class="text-xl font-black text-emerald-600">R$ 0,00</div></div>
+        </div>
+        <div class="card-premium p-4">
+            <div class="flex justify-between items-center mb-2"><h3 class="text-xs font-black uppercase text-slate-700">Parcelas do mês (comissão de ${TAXA_COMISSAO}%)</h3><span id="com-qtd" class="text-[10px] font-black text-slate-400">0 parcelas</span></div>
+            <div class="table-container"><table>
+                <thead><tr><th>Vencimento</th><th>Cliente</th><th>Parcela</th><th>Valor</th><th>Comissão</th><th>Status</th><th>Ações</th></tr></thead>
+                <tbody id="com-tabela"></tbody>
+            </table></div>
+        </div>
+    </div>`;
+    const mains = document.querySelectorAll('main'); const ultimo = mains[mains.length - 1];
+    if (ultimo) ultimo.insertAdjacentElement('afterend', m); else document.body.appendChild(m);
+
+    // Janela de venda
+    const antigo = getEl('modal-venda'); if (antigo) antigo.remove();
+    const mv = document.createElement('div');
+    mv.id = 'modal-venda'; mv.className = 'modal-overlay';
+    mv.onclick = function(ev) { if (ev.target === mv) fecharModalVenda(); };
+    mv.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl border-t-8 border-emerald-500 flex flex-col max-h-[90vh]">
+        <div class="p-5 border-b flex justify-between items-center"><h2 id="v_titulo" class="font-black uppercase text-emerald-600 text-sm">💰 Registrar Nova Venda</h2><button onclick="fecharModalVenda()" class="text-slate-400 hover:text-red-500 text-xl font-black">✕</button></div>
+        <div class="p-5 overflow-y-auto flex flex-col gap-3">
+            <input id="v_cliente" list="listaSugestaoClientes" placeholder="NOME DO CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold uppercase w-full outline-emerald-500">
+            <div class="grid grid-cols-2 gap-2">
+                <div><label class="text-[9px] font-black text-slate-400 uppercase block mb-1">Data do fechamento</label><input type="date" id="v_data" class="border-2 p-2 rounded-lg text-xs font-bold w-full bg-white"></div>
+                <div><label class="text-[9px] font-black text-slate-400 uppercase block mb-1">Valor total</label><input id="v_total" oninput="maskMoney(this); gerarInputsParcelas()" class="border-2 p-2 rounded-lg text-xs font-bold w-full text-emerald-600" value="R$ 0,00"></div>
+                <div><label class="text-[9px] font-black text-slate-400 uppercase block mb-1">Parcelas</label><select id="v_parcelas" onchange="gerarInputsParcelas()" class="border-2 p-2 rounded-lg text-xs font-bold w-full bg-white">${[...Array(12).keys()].map(function(n) { return `<option value="${n + 1}">${n + 1}x</option>`; }).join('')}</select></div>
+                <div><label class="text-[9px] font-black text-slate-400 uppercase block mb-1">1º vencimento</label><input type="date" id="v_venc1" onchange="gerarInputsParcelas()" class="border-2 p-2 rounded-lg text-xs font-bold w-full bg-white"></div>
+            </div>
+            <div class="text-[10px] font-black uppercase text-slate-500 border-t pt-3">Plano de recebimento (ajuste se as parcelas forem diferentes)</div>
+            <div id="v_plano" class="flex flex-col gap-2"></div>
+            <div id="v_soma" class="text-[10px] font-black uppercase text-slate-500"></div>
+        </div>
+        <div class="p-5 border-t bg-slate-50 rounded-b-2xl"><button onclick="salvarVenda()" class="w-full bg-emerald-600 text-white py-3 rounded-lg text-xs font-black uppercase shadow-lg hover:bg-emerald-700">💾 Salvar venda e plano de comissão</button></div>
+    </div>`;
+    document.body.appendChild(mv);
+}
+
+function mudarMesComissao(d) { mesComissao = new Date(mesComissao.getFullYear(), mesComissao.getMonth() + d, 1); renderComissoes(); }
+
+function renderComissoes() {
+    const tb = getEl('com-tabela'); if (!tb) return;
+    const a = mesComissao.getFullYear(), m = mesComissao.getMonth();
+    const pref = a + '-' + pad2(m + 1);
+    const nomes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    getEl('com-mes').innerText = nomes[m] + ' ' + a;
+
+    let vendido = 0;
+    comissoes.forEach(function(v) { if (String(v.dataVenda || '').startsWith(pref)) vendido += Number(v.total) || 0; });
+
+    const linhas = [];
+    comissoes.forEach(function(v) {
+        const ps = safeArray(v.parcelas);
+        ps.forEach(function(p, i) { if (String(p.venc || '').startsWith(pref)) linhas.push({ v: v, p: p, i: i, n: ps.length }); });
+    });
+    linhas.sort(function(x, y) { return String(x.p.venc).localeCompare(String(y.p.venc)); });
+
+    const hoje = hojeLocal();
+    let pend = 0, gar = 0, html = '';
+    linhas.forEach(function(l) {
+        const com = comissaoDe(l.p.valor);
+        if (l.p.pago) gar += com; else pend += com;
+        let btn;
+        if (l.p.pago) btn = `<button onclick="togglePagoParcela(${l.v.uid}, ${l.i})" class="status-badge bg-green-700 text-white" title="Clique para desfazer">✅ PAGO ${l.p.dataPgto ? fmtBR(l.p.dataPgto) : ''}</button>`;
+        else if (l.p.venc < hoje) btn = `<button onclick="togglePagoParcela(${l.v.uid}, ${l.i})" class="status-badge bg-red-600 text-white">ATRASADO - MARCAR PAGO</button>`;
+        else btn = `<button onclick="togglePagoParcela(${l.v.uid}, ${l.i})" class="status-badge bg-amber-500 text-white">PENDENTE - MARCAR PAGO</button>`;
+        html += `<tr><td>${fmtBR(l.p.venc)}</td><td class="uppercase">${esc(l.v.cliente)}</td><td class="text-center">${l.i + 1}/${l.n}</td><td>${formatMoney(l.p.valor)}</td><td class="text-emerald-700">${formatMoney(com)}</td><td>${btn}</td><td class="text-center"><button onclick="abrirModalVenda(${l.v.uid})" class="px-1" title="Editar venda">✏️</button><button onclick="excluirVenda(${l.v.uid})" class="px-1" title="Excluir venda">🗑️</button></td></tr>`;
+    });
+
+    tb.innerHTML = html || '<tr><td colspan="7" class="text-center text-slate-400 uppercase text-[10px] py-6">Nenhuma parcela neste mês</td></tr>';
+    getEl('com-vendido').innerText = formatMoney(vendido);
+    getEl('com-pendente').innerText = formatMoney(pend);
+    getEl('com-garantida').innerText = formatMoney(gar);
+    getEl('com-qtd').innerText = linhas.length + (linhas.length === 1 ? ' parcela' : ' parcelas');
+}
+
+function togglePagoParcela(uid, i) {
+    const v = comissoes.find(function(x) { return x.uid == uid; }); if (!v) return;
+    const p = safeArray(v.parcelas)[i]; if (!p) return;
+    if (p.pago) {
+        if (!confirm("Desfazer o pagamento desta parcela?")) return;
+        p.pago = false; p.dataPgto = '';
+        registrarAcao('↩️', 'DESFEZ PAGAMENTO', 'CLIENTE: ' + v.cliente);
+    } else {
+        p.pago = true; p.dataPgto = hojeLocal();
+        registrarAcao('💰', 'PARCELA PAGA', 'CLIENTE: ' + v.cliente);
+    }
+    salvarColecao('comissoes', comissoes); renderComissoes(); renderHoje();
+}
+
+function excluirVenda(uid) {
+    const v = comissoes.find(function(x) { return x.uid == uid; }); if (!v) return;
+    if (!confirm("EXCLUIR a venda de " + v.cliente + " e todas as parcelas?")) return;
+    comissoes = comissoes.filter(function(x) { return x.uid != uid; });
+    salvarColecao('comissoes', comissoes); registrarAcao('🗑️', 'EXCLUIU VENDA', 'CLIENTE: ' + v.cliente);
+    renderComissoes(); renderHoje();
+}
+
+function abrirModalVenda(uid) {
+    const m = getEl('modal-venda'); if (!m) return;
+    vendaEditandoUid = uid || null;
+    const v = uid ? comissoes.find(function(x) { return x.uid == uid; }) : null;
+    const ps = v ? safeArray(v.parcelas) : [];
+    getEl('v_titulo').innerText = v ? '✏️ Editar Venda' : '💰 Registrar Nova Venda';
+    getEl('v_cliente').value = v ? v.cliente : '';
+    getEl('v_data').value = v ? (v.dataVenda || hojeLocal()) : hojeLocal();
+    getEl('v_total').value = formatMoney(v ? v.total : 0);
+    getEl('v_parcelas').value = String(v && ps.length ? Math.min(ps.length, 12) : 1);
+    getEl('v_venc1').value = (v && ps[0] && ps[0].venc) ? ps[0].venc : somaMeses(hojeLocal(), 1);
+    m.style.display = 'flex';
+    if (v && ps.length) renderPlano(ps); else gerarInputsParcelas();
+}
+
+function fecharModalVenda() { const m = getEl('modal-venda'); if (m) m.style.display = 'none'; vendaEditandoUid = null; }
+
+function gerarInputsParcelas() {
+    const totalC = Math.round(parseMoney(val('v_total')) * 100);
+    const n = parseInt(val('v_parcelas')) || 1;
+    const v1 = val('v_venc1') || somaMeses(hojeLocal(), 1);
+    const baseC = Math.floor(totalC / n);
+    const parcelas = [];
+    for (let i = 0; i < n; i++) {
+        const c = (i < n - 1) ? baseC : (totalC - baseC * (n - 1));
+        parcelas.push({ venc: somaMeses(v1, i), valor: c / 100 });
+    }
+    renderPlano(parcelas);
+}
+
+function renderPlano(parcelas) {
+    const box = getEl('v_plano'); if (!box) return;
+    const n = parcelas.length;
+    box.innerHTML = parcelas.map(function(p, i) {
+        return `<div class="pl-linha flex gap-2 items-center"><span class="text-[10px] font-black text-slate-500 w-10">${i + 1}/${n}</span><input type="date" class="pl-data border-2 p-2 rounded-lg text-xs font-bold bg-white flex-1" value="${esc(p.venc)}"><input class="pl-valor border-2 p-2 rounded-lg text-xs font-bold text-emerald-600 flex-1" value="${formatMoney(p.valor)}" oninput="maskMoney(this); atualizarSomaPlano()"></div>`;
+    }).join('');
+    atualizarSomaPlano();
+}
+
+function atualizarSomaPlano() {
+    const el = getEl('v_soma'); if (!el) return;
+    let soma = 0; document.querySelectorAll('#v_plano .pl-valor').forEach(function(i) { soma += parseMoney(i.value); });
+    const total = parseMoney(val('v_total'));
+    const dif = Math.round((total - soma) * 100) / 100;
+    el.innerText = 'Soma das parcelas: ' + formatMoney(soma) + (Math.abs(dif) < 0.01 ? ' (confere com o total)' : ' (diferença de ' + formatMoney(Math.abs(dif)) + ' em relação ao total)');
+    el.style.color = Math.abs(dif) < 0.01 ? '#059669' : '#dc2626';
+}
+
+function salvarVenda() {
+    const cliente = val('v_cliente').toUpperCase().trim();
+    const total = parseMoney(val('v_total'));
+    if (!cliente) return alert("Informe o nome do cliente!");
+    if (total <= 0) return alert("Informe o valor total da venda!");
+
+    const antiga = vendaEditandoUid ? comissoes.find(function(x) { return x.uid == vendaEditandoUid; }) : null;
+    const antigas = antiga ? safeArray(antiga.parcelas) : [];
+    const parcelas = [];
+    let soma = 0, faltaData = false;
+    document.querySelectorAll('#v_plano .pl-linha').forEach(function(l, i) {
+        const venc = l.querySelector('.pl-data').value;
+        const valor = parseMoney(l.querySelector('.pl-valor').value);
+        if (!venc) faltaData = true;
+        soma += valor;
+        const ant = antigas[i];
+        parcelas.push({ n: i + 1, venc: venc, valor: valor, pago: ant ? !!ant.pago : false, dataPgto: ant ? (ant.dataPgto || '') : '' });
+    });
+    if (!parcelas.length) return alert("O plano de recebimento está vazio!");
+    if (faltaData) return alert("Preencha a data de todas as parcelas!");
+    if (Math.abs(soma - total) > 0.01 && !confirm("A soma das parcelas (" + formatMoney(soma) + ") é diferente do total (" + formatMoney(total) + "). Salvar mesmo assim?")) return;
+
+    if (antiga) {
+        antiga.cliente = cliente; antiga.dataVenda = val('v_data') || hojeLocal(); antiga.total = total; antiga.parcelas = parcelas;
+        registrarAcao('✏️', 'EDITOU VENDA', 'CLIENTE: ' + cliente);
+    } else {
+        comissoes.unshift({ uid: gerarUid(), cliente: cliente, dataVenda: val('v_data') || hojeLocal(), total: total, parcelas: parcelas });
+        registrarAcao('💰', 'NOVA VENDA', 'CLIENTE: ' + cliente + ' | ' + formatMoney(total));
+    }
+    salvarColecao('comissoes', comissoes);
+    fecharModalVenda(); renderComissoes(); renderHoje();
+}
 
