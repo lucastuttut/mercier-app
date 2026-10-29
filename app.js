@@ -1745,3 +1745,162 @@ function renderHoje() {}
 })();
   });
 })();
+
+// =====================================================================
+// NOVIDADES: comentário no estoque + botão copiar entrega
+// Cole TUDO isto no FINAL do app.js
+// =====================================================================
+(function () {
+
+  // ---------------------------------------------------------------
+  // 1. COMENTÁRIO EM CADA ITEM DO ESTOQUE
+  // ---------------------------------------------------------------
+  function pintarComentario(bloco) {
+    const uid = bloco.dataset.uid;
+    const it = estoque.find(function (x) { return x.uid == uid; });
+    const txt = it && it.comentario ? String(it.comentario) : '';
+    bloco.innerHTML = txt
+      ? '<div class="est-ct cursor-pointer bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 text-[11px] font-bold text-amber-900 whitespace-pre-wrap" title="Clique para editar">💬 ' + esc(txt) + '</div>'
+      : '<div class="est-ct cursor-pointer text-[10px] font-black uppercase text-slate-300 hover:text-blue-600">💬 + adicionar comentário</div>';
+  }
+
+  function editarComentario(bloco) {
+    const uid = bloco.dataset.uid;
+    const atual = estoque.find(function (x) { return x.uid == uid; });
+    if (!atual) return;
+
+    const i = document.createElement('input');
+    i.value = atual.comentario || '';
+    i.placeholder = 'Escreva o comentário e aperte Enter...';
+    i.className = 'w-full border-2 border-blue-500 rounded-lg p-2 text-xs font-bold outline-none';
+    bloco.innerHTML = '';
+    bloco.appendChild(i);
+    i.focus();
+
+    let feito = false;
+    function fim(salvar) {
+      if (feito) return;
+      feito = true;
+      if (salvar) {
+        const v = i.value.trim();
+        const it = estoque.find(function (x) { return x.uid == uid; });
+        if (it && v !== (it.comentario || '')) {
+          it.comentario = v;
+          salvarColecao('estoque', estoque);
+        }
+      }
+      pintarComentario(bloco);
+    }
+    i.onblur = function () { fim(true); };
+    i.onkeydown = function (e) {
+      if (e.key === 'Enter') fim(true);
+      if (e.key === 'Escape') fim(false);
+    };
+  }
+
+  function decorarEstoque() {
+    const lista = getEl('est-lista');
+    if (!lista) return;
+    lista.querySelectorAll('[data-act="del"][data-uid]').forEach(function (btn) {
+      const linha = btn.parentElement;
+      if (!linha) return;
+      const prox = linha.nextElementSibling;
+      if (prox && prox.classList.contains('est-coment')) return;
+      const bloco = document.createElement('div');
+      bloco.className = 'est-coment px-3 pb-2 border-b border-slate-100';
+      bloco.dataset.uid = btn.dataset.uid;
+      pintarComentario(bloco);
+      linha.insertAdjacentElement('afterend', bloco);
+    });
+  }
+
+  // Sempre que a lista do estoque for redesenhada (busca, filtro, banco), recoloca os comentários
+  let agendado = false;
+  new MutationObserver(function () {
+    if (agendado) return;
+    agendado = true;
+    requestAnimationFrame(function () {
+      agendado = false;
+      try { decorarEstoque(); } catch (e) { console.error(e); }
+    });
+  }).observe(document.documentElement, { childList: true, subtree: true });
+  setTimeout(function () { try { decorarEstoque(); } catch (e) {} }, 500);
+
+  // ---------------------------------------------------------------
+  // 2. BOTÃO COPIAR INFORMAÇÕES DA ENTREGA
+  // ---------------------------------------------------------------
+  function textoEntrega(e) {
+    const p = String(e.dataOrdem || '').split('-');
+    const dataBR = p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : '-';
+    let dia = '';
+    try { dia = new Date(e.dataOrdem + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long' }); } catch (x) {}
+    const itens = String(e.produtos || '').split('\n')
+      .map(function (l) { return l.trim(); })
+      .filter(Boolean)
+      .map(function (l) { return '• ' + l; })
+      .join('\n');
+
+    let t = '🚚 *ENTREGA AGENDADA - MERCIER DESIGN*\n\n';
+    t += '📅 Data: ' + dataBR + (dia ? ' (' + dia + ')' : '') + '\n';
+    if (e.hora) t += '🕒 Horário: ' + e.hora + '\n';
+    t += '👤 Cliente: ' + (e.cliente || '-') + '\n';
+    if (e.contato) t += '📞 Contato: ' + e.contato + '\n';
+    t += '📍 Endereço: ' + (e.endereco || 'Não informado') + '\n\n';
+    t += '📦 *Produtos:*\n' + itens + '\n';
+    return t;
+  }
+
+  function copiarTexto(t) {
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(t);
+    return new Promise(function (ok, erro) {
+      const ta = document.createElement('textarea');
+      ta.value = t;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy') ? ok() : erro(); } catch (x) { erro(x); }
+      ta.remove();
+    });
+  }
+
+  function copiarEntrega(btn) {
+    const e = entregas.find(function (x) { return x.uid == btn.dataset.copyEnt; });
+    if (!e) return alert('Entrega não encontrada.');
+    copiarTexto(textoEntrega(e)).then(function () {
+      const antes = btn.textContent;
+      btn.textContent = '✅ Copiado';
+      setTimeout(function () { btn.textContent = antes; }, 1500);
+    }).catch(function () { alert('Não foi possível copiar.'); });
+  }
+
+  // Acrescenta o botão em cada cartão de entrega do painel do dia
+  const _renderPainelDia = window.renderPainelDia;
+  window.renderPainelDia = function () {
+    _renderPainelDia();
+    const pn = getEl('lista-eventos-dia');
+    if (!pn) return;
+    pn.querySelectorAll('button[onclick^="editarEntrega("]').forEach(function (ed) {
+      const ant = ed.previousElementSibling;
+      if (ant && ant.hasAttribute('data-copy-ent')) return;
+      const b = document.createElement('button');
+      b.setAttribute('data-copy-ent', ed.getAttribute('onclick').replace(/\D/g, ''));
+      b.className = 'bg-indigo-50 text-indigo-600 px-2 py-1.5 rounded-lg hover:bg-indigo-100 text-[10px] font-black uppercase';
+      b.title = 'Copiar informações da entrega';
+      b.textContent = '📋 Copiar';
+      ed.parentElement.insertBefore(b, ed);
+    });
+  };
+
+  // ---------------------------------------------------------------
+  // Cliques (um único ouvinte para os dois recursos)
+  // ---------------------------------------------------------------
+  document.addEventListener('click', function (e) {
+    const ct = e.target.closest('.est-coment .est-ct');
+    if (ct) { editarComentario(ct.parentElement); return; }
+    const cp = e.target.closest('[data-copy-ent]');
+    if (cp) copiarEntrega(cp);
+  });
+
+  try { window.renderPainelDia(); } catch (e) {}
+})();
