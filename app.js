@@ -2028,5 +2028,296 @@ function renderHoje() {}
   }, true);
 
   try { window.renderEstoque(); } catch (e) {}
+
+    // =====================================================================
+// NOVIDADES: categoria Avarias/Assistência + importar NF-e (XML)
+// Cole TUDO isto no FINAL do app.js (depois da última linha)
+// =====================================================================
+(function () {
+
+  var RX_AVARIA = /\b(ASSISTENCIA|DEFEITO|DEFEITUOSO|DEFEITUOSA|AVARIA|AVARIADO|AVARIADA|DANIFICADO|DANIFICADA)\b/;
+  var jaVerificou = false;
+
+  function aviso(msg) {
+    var d = document.createElement('div');
+    d.className = 'fixed bottom-24 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[11px] font-black px-4 py-3 rounded-xl shadow-lg z-[300]';
+    d.textContent = msg;
+    document.body.appendChild(d);
+    setTimeout(function () { d.remove(); }, 4000);
+  }
+
+  // ---------------------------------------------------------------
+  // 1. CATEGORIA AVARIAS / DEFEITOS / ASSISTÊNCIA
+  // ---------------------------------------------------------------
+  function motivoDe(texto) {
+    var t = noAcc(String(texto || '').toUpperCase());
+    var m = t.match(RX_AVARIA);
+    if (!m) return '';
+    if (m[1].indexOf('ASSIST') === 0) return 'ASSISTÊNCIA';
+    if (m[1].indexOf('DEFEIT') === 0) return 'DEFEITO';
+    return 'AVARIA';
+  }
+
+  function reclassificar() {
+    var mudou = 0;
+    estoque.forEach(function (it) {
+      if ((it.situacao || 'ESTOQUE') !== 'ESTOQUE' || it.liberado) return;
+      var mv = motivoDe(it.produto);
+      if (mv) { it.situacao = 'ASSISTÊNCIA'; it.motivo = mv; mudou++; }
+    });
+    if (mudou) {
+      salvarColecao('estoque', estoque);
+      registrarAcao('⚠️', 'MOVIDO PARA AVARIAS', mudou + ' item(ns)');
+      aviso('⚠️ ' + mudou + ' item(ns) separado(s) do estoque real (avaria/defeito/assistência).');
+    }
+  }
+
+  function pintarAvarias() {
+    var tb = getEl('tabelaEstoque');
+    var tabela = tb ? tb.closest('table') : null;
+    var ancora = tabela ? tabela.parentElement : getEl('est-lista');
+    if (!ancora) return;
+
+    var box = getEl('painel-avarias');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'painel-avarias';
+      box.className = 'mt-6 bg-white border-2 border-orange-300 rounded-2xl p-4';
+      ancora.insertAdjacentElement('afterend', box);
+
+      box.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-av]');
+        if (!b) return;
+        var it = estoque.find(function (x) { return x.uid == b.dataset.uid; });
+        if (!it) return;
+        var a = b.dataset.av;
+        if (a === 'volta') {
+          if (!confirm('Voltar este item para o estoque real?')) return;
+          it.situacao = 'ESTOQUE';
+          it.liberado = true;
+          delete it.motivo;
+        } else if (a === 'fabrica') {
+          if (!confirm('Marcar como devolvido para a fábrica?')) return;
+          it.situacao = 'DEVOLUÇÃO FÁBRICA';
+          it.data = new Date().toLocaleDateString('pt-BR');
+        } else if (a === 'del') {
+          if (!confirm('EXCLUIR REGISTRO?')) return;
+          estoque = estoque.filter(function (x) { return x.uid != b.dataset.uid; });
+        }
+        salvarColecao('estoque', estoque);
+      });
+    }
+
+    var lista = estoque.filter(function (x) { return x.situacao === 'ASSISTÊNCIA' || x.situacao === 'AVARIA'; });
+    var total = lista.reduce(function (s, x) { return s + (parseInt(x.qtd) || 0); }, 0);
+
+    var h = '<div class="flex justify-between items-center mb-3">' +
+      '<h3 class="font-black text-sm uppercase text-orange-700">⚠️ Avarias / Defeitos / Assistência</h3>' +
+      '<span class="text-[10px] font-black uppercase text-orange-600 bg-orange-50 border border-orange-200 px-2 py-1 rounded">' + total + ' peça(s) fora do estoque real</span></div>';
+
+    if (!lista.length) {
+      h += '<div class="text-center text-[11px] font-bold uppercase text-slate-400 py-4">Nenhum item com avaria.</div>';
+    } else {
+      lista.forEach(function (x) {
+        h += '<div class="flex flex-wrap items-center gap-2 border-b border-orange-100 py-2">' +
+          '<span class="text-[10px] text-slate-400 font-bold w-20">' + esc(x.data || '-') + '</span>' +
+          '<span class="flex-1 min-w-[160px] text-[11px] font-black uppercase text-slate-800">' + esc(x.produto) + '</span>' +
+          '<span class="text-[10px] font-black uppercase text-blue-600">' + esc(x.fabrica || '-') + '</span>' +
+          '<span class="text-[11px] font-black">' + esc(x.qtd) + 'x</span>' +
+          '<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-[9px] font-black uppercase">' + esc(x.motivo || 'ASSISTÊNCIA') + '</span>' +
+          '<button data-av="volta" data-uid="' + x.uid + '" class="bg-green-50 text-green-700 px-2 py-1 rounded-lg text-[9px] font-black uppercase hover:bg-green-100">↩ Voltar ao estoque</button>' +
+          '<button data-av="fabrica" data-uid="' + x.uid + '" class="bg-purple-50 text-purple-700 px-2 py-1 rounded-lg text-[9px] font-black uppercase hover:bg-purple-100">🏭 Devolvido</button>' +
+          '<button data-av="del" data-uid="' + x.uid + '" class="text-slate-300 hover:text-red-500 font-black px-2">✕</button>' +
+          '</div>';
+      });
+    }
+    box.innerHTML = h;
+  }
+
+  // Depois de cadastrar (unitário ou em massa), separa automaticamente o que for avaria
+  ['cadastrarEstoque', 'processarEstoqueMassa'].forEach(function (nome) {
+    var orig = window[nome];
+    if (typeof orig !== 'function') return;
+    window[nome] = function () {
+      var r = orig.apply(this, arguments);
+      try { reclassificar(); } catch (e) { console.error(e); }
+      return r;
+    };
+  });
+
+  // ---------------------------------------------------------------
+  // 2. IMPORTAR NOTA FISCAL (XML)
+  // ---------------------------------------------------------------
+  function lerXML(texto) {
+    var doc = new DOMParser().parseFromString(texto, 'application/xml');
+    if (doc.getElementsByTagName('parsererror').length) throw new Error('arquivo XML inválido');
+    var T = function (pai, tag) {
+      var n = pai.getElementsByTagNameNS('*', tag)[0];
+      return n ? n.textContent.trim() : '';
+    };
+    var inf = doc.getElementsByTagNameNS('*', 'infNFe')[0];
+    if (!inf) throw new Error('não é um XML de NF-e');
+    var emit = inf.getElementsByTagNameNS('*', 'emit')[0];
+    var numero = T(inf, 'nNF');
+    var emitente = emit ? T(emit, 'xNome') : '';
+    var chave = (inf.getAttribute('Id') || '').replace(/\D/g, '') || ('nf' + numero + emitente.replace(/\W/g, ''));
+    var nota = { chave: chave, numero: numero, emitente: emitente, itens: [] };
+    Array.prototype.forEach.call(inf.getElementsByTagNameNS('*', 'det'), function (det) {
+      var p = det.getElementsByTagNameNS('*', 'prod')[0];
+      if (!p) return;
+      nota.itens.push({
+        nome: T(p, 'xProd'),
+        qtd: Math.round(parseFloat(T(p, 'qCom'))) || 1
+      });
+    });
+    return nota;
+  }
+
+  function fabricaDaNota(emitente) {
+    var e = noAcc(String(emitente || '').toUpperCase());
+    var achou = fornecedores.find(function (f) {
+      var n = noAcc(String(f.nome || '').toUpperCase());
+      var p = n.split(/\s+/)[0];
+      return n && (e.indexOf(n) >= 0 || (p.length >= 4 && e.indexOf(p) >= 0));
+    });
+    return achou ? achou.nome : '';
+  }
+
+  function opcoesFab(emitente) {
+    var sel = fabricaDaNota(emitente);
+    var h = fornecedores.map(function (f) {
+      return '<option value="' + esc(f.nome) + '"' + (f.nome === sel ? ' selected' : '') + '>' + esc(f.nome) + '</option>';
+    }).join('');
+    if (!sel) {
+      var em = String(emitente || '').toUpperCase();
+      h = '<option value="' + esc(em) + '" selected>' + esc(em || 'SEM FÁBRICA') + ' (da nota)</option>' + h;
+    }
+    return h;
+  }
+
+  function mostrarPrevia(notas, erros) {
+    var pv = getEl('nf-previa');
+    if (!pv) return;
+    var h = '';
+    erros.forEach(function (e) {
+      h += '<div class="bg-red-50 border border-red-200 text-red-700 text-[10px] font-black uppercase rounded-lg p-2 mb-2">⚠️ ' + esc(e) + '</div>';
+    });
+    notas.forEach(function (n) {
+      h += '<div class="mt-2 mb-1 text-[11px] font-black uppercase text-indigo-800">NF ' + esc(n.numero) + ' — ' + esc(n.emitente) + ' (' + n.itens.length + ' itens)</div>';
+      if (n.jaImportada) {
+        h += '<div class="bg-amber-50 border border-amber-300 text-amber-800 text-[10px] font-black uppercase rounded-lg p-2 mb-1">⚠️ Esta nota já foi importada em ' + esc(n.jaImportada.data || '-') + '. Os itens vieram desmarcados.</div>';
+      }
+      n.itens.forEach(function (it) {
+        h += '<div class="nf-linha flex flex-wrap items-center gap-2 bg-white border border-indigo-100 rounded-xl p-2 mb-1" data-chave="' + esc(n.chave) + '" data-numero="' + esc(n.numero) + '">' +
+          '<input type="checkbox" class="nf-ok" ' + (n.jaImportada ? '' : 'checked') + '>' +
+          '<input class="nf-nome flex-1 min-w-[200px] border p-1.5 rounded-lg text-[11px] font-bold uppercase outline-indigo-500" value="' + esc(it.nome) + '">' +
+          '<input type="number" min="1" class="nf-qtd w-16 border p-1.5 rounded-lg text-[11px] font-black text-center outline-indigo-500" value="' + it.qtd + '">' +
+          '<select class="nf-fab border p-1.5 rounded-lg text-[10px] font-black uppercase bg-white outline-indigo-500">' + opcoesFab(n.emitente) + '</select>' +
+          '</div>';
+      });
+    });
+    if (notas.length) {
+      h += '<div class="flex gap-2 mt-3">' +
+        '<button data-nf="ok" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-indigo-700">✅ Cadastrar selecionados no estoque</button>' +
+        '<button data-nf="cancel" class="bg-slate-200 text-slate-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-slate-300">Cancelar</button></div>' +
+        '<div class="text-[9px] font-bold text-indigo-500 mt-2 uppercase">Desmarque o que for de pedido de cliente. Itens iguais (mesmo nome e fábrica) somam a quantidade.</div>';
+    }
+    pv.innerHTML = h;
+  }
+
+  function lerArquivos(files) {
+    var arqs = Array.prototype.slice.call(files);
+    if (!arqs.length) return;
+    Promise.all(arqs.map(function (f) {
+      return f.text().then(function (t) { return { nome: f.name, texto: t }; });
+    })).then(function (lidos) {
+      var notas = [], erros = [];
+      lidos.forEach(function (a) {
+        try { notas.push(lerXML(a.texto)); }
+        catch (e) { erros.push(a.nome + ': ' + e.message); }
+      });
+      return Promise.all(notas.map(function (n) {
+        return db.ref('dados/nfImportadas/' + n.chave).once('value').then(function (s) {
+          n.jaImportada = s.val();
+          return n;
+        });
+      })).then(function () { mostrarPrevia(notas, erros); });
+    }).catch(function (e) {
+      alert('Não foi possível ler o arquivo: ' + e.message);
+    });
+  }
+
+  function cadastrarSelecionados() {
+    var hoje = new Date().toLocaleDateString('pt-BR');
+    var itens = 0, notas = {};
+    document.querySelectorAll('#nf-previa .nf-linha').forEach(function (l) {
+      if (!l.querySelector('.nf-ok').checked) return;
+      var nome = l.querySelector('.nf-nome').value.toUpperCase().trim();
+      var q = parseInt(l.querySelector('.nf-qtd').value) || 0;
+      var fab = l.querySelector('.nf-fab').value;
+      if (!nome || q <= 0) return;
+      var existente = estoque.find(function (x) {
+        return (x.situacao || 'ESTOQUE') === 'ESTOQUE' && x.produto === nome && x.fabrica === fab;
+      });
+      if (existente) existente.qtd = (parseInt(existente.qtd) || 0) + q;
+      else estoque.unshift({ uid: Date.now() + Math.random(), data: hoje, produto: nome, fabrica: fab, qtd: q, situacao: 'ESTOQUE', nf: l.dataset.numero });
+      itens++;
+      notas[l.dataset.chave] = l.dataset.numero;
+    });
+    if (!itens) return alert('Nenhum item selecionado.');
+
+    salvarColecao('estoque', estoque);
+    Object.keys(notas).forEach(function (c) {
+      db.ref('dados/nfImportadas/' + c).set({ numero: notas[c], data: hoje });
+    });
+    registrarAcao('🧾', 'IMPORTOU NF', itens + ' item(ns) | NF ' + Object.keys(notas).map(function (c) { return notas[c]; }).join(', '));
+    getEl('nf-previa').innerHTML = '';
+    getEl('nf-arquivo').value = '';
+    aviso('✅ ' + itens + ' item(ns) cadastrados no estoque.');
+    reclassificar();
+  }
+
+  function montarImportador() {
+    if (getEl('painel-nf')) return;
+    var tb = getEl('tabelaEstoque');
+    var tabela = tb ? tb.closest('table') : null;
+    var ancora = tabela ? tabela.parentElement : getEl('est-lista');
+    if (!ancora) return;
+
+    var box = document.createElement('div');
+    box.id = 'painel-nf';
+    box.className = 'mb-4 bg-indigo-50 border-2 border-dashed border-indigo-300 rounded-2xl p-4';
+    box.innerHTML =
+      '<div class="flex flex-wrap items-center gap-3 justify-between">' +
+      '<div><div class="text-[11px] font-black uppercase text-indigo-800">🧾 Importar Nota Fiscal (XML)</div>' +
+      '<div class="text-[10px] font-bold text-indigo-500">Escolha o XML da NF-e da fábrica. Você confere os itens antes de cadastrar.</div></div>' +
+      '<label class="cursor-pointer bg-indigo-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-indigo-700">Escolher XML' +
+      '<input id="nf-arquivo" type="file" accept=".xml,text/xml" multiple class="hidden"></label></div>' +
+      '<div id="nf-previa" class="mt-3"></div>';
+    ancora.insertAdjacentElement('beforebegin', box);
+
+    getEl('nf-arquivo').addEventListener('change', function (e) { lerArquivos(e.target.files); });
+    getEl('nf-previa').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-nf]');
+      if (!b) return;
+      if (b.dataset.nf === 'ok') cadastrarSelecionados();
+      if (b.dataset.nf === 'cancel') { getEl('nf-previa').innerHTML = ''; getEl('nf-arquivo').value = ''; }
+    });
+  }
+
+  // ---------------------------------------------------------------
+  // Gancho na tela de estoque
+  // ---------------------------------------------------------------
+  var _renderEstoque = window.renderEstoque;
+  window.renderEstoque = function () {
+    if (typeof _renderEstoque === 'function') _renderEstoque.apply(this, arguments);
+    try { montarImportador(); pintarAvarias(); } catch (e) { console.error(e); }
+    if (!jaVerificou && estoque.length) {
+      jaVerificou = true;
+      try { reclassificar(); } catch (e) { console.error(e); }
+    }
+  };
+  try { window.renderEstoque(); } catch (e) {}
+})();
   setTimeout(function () { try { window.renderEstoque(); } catch (e) {} }, 800);
 })();
