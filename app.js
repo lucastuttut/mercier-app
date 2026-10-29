@@ -1477,11 +1477,40 @@ function cartaoHoje(icone, titulo, corBadge, qtd, corpo, vazio) {
     </div>`;
 }
 
-function linhaHoje(principal, secundario, direita) {
-    return `<div class="flex justify-between items-start gap-2 bg-slate-50 rounded-lg p-2 border border-slate-100"><div class="flex flex-col min-w-0"><span class="text-[11px] font-black uppercase text-slate-800">${principal}</span><span class="text-[9px] font-bold uppercase text-slate-500">${secundario}</span></div>${direita || ''}</div>`;
+function linhaHoje(principal, secundario, direita, acao) {
+    const clicavel = acao ? ' cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition' : '';
+    const onclick = acao ? ` onclick="${acao}" title="Clique para abrir"` : '';
+    return `<div${onclick} class="flex justify-between items-start gap-2 bg-slate-50 rounded-lg p-2 border border-slate-100${clicavel}"><div class="flex flex-col min-w-0"><span class="text-[11px] font-black uppercase text-slate-800">${principal}</span><span class="text-[9px] font-bold uppercase text-slate-500">${secundario}</span></div>${direita || ''}</div>`;
 }
 
 function etiquetaHoje(txt, cor) { return `<span class="${cor} text-[9px] font-black px-2 py-0.5 rounded whitespace-nowrap">${txt}</span>`; }
+
+function irParaTarefa(uid) {
+    const t = tarefasEquipe.find(function(x) { return x.uid == uid; });
+    if (!t) return alert("Esta tarefa não existe mais.");
+
+    // Garante que o cartão apareça na aba Equipe
+    filtrosEquipeAtivos = [];
+    if (modoMinhasTarefas && usuarioAtual && t.responsavel !== usuarioAtual) {
+        modoMinhasTarefas = false;
+        try { localStorage.setItem('mercier_so_minhas', 'false'); } catch (e) {}
+        if (getEl('check-minhas-tarefas')) getEl('check-minhas-tarefas').checked = false;
+    }
+    colsMinimizadas[t.coluna] = false;
+    t.minimizada = false;
+
+    switchTab('equipe');
+    renderFiltrosEquipe();
+    renderQuadroEquipe();
+
+    setTimeout(function() {
+        const card = getEl('card-' + uid);
+        if (!card) return;
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.classList.add('ring-4', 'ring-blue-500');
+        setTimeout(function() { card.classList.remove('ring-4', 'ring-blue-500'); }, 3000);
+    }, 200);
+}
 
 function renderHoje() {
     const v = getEl('view-hoje'); if (!v) return;
@@ -1527,9 +1556,9 @@ function renderHoje() {
         return linhaHoje(esc(p.cliente) + ' - ' + esc(p.produto), esc(p.fornecedor) + ' | ' + esc(p.idDoc), '');
     }).join('');
     if (naoEnv.length > 8) htmlNE += `<span class="text-[9px] font-black text-slate-400 text-center">+ ${naoEnv.length - 8} na aba Pedidos</span>`;
-    htmlNE += `<button onclick="irParaAba('pedidos')" class="text-[10px] font-black text-blue-600 uppercase mt-1 hover:underline">Ir para Pedidos →</button>`;
+    htmlNE += `<button onclick="switchTab('pedidos')" class="text-[10px] font-black text-blue-600 uppercase mt-1 hover:underline">Ir para Pedidos →</button>`;
 
-    // Tarefas da pessoa
+    // Tarefas da pessoa (cada uma abre direto na aba Equipe)
     let cartaoTarefas = '';
     if (!usuarioAtual) {
         cartaoTarefas = cartaoHoje('👤', 'Minhas tarefas', 'bg-blue-100 text-blue-700', 0, '', 'Selecione quem você é no topo da tela');
@@ -1539,8 +1568,13 @@ function renderHoje() {
         const minhas = tarefasEquipe.filter(function(t) { return t.responsavel === usuarioAtual && t.coluna !== 'DONE'; })
             .sort(function(a, b) { return (pP[a.prazo || ""] || 6) - (pP[b.prazo || ""] || 6); });
         const htmlT = minhas.map(function(t) {
-            return linhaHoje(esc(t.descricao), t.coluna === 'DOING' ? 'Em andamento' : 'A fazer', rotPrazo[t.prazo] ? etiquetaHoje(rotPrazo[t.prazo], 'bg-slate-200 text-slate-700') : '');
-        }).join('') + `<button onclick="irParaAba('equipe')" class="text-[10px] font-black text-blue-600 uppercase mt-1 hover:underline">Ir para Equipe →</button>`;
+            return linhaHoje(
+                esc(t.descricao),
+                t.coluna === 'DOING' ? 'Em andamento' : 'A fazer',
+                rotPrazo[t.prazo] ? etiquetaHoje(rotPrazo[t.prazo], 'bg-slate-200 text-slate-700') : '',
+                'irParaTarefa(' + t.uid + ')'
+            );
+        }).join('') + `<button onclick="switchTab('equipe')" class="text-[10px] font-black text-blue-600 uppercase mt-1 hover:underline">Ir para Equipe →</button>`;
         cartaoTarefas = cartaoHoje('👤', 'Minhas tarefas', 'bg-blue-100 text-blue-700', minhas.length, htmlT, 'Nenhuma tarefa pendente');
     }
 
@@ -1559,7 +1593,7 @@ function renderHoje() {
     parc.sort(function(a, b) { return String(a.p.venc).localeCompare(String(b.p.venc)); });
     const htmlP = parc.slice(0, 8).map(function(x) {
         return linhaHoje(esc(x.v.cliente), 'Parcela ' + (x.i + 1) + '/' + x.n + ' | ' + formatMoney(x.p.valor), etiquetaHoje(x.p.venc < hoje ? 'ATRASADA' : 'HOJE', x.p.venc < hoje ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'));
-    }).join('') + `<button onclick="irParaAba('comissoes')" class="text-[10px] font-black text-blue-600 uppercase mt-1 hover:underline">Ir para Comissões →</button>`;
+    }).join('') + `<button onclick="switchTab('comissoes')" class="text-[10px] font-black text-blue-600 uppercase mt-1 hover:underline">Ir para Comissões →</button>`;
 
     v.innerHTML = `
     <div class="flex flex-col gap-4">
