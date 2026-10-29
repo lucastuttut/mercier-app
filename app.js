@@ -28,6 +28,9 @@ function dataLocalISO(d) {
 }
 function hojeLocal() { return dataLocalISO(new Date()); }
 
+// Ordem dos pedidos na aba Pedidos: 'NOVOS_PRIMEIRO' ou 'ANTIGOS_PRIMEIRO'
+const ORDEM_PEDIDOS = 'NOVOS_PRIMEIRO';
+
 // ==========================================
 // 2. VARIÁVEIS GLOBAIS
 // ==========================================
@@ -55,16 +58,18 @@ let deepLinkVerificado = false;
 // 3. NAVEGAÇÃO E INICIALIZAÇÃO
 // ==========================================
 function switchTab(t) {
+    const view = getEl('view-'+t);
+    if(!view) return;
     window.scrollTo(0,0);
     document.querySelectorAll('main').forEach(function(x) { x.classList.add('hidden'); });
-    const view = getEl('view-'+t);
-    if(view) view.classList.remove('hidden');
+    view.classList.remove('hidden');
 
     document.querySelectorAll('nav button').forEach(function(x) { x.classList.remove('tab-active', 'text-white'); });
     const tab = getEl('tab-'+t);
     if(tab) tab.classList.add('tab-active');
 
     if(t === 'logistica') processarEventosCalendario();
+    if(t === 'hoje') { try { renderHoje(); } catch(e) { console.error(e); } }
 }
 
 try { usuarioAtual = localStorage.getItem('mercier_user') || ""; } catch(e) {}
@@ -87,6 +92,7 @@ function setUsuario(nome) {
     } catch(e) {}
     renderFiltrosEquipe();
     renderQuadroEquipe();
+    try { renderHoje(); } catch(e) {}
 }
 
 function toggleModoMinhasTarefas() {
@@ -113,94 +119,41 @@ const firebaseConfig = {
     storageBucket: "mercier-design.firebasestorage.app",
     messagingSenderId: "1060891658513",
     appId: "1:1060891658513:web:2eefd15227203af39064b0",
-    databaseURL: "https://mercier-design-default-rtdb.firebaseio.com"
+    databaseURL: "https://mercier-design-default-rtdb.firebaseio.com/"
 };
 
-const FIREBASE_URL_APP = "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js";
-const FIREBASE_URL_DB = "https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js";
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-let db = null;
+function salvarColecao(col, d) { db.ref('dados/' + col).set(d); }
 
-function salvarColecao(col, d) {
-    if (!db) { alert("O sistema ainda não conectou ao banco. Aguarde alguns segundos e tente de novo."); return; }
-    db.ref('dados/' + col).set(d);
-}
+db.ref('.info/connected').on('value', function(snap) {
+    const st = getEl('status-db'); if(!st) return;
+    if(snap.val() === true) {
+        st.innerText="ONLINE"; st.className="bg-emerald-500 text-white hidden md:flex h-10 items-center px-4 rounded-xl text-[10px] font-black uppercase shadow-inner transition-all";
+    } else {
+        st.innerText="CONECTANDO..."; st.className="bg-orange-500 text-white hidden md:flex h-10 items-center px-4 rounded-xl text-[10px] font-black uppercase transition-all";
+    }
+});
 
-function statusDB(texto, ok) {
-    const st = getEl('status-db'); if (!st) return;
-    st.innerText = texto;
-    st.className = (ok ? "bg-emerald-500" : "bg-orange-500") + " text-white hidden md:flex h-10 items-center px-4 rounded-xl text-[10px] font-black uppercase transition-all";
-}
+db.ref('dados').on('value', function(s) {
+    try {
+        const d = s.val() || {};
+        pedidos=safeArray(d.pedidos); fornecedores=safeArray(d.fornecedores); estoque=safeArray(d.estoque);
+        catalogo=safeArray(d.catalogo); tarefas=safeArray(d.tarefas); assistencias=safeArray(d.assistencias);
+        tarefasEquipe=safeArray(d.tarefasEquipe); historicoAtividades=safeArray(d.historico);
+        entregas=safeArray(d.entregas); lembretes=safeArray(d.lembretes);
 
-function carregarScript(src) {
-    return new Promise(function(resolve, reject) {
-        const s = document.createElement('script');
-        s.src = src;
-        s.onload = resolve;
-        s.onerror = function() { reject(new Error("Não foi possível carregar " + src)); };
-        document.head.appendChild(s);
-    });
-}
+        proximoID=d.proximoID||255;
 
-function esperarFirebase(maxMs) {
-    return new Promise(function(resolve) {
-        const ini = Date.now();
-        (function checar() {
-            if (typeof firebase !== 'undefined' && firebase.initializeApp && firebase.database) return resolve(true);
-            if (Date.now() - ini > maxMs) return resolve(false);
-            setTimeout(checar, 100);
-        })();
-    });
-}
+        if(getEl('texto-melhorias')) getEl('texto-melhorias').value = d.notasMelhoria || "";
+        if(getEl('estoque-notas-gerais')) getEl('estoque-notas-gerais').value = d.notasEstoque || "";
 
-async function garantirFirebase() {
-    if (await esperarFirebase(3000)) return;
-    if (typeof firebase === 'undefined' || !firebase.initializeApp) await carregarScript(FIREBASE_URL_APP);
-    if (!firebase.database) await carregarScript(FIREBASE_URL_DB);
-}
-
-function iniciarBanco() {
-    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-    db = firebase.database();
-
-    db.ref('.info/connected').on('value', function(snap) {
-        if (snap.val() === true) statusDB("ONLINE", true);
-        else statusDB("CONECTANDO...", false);
-    });
-
-    db.ref('dados').on('value', function(s) {
-        try {
-            const d = s.val() || {};
-            pedidos=safeArray(d.pedidos); fornecedores=safeArray(d.fornecedores); estoque=safeArray(d.estoque);
-            catalogo=safeArray(d.catalogo); tarefas=safeArray(d.tarefas); assistencias=safeArray(d.assistencias);
-            tarefasEquipe=safeArray(d.tarefasEquipe); historicoAtividades=safeArray(d.historico);
-            entregas=safeArray(d.entregas); lembretes=safeArray(d.lembretes);
-
-            proximoID=d.proximoID||255;
-
-            if(getEl('texto-melhorias')) getEl('texto-melhorias').value = d.notasMelhoria || "";
-            if(getEl('estoque-notas-gerais')) getEl('estoque-notas-gerais').value = d.notasEstoque || "";
-
-            atualizarSelectsFornecedores();
-            atualizarSugestoes();
-            renderAll();
-        } catch(e) { console.error("Erro banco:", e); }
-    }, function(err) {
-        console.error("Erro ao ler o banco:", err);
-        statusDB("ERRO: " + (err && err.message ? err.message : err), false);
-    });
-}
-
-function iniciarSistema() {
-    garantirFirebase().then(iniciarBanco).catch(function(e) {
-        console.error("Falha ao iniciar o Firebase:", e);
-        statusDB("ERRO FIREBASE", false);
-        alert("Não foi possível iniciar a conexão com o banco: " + e.message);
-    });
-}
-
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciarSistema);
-else iniciarSistema();
+        atualizarSelectsFornecedores();
+        atualizarSugestoes();
+        renderAll();
+    } catch(e) { console.error("Erro banco:", e); }
+});
 
 function registrarAcao(ic, ac, det) {
     const q = usuarioAtual || "SISTEMA"; const d = new Date();
@@ -244,7 +197,6 @@ function renderHistorico() {
 }
 
 async function getProximoID() {
-    if (!db) throw new Error("Banco não conectado");
     const ref = db.ref('dados/proximoID');
     const res = await ref.transaction(function(c) { return (c||255)+1; });
     return res.snapshot.val();
@@ -260,6 +212,7 @@ function renderAll() {
     try { renderQuadroEquipe(); } catch(e){}
     try { renderHistorico(); } catch(e){}
     try { processarEventosCalendario(); } catch(e){}
+    try { renderHoje(); } catch(e){ console.error("Erro na aba Hoje:", e); }
 }
 
 // =========================================================
@@ -398,6 +351,33 @@ function updPed(u,c,v){ pedidos.find(function(x){ return x.uid == u; })[c] = v; 
 function togPed(u,c){ const x = pedidos.find(function(y){ return y.uid == u; }); if(x) { x[c] = !x[c]; salvarColecao('pedidos', pedidos); } }
 async function dupPed(u){ const x = pedidos.find(function(y){ return y.uid == u; }); const nId = await getProximoID(); const idDoc = "ID#" + nId.toString().padStart(4,'0'); pedidos.unshift({...x, uid: Date.now()+Math.random(), idDoc}); salvarColecao('pedidos', pedidos); }
 
+function gerarAssistenciaRapida(u) {
+    const x = pedidos.find(function(y){ return y.uid == u; }); if(!x) return;
+    if(!confirm("Abrir uma assistência para " + x.cliente + " (" + x.produto + ")?")) return;
+    assistencias.unshift({ uid: Date.now(), data: new Date().toLocaleDateString('pt-BR'), cliente: x.cliente, produto: x.produto, fabrica: x.fornecedor, status: "Aguardando" });
+    salvarColecao('assistencias', assistencias);
+    registrarAcao('🛠️', 'NOVA ASSISTÊNCIA', 'CLIENTE: ' + x.cliente);
+    renderAssistencias();
+}
+
+// Número do pedido (ID#0260 -> 260)
+function numeroPedido(p) { return parseInt(String(p.idDoc || '').replace(/\D/g, ''), 10) || 0; }
+
+// Mais novo no topo (ou o contrário, conforme ORDEM_PEDIDOS).
+// Itens do mesmo pedido ficam na ordem em que foram digitados.
+function compararPedidos(a, b) {
+    const d = numeroPedido(a) - numeroPedido(b);
+    if (d !== 0) return ORDEM_PEDIDOS === 'NOVOS_PRIMEIRO' ? -d : d;
+    return (Number(a.uid) || 0) - (Number(b.uid) || 0);
+}
+
+// Ordem crescente simples (usada no texto do e-mail para a fábrica)
+function compararPedidosCrescente(a, b) {
+    const d = numeroPedido(a) - numeroPedido(b);
+    if (d !== 0) return d;
+    return (Number(a.uid) || 0) - (Number(b.uid) || 0);
+}
+
 function renderPedidos() {
     const tb = getEl('tabelaPedidos'); if(!tb) return;
     const b = noAcc(val('busca').toLowerCase());
@@ -411,6 +391,8 @@ function renderPedidos() {
     } else {
         lst = lst.filter(function(x) { return x.finalizado || x.status === "Entregue/Finalizado"; });
     }
+
+    lst.sort(compararPedidos);
 
     getEl('contador').innerText = lst.length + " PEDIDOS";
 
@@ -469,8 +451,9 @@ async function cadastrarManual() {
     const cli = val('m_cliente').trim().toUpperCase(); const forn = val('m_fornecedor_select');
     if(!cli || cestoItensTemporario.length === 0) return alert("FALTA DADOS!");
     const nId = await getProximoID(); const idDoc = "ID#" + nId.toString().padStart(4, '0');
-    cestoItensTemporario.forEach(function(i) {
-        pedidos.unshift({ uid: Date.now()+Math.random(), idDoc: idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: val('m_prazo_select'), status: "Não enviado", whatsEnviado: false, confirmado: false, finalizado: false });
+    const baseUid = Date.now();
+    cestoItensTemporario.forEach(function(i, idx) {
+        pedidos.unshift({ uid: baseUid + idx, idDoc: idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: val('m_prazo_select'), status: "Não enviado", whatsEnviado: false, confirmado: false, finalizado: false });
     });
     salvarColecao('pedidos', pedidos); registrarAcao('📋', 'NOVO PEDIDO', `CÓDIGO: ${idDoc} | CLIENTE: ${cli}`);
     cestoItensTemporario = []; getEl('m_cliente').value = ""; renderCesto();
@@ -481,7 +464,7 @@ function gerarEmailLote() {
     if (!checks.length) return alert("Nenhum pedido selecionado!");
 
     const uids = Array.from(checks).map(function(c) { return c.value; });
-    const sel = pedidos.filter(function(p) { return uids.includes(String(p.uid)); });
+    const sel = pedidos.filter(function(p) { return uids.includes(String(p.uid)); }).sort(compararPedidosCrescente);
     const fab = sel[0].fornecedor || "NÃO INFORMADA";
 
     let txt = `Olá, segue pedido para fábrica ${fab}:\n\n`;
@@ -491,7 +474,7 @@ function gerarEmailLote() {
         if(p.medida && p.medida!=="-") prd += ` | Medida: ${p.medida}`;
         if(p.cor && p.cor!=="-") prd += ` | Cor: ${p.cor}`;
         txt += `Qtde: ${String(p.qtd).padStart(2, '0')} - ${prd}\n`;
-        txt += `REF: ID# ${p.idDoc.replace('ID#','').trim()}\n\n`;
+        txt += `REF: ID# ${String(p.idDoc||'').replace('ID#','').trim()}\n\n`;
     });
 
     txt += `Forma de pagamento: 30/60/90.\n\n`;
@@ -828,7 +811,7 @@ function renderCalendario() {
         let eH = "";
         if(eventosDoMes[dK]) {
             eventosDoMes[dK].slice(0,3).forEach(function(ev) {
-                eH += `<div class="${ev.cor} text-[8px] font-black truncate px-1 rounded shadow-sm mb-0.5 leading-tight py-0.5" title="${ev.titulo}">${ev.icone} ${esc(ev.titulo)}</div>`;
+                eH += `<div class="${ev.cor} text-[8px] font-black truncate px-1 rounded shadow-sm mb-0.5 leading-tight py-0.5" title="${esc(ev.titulo)}">${ev.icone} ${esc(ev.titulo)}</div>`;
             });
             if(eventosDoMes[dK].length>3) eH += `<div class="text-[8px] font-black text-slate-400 text-center">+${eventosDoMes[dK].length-3} itens</div>`;
         }
@@ -963,7 +946,7 @@ function fecharModaisLogistica() { getEl('modal-nova-entrega').style.display='no
 // =========================================================
 // 11. ABA: ESTOQUE (INTELIGENTE)
 // =========================================================
-function autoSalvarNotasEstoque() { notasEstoque = val('estoque-notas-gerais'); if (db) db.ref('dados/notasEstoque').set(notasEstoque); }
+function autoSalvarNotasEstoque() { notasEstoque = val('estoque-notas-gerais'); db.ref('dados/notasEstoque').set(notasEstoque); }
 
 function mudarVisaoEstoque(v) {
     visaoEstoque = v; const bD = getEl('btn-estoque-disponivel'), bS = getEl('btn-estoque-saidas');
@@ -1082,9 +1065,221 @@ function cadastrarCatalogo(){ const n=val('cat_nome').toUpperCase(); if(n){ cata
 function atualizarSelectsFornecedores(){ const h = fornecedores.map(function(f){ return `<option value="${esc(f.nome)}">${esc(f.nome)}</option>`; }).join(''); if(getEl('m_fornecedor_select')) getEl('m_fornecedor_select').innerHTML=h||"<option>...</option>"; if(getEl('as_fabrica')) getEl('as_fabrica').innerHTML=h||"<option>...</option>"; if(getEl('e_fabrica_select')) getEl('e_fabrica_select').innerHTML=h||"<option>...</option>"; if(getEl('estoque-filtro-fabrica')) getEl('estoque-filtro-fabrica').innerHTML='<option value="TODAS">TODAS AS FÁBRICAS</option>'+h; }
 function atualizarSugestoes(){ const n = [...new Set(pedidos.map(function(p){ return p.cliente; }))].sort(); if(getEl('listaSugestaoClientes')) getEl('listaSugestaoClientes').innerHTML=n.map(function(x){ return `<option value="${esc(x)}">`; }).join(''); }
 function togglePainelSugestoes(){ const p=getEl('painel-sugestoes'); p.style.display=(p.style.display==='flex')?'none':'flex'; }
-function autoSalvarNotas(){ notasMelhoria=val('texto-melhorias'); if (db) db.ref('dados/notasMelhoria').set(notasMelhoria); }
+function autoSalvarNotas(){ notasMelhoria=val('texto-melhorias'); db.ref('dados/notasMelhoria').set(notasMelhoria); }
 
 const painelS = getEl('painel-sugestoes'); const dragH = getEl('drag-handle'); let isDrag=false, offX, offY;
-if(dragH && painelS) dragH.addEventListener('mousedown', function(e) { isDrag=true; offX=e.clientX-painelS.getBoundingClientRect().left; offY=e.clientY-painelS.getBoundingClientRect().top; painelS.style.bottom='auto'; painelS.style.right='auto'; });
-document.addEventListener('mousemove', function(e) { if(!isDrag || !painelS) return; painelS.style.left=(e.clientX-offX)+'px'; painelS.style.top=(e.clientY-offY)+'px'; });
+if(dragH) dragH.addEventListener('mousedown', function(e) { isDrag=true; offX=e.clientX-painelS.getBoundingClientRect().left; offY=e.clientY-painelS.getBoundingClientRect().top; painelS.style.bottom='auto'; painelS.style.right='auto'; });
+document.addEventListener('mousemove', function(e) { if(!isDrag) return; painelS.style.left=(e.clientX-offX)+'px'; painelS.style.top=(e.clientY-offY)+'px'; });
 document.addEventListener('mouseup', function() { isDrag=false; });
+
+// =========================================================
+// 13. ABA HOJE (criada automaticamente por este arquivo)
+// =========================================================
+function criarAbaHoje() {
+    if (getEl('view-hoje')) return;
+
+    const st = document.createElement('style');
+    st.innerHTML = '.hoje-row{cursor:pointer;transition:background .15s,box-shadow .15s;} .hoje-row:hover{background:#dbeafe;box-shadow:inset 6px 0 0 #1d4ed8;}';
+    document.head.appendChild(st);
+
+    const tabRef = getEl('tab-pedidos');
+    const viewRef = getEl('view-pedidos');
+
+    const btn = document.createElement('button');
+    btn.id = 'tab-hoje';
+    btn.type = 'button';
+    btn.innerText = '🏠 Hoje';
+    btn.className = tabRef ? tabRef.className.replace('tab-active', '').trim() : 'px-4 py-3 text-xs font-black uppercase text-slate-300';
+    btn.onclick = function() { switchTab('hoje'); };
+    if (tabRef && tabRef.parentNode) tabRef.parentNode.insertBefore(btn, tabRef);
+    else { const nav = document.querySelector('nav'); if (nav) nav.insertBefore(btn, nav.firstChild); }
+
+    const view = document.createElement('main');
+    view.id = 'view-hoje';
+    const baseClass = viewRef ? viewRef.className.replace(/\bhidden\b/g, '').trim() : 'p-4 max-w-7xl mx-auto';
+    view.className = baseClass + ' hidden';
+    view.innerHTML = '<div id="hoje-conteudo"></div>';
+    if (viewRef && viewRef.parentNode) viewRef.parentNode.insertBefore(view, viewRef);
+    else document.body.appendChild(view);
+
+    view.addEventListener('click', function(ev) {
+        const alvo = ev.target.closest ? ev.target.closest('[data-go]') : null;
+        if (alvo) irParaHoje(alvo.getAttribute('data-go'));
+    });
+}
+
+function irParaHoje(go) {
+    if (!go) return;
+    const partes = go.split(':');
+    const tipo = partes[0];
+    const arg = partes.slice(1).join(':');
+
+    if (tipo === 'pedido') {
+        const p = pedidos.find(function(x) { return x.uid == arg; });
+        if (filtrandoNaoEnviados) toggleFiltroNaoEnviado();
+        if (visaoPedidos !== 'ATIVOS') mudarVisaoPedidos('ATIVOS');
+        const campo = getEl('busca');
+        if (campo) campo.value = p ? p.cliente : '';
+        switchTab('pedidos');
+        renderPedidos();
+    } else if (tipo === 'entrega' || tipo === 'lembrete') {
+        dataSelecionadaLogistica = arg;
+        dataAtualCalendario = new Date(arg + 'T12:00:00');
+        switchTab('logistica');
+    } else if (tipo === 'equipe') {
+        filtrosEquipeAtivos = [];
+        renderFiltrosEquipe();
+        switchTab('equipe');
+        renderQuadroEquipe();
+        setTimeout(function() {
+            const el = getEl('card-' + arg);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.classList.add('ring-4', 'ring-blue-400');
+                setTimeout(function() { el.classList.remove('ring-4', 'ring-blue-400'); }, 2500);
+            }
+        }, 200);
+    } else if (tipo === 'tarefa') {
+        switchTab('tarefas');
+        verDetalhesTarefa(arg);
+    } else if (tipo === 'assist') {
+        const x = assistencias.find(function(y) { return y.uid == arg; });
+        const campo = getEl('busca-assistencia');
+        if (campo) campo.value = x ? x.cliente : '';
+        switchTab('assistencias');
+        renderAssistencias();
+    }
+}
+
+function hojeSecao(icone, titulo, qtd, cab, linhas, vazio) {
+    const corpo = linhas || '<div class="p-4 text-[10px] font-black uppercase text-slate-400 text-center">' + vazio + '</div>';
+    return '<section class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">' +
+        '<div class="px-4 py-3 border-b flex justify-between items-center ' + cab + '">' +
+        '<h3 class="text-xs font-black uppercase">' + icone + ' ' + titulo + '</h3>' +
+        '<span class="text-[10px] font-black bg-white border px-2 py-0.5 rounded-full text-slate-700">' + qtd + '</span>' +
+        '</div><div class="flex flex-col">' + corpo + '</div></section>';
+}
+
+function hojeLinha(go, conteudo) {
+    return '<div class="hoje-row px-4 py-3 border-b border-slate-100 flex flex-wrap items-center gap-2" data-go="' + go + '">' + conteudo + '</div>';
+}
+
+function renderHoje() {
+    const box = getEl('hoje-conteudo'); if (!box) return;
+    const hj = hojeLocal();
+
+    const ativos = pedidos.filter(function(p) { return !p.finalizado && p.status !== "Entregue/Finalizado"; });
+
+    // 1. Pedidos não enviados à fábrica
+    const naoEnviados = ativos.filter(function(p) { return p.status === "Não enviado"; }).sort(compararPedidos);
+    const htmlNaoEnv = naoEnviados.map(function(p) {
+        let desc = (p.qtd || 1) + 'x ' + (p.produto || '');
+        if (p.medida && p.medida !== '-') desc += ' | ' + p.medida;
+        if (p.cor && p.cor !== '-') desc += ' | ' + p.cor;
+        return hojeLinha('pedido:' + p.uid,
+            '<span class="text-sm font-black uppercase text-slate-900">' + esc(p.cliente) + '</span>' +
+            '<span class="bg-blue-100 text-blue-800 border border-blue-200 px-2 py-0.5 rounded-lg text-[10px] font-black uppercase">' + esc(desc) + '</span>' +
+            '<span class="text-[9px] font-black text-slate-400 uppercase">' + esc(p.idDoc) + ' • ' + esc(p.fornecedor) + '</span>');
+    }).join('');
+
+    // 2. Entregas de hoje e atrasadas
+    const entregasHoje = entregas.filter(function(e) { return e.status !== 'Entregue' && e.dataOrdem && e.dataOrdem <= hj; })
+        .sort(function(a, b) { return (a.dataOrdem + (a.hora || '23:59')).localeCompare(b.dataOrdem + (b.hora || '23:59')); });
+    const htmlEnt = entregasHoje.map(function(e) {
+        const atrasada = e.dataOrdem < hj;
+        const etiqueta = atrasada
+            ? '<span class="bg-red-100 text-red-700 border border-red-200 px-2 py-0.5 rounded text-[9px] font-black uppercase">Atrasada ' + esc(e.dataOrdem.split('-').reverse().join('/')) + '</span>'
+            : '<span class="bg-emerald-100 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded text-[9px] font-black uppercase">' + (e.hora ? '🕒 ' + esc(e.hora) : 'Hoje') + '</span>';
+        return hojeLinha('entrega:' + e.dataOrdem,
+            '<span class="text-sm font-black uppercase text-slate-900">' + esc(e.cliente) + '</span>' + etiqueta +
+            '<span class="text-[10px] font-bold text-slate-500 uppercase">' + esc(e.produtos).replace(/\n/g, ' • ') + '</span>');
+    }).join('');
+
+    // 3. Lembretes de hoje e atrasados
+    const lembretesHoje = lembretes.filter(function(l) { return !l.concluido && l.dataOrdem && l.dataOrdem <= hj; })
+        .sort(function(a, b) { return a.dataOrdem.localeCompare(b.dataOrdem); });
+    const htmlLem = lembretesHoje.map(function(l) {
+        const atrasado = l.dataOrdem < hj;
+        return hojeLinha('lembrete:' + l.dataOrdem,
+            '<span class="text-sm font-black uppercase text-slate-900">' + esc(l.titulo) + '</span>' +
+            (atrasado ? '<span class="bg-red-100 text-red-700 border border-red-200 px-2 py-0.5 rounded text-[9px] font-black uppercase">Atrasado ' + esc(l.dataOrdem.split('-').reverse().join('/')) + '</span>' : '<span class="bg-amber-100 text-amber-700 border border-amber-200 px-2 py-0.5 rounded text-[9px] font-black uppercase">Hoje</span>'));
+    }).join('');
+
+    // 4. Tarefas da equipe (minhas, se houver usuário identificado)
+    const prioridade = {"AGORA":1, "IMEDIATO":2, "IMPORTANTE":3, "REGULAR":4, "TRANQUILO":5, "":6};
+    const rotuloPrazo = {"AGORA":"🚨 Agora", "IMEDIATO":"⚡ 1 dia", "IMPORTANTE":"⚠️ 2 dias", "REGULAR":"📅 3 dias", "TRANQUILO":"☕ + dias"};
+    const minhas = tarefasEquipe.filter(function(t) {
+        if (t.coluna === 'DONE') return false;
+        return usuarioAtual ? t.responsavel === usuarioAtual : true;
+    }).sort(function(a, b) { return (prioridade[a.prazo || ""] || 6) - (prioridade[b.prazo || ""] || 6); });
+    const htmlEq = minhas.map(function(t) {
+        const cor = coresEquipe[t.responsavel] || "bg-slate-100 text-slate-700 border-slate-300";
+        const corChip = cor.split(' ').slice(0, 2).join(' ');
+        return hojeLinha('equipe:' + t.uid,
+            '<span class="' + corChip + ' px-2 py-0.5 rounded text-[9px] font-black uppercase">' + esc(t.responsavel) + '</span>' +
+            '<span class="text-sm font-black uppercase text-slate-900">' + esc(t.descricao) + '</span>' +
+            (rotuloPrazo[t.prazo] ? '<span class="bg-slate-100 text-slate-700 border px-2 py-0.5 rounded text-[9px] font-black uppercase">' + rotuloPrazo[t.prazo] + '</span>' : '') +
+            '<span class="text-[9px] font-black text-slate-400 uppercase">' + (t.coluna === 'DOING' ? 'Em andamento' : 'A fazer') + '</span>');
+    }).join('');
+
+    // 5. Prazos de fábrica vencendo (pedidos que ainda não chegaram na loja)
+    const prazos = ativos.filter(function(p) { return p.status !== "Pedido na loja"; })
+        .map(function(p) { return { p: p, dias: calcP(p.dataPedido, p.prazo).dias }; })
+        .filter(function(x) { return x.dias <= 5; })
+        .sort(function(a, b) { return a.dias - b.dias; });
+    const htmlPrazo = prazos.map(function(x) {
+        const p = x.p;
+        const etiqueta = x.dias < 0
+            ? '<span class="bg-red-100 text-red-700 border border-red-200 px-2 py-0.5 rounded text-[9px] font-black uppercase">Vencido há ' + Math.abs(x.dias) + ' dia(s)</span>'
+            : '<span class="bg-orange-100 text-orange-700 border border-orange-200 px-2 py-0.5 rounded text-[9px] font-black uppercase">' + x.dias + ' dia(s)</span>';
+        return hojeLinha('pedido:' + p.uid,
+            '<span class="text-sm font-black uppercase text-slate-900">' + esc(p.cliente) + '</span>' + etiqueta +
+            '<span class="bg-blue-100 text-blue-800 border border-blue-200 px-2 py-0.5 rounded-lg text-[10px] font-black uppercase">' + esc((p.qtd || 1) + 'x ' + (p.produto || '')) + '</span>' +
+            '<span class="text-[9px] font-black text-slate-400 uppercase">' + esc(p.fornecedor) + ' • ' + esc(p.status) + '</span>');
+    }).join('');
+
+    // 6. Assistências em aberto
+    const assistAbertas = assistencias.filter(function(a) { return (a.status || "Aguardando") !== "Concluído"; });
+    const htmlAs = assistAbertas.map(function(a) {
+        return hojeLinha('assist:' + a.uid,
+            '<span class="text-sm font-black uppercase text-slate-900">' + esc(a.cliente) + '</span>' +
+            '<span class="bg-orange-100 text-orange-800 border border-orange-200 px-2 py-0.5 rounded-lg text-[10px] font-black uppercase">' + esc(a.produto) + '</span>' +
+            '<span class="text-[9px] font-black text-slate-400 uppercase">' + esc(a.fabrica) + ' • ' + esc(a.status || "Aguardando") + '</span>');
+    }).join('');
+
+    // 7. Tarefas / vendas pendentes
+    const tarefasPend = tarefas.filter(function(t) { return t.status !== 'Feito'; });
+    const htmlTar = tarefasPend.map(function(t) {
+        return hojeLinha('tarefa:' + t.uid,
+            '<span class="text-sm font-black uppercase text-slate-900">' + esc(t.descricao) + '</span>' +
+            '<span class="bg-slate-100 text-slate-700 border px-2 py-0.5 rounded text-[9px] font-black uppercase">' + esc(t.tipo) + '</span>' +
+            '<span class="text-[9px] font-black text-slate-400 uppercase">' + esc(t.status) + '</span>');
+    }).join('');
+
+    const hojeTxt = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const saudacao = usuarioAtual ? ', ' + usuarioAtual : '';
+
+    box.innerHTML =
+        '<div class="mb-4 p-4 bg-white rounded-2xl border border-slate-200 shadow-sm">' +
+        '<h2 class="text-lg font-black uppercase text-slate-800">🏠 Hoje' + esc(saudacao) + '</h2>' +
+        '<p class="text-[11px] font-bold text-slate-500 uppercase">' + esc(hojeTxt) + ' — clique em qualquer linha para abrir a tela correspondente</p></div>' +
+        '<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">' +
+        hojeSecao('📧', 'Pedidos não enviados à fábrica', naoEnviados.length, 'bg-red-50 text-red-700', htmlNaoEnv, 'Tudo enviado 🎉') +
+        hojeSecao('⏳', 'Prazos de fábrica vencendo', prazos.length, 'bg-orange-50 text-orange-700', htmlPrazo, 'Nenhum prazo crítico') +
+        hojeSecao('🚚', 'Entregas de hoje e atrasadas', entregasHoje.length, 'bg-emerald-50 text-emerald-700', htmlEnt, 'Sem entregas pendentes') +
+        hojeSecao('⏰', 'Lembretes de hoje e atrasados', lembretesHoje.length, 'bg-amber-50 text-amber-700', htmlLem, 'Sem lembretes') +
+        hojeSecao('👥', usuarioAtual ? 'Minhas tarefas da equipe' : 'Tarefas da equipe', minhas.length, 'bg-indigo-50 text-indigo-700', htmlEq, 'Nada pendente') +
+        hojeSecao('🛠️', 'Assistências em aberto', assistAbertas.length, 'bg-purple-50 text-purple-700', htmlAs, 'Nenhuma assistência aberta') +
+        hojeSecao('📝', 'Tarefas e vendas pendentes', tarefasPend.length, 'bg-slate-50 text-slate-700', htmlTar, 'Nada pendente') +
+        '</div>';
+}
+
+function iniciarAbaHoje() {
+    try {
+        criarAbaHoje();
+        switchTab('hoje');
+    } catch (e) { console.error("Erro ao criar a aba Hoje:", e); }
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciarAbaHoje);
+else iniciarAbaHoje();
