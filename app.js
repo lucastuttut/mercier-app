@@ -22,6 +22,12 @@ function safeArray(data) {
     } catch(e){ return []; } 
 }
 
+function dataLocalISO(d) {
+    d = d || new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function hojeLocal() { return dataLocalISO(new Date()); }
+
 // ==========================================
 // 2. VARIÁVEIS GLOBAIS
 // ==========================================
