@@ -65,12 +65,11 @@
         <button onclick="switchTab('equipe')" id="tab-equipe" class="py-4 text-xs font-black uppercase whitespace-nowrap text-purple-400 hover:text-purple-300">👥 Equipe</button>
         <button onclick="switchTab('logistica')" id="tab-logistica" class="py-4 text-xs font-black uppercase whitespace-nowrap text-emerald-400 hover:text-emerald-300">🚚 Agenda & Entregas</button>
         <button onclick="switchTab('estoque')" id="tab-estoque" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-white">📦 Estoque</button>
+         <button onclick="switchTab('comissoes ')" id="tab-comissoes " class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-white">💰 Comissões</button>
         <button onclick="switchTab('assistencia')" id="tab-assistencia" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-white">🛠️ Assistências</button>
         <button onclick="switchTab('catalogo')" id="tab-catalogo" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-white">📜 Catálogo</button>
         <button onclick="switchTab('fornecedores')" id="tab-fornecedores" class="py-4 text-xs font-black uppercase whitespace-nowrap hover:text-white">🏭 Fábricas</button>
     </nav>
-
-    <a href="comissoes.html" target="_blank" class="py-4 text-xs font-black uppercase whitespace-nowrap text-amber-500 hover:text-amber-400">💰 Comissões ↗</a>
 
     <!-- ABA PEDIDOS -->
     <main id="view-pedidos" class="max-w-[1950px] mx-auto p-4 md:p-6 w-full">
@@ -366,5 +365,113 @@
 
     <!-- CARREGA O ARQUIVO JS SEPARADO -->
     <script src="app.js?v=99999"></script>
+<main id="view-comissoes" class="hidden max-w-6xl mx-auto p-4 md:p-6 w-full flex flex-col gap-6">
+
+    <div class="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+        <div class="flex items-center gap-4">
+            <button onclick="mudarMesComissoes(-1)" class="bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg font-black text-slate-600 transition">◀</button>
+            <div class="text-center min-w-[200px]">
+                <h2 id="com-mes-display" class="text-lg font-black uppercase text-slate-800 tracking-wider">Mês</h2>
+                <p class="text-[9px] font-bold text-slate-400 uppercase">Fechamento do Mês · Taxa 5%</p>
+            </div>
+            <button onclick="mudarMesComissoes(1)" class="bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg font-black text-slate-600 transition">▶</button>
+        </div>
+        <button onclick="abrirModalVenda()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl text-xs font-black uppercase shadow-lg transition">➕ Registrar Venda</button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="card-premium p-5 border-l-8 border-slate-300">
+            <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Total Vendido (No Mês)</p>
+            <h3 id="resumo-vendas" class="text-2xl font-black text-slate-700">R$ 0,00</h3>
+        </div>
+        <div class="card-premium p-5 border-l-8 border-amber-400 bg-amber-50">
+            <p class="text-[10px] font-black text-amber-600 uppercase mb-1">Comissão Pendente (Aguardando Pgto)</p>
+            <h3 id="resumo-pendente" class="text-2xl font-black text-amber-700">R$ 0,00</h3>
+            <p class="text-[9px] font-bold text-amber-600/60 mt-1 uppercase">Parcelas que vencem este mês</p>
+        </div>
+        <div class="card-premium p-5 border-l-8 border-emerald-500 bg-emerald-50">
+            <p class="text-[10px] font-black text-emerald-600 uppercase mb-1">Comissão Garantida 💰</p>
+            <h3 id="resumo-garantido" class="text-3xl font-black text-emerald-600">R$ 0,00</h3>
+            <p class="text-[9px] font-bold text-emerald-600/70 mt-1 uppercase">Clientes que pagaram este mês</p>
+        </div>
+    </div>
+
+    <div class="card-premium flex flex-col overflow-hidden">
+        <div class="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center">
+            <h3 class="font-black text-slate-700 uppercase text-xs">Acompanhamento de Parcelas</h3>
+            <span id="contador-parcelas" class="bg-slate-200 text-slate-600 px-3 py-1 rounded-full text-[10px] font-black">0 Lançamentos</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-[800px]">
+                <thead class="bg-white border-b-2 border-emerald-500">
+                    <tr class="text-slate-400 uppercase text-[9px] font-black">
+                        <th class="p-3">Vencimento</th>
+                        <th class="p-3">Cliente / Venda</th>
+                        <th class="p-3">Parcela</th>
+                        <th class="p-3">Valor da Parcela</th>
+                        <th class="p-3 text-emerald-600">Sua Comissão (5%)</th>
+                        <th class="p-3 text-center">Status do Pagamento</th>
+                    </tr>
+                </thead>
+                <tbody id="tabela-parcelas" class="text-xs font-bold text-slate-700"></tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<div id="modal-venda" class="modal-overlay" onclick="if(event.target==this) fecharModalVenda()">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl border-t-8 border-emerald-500 flex flex-col max-h-[90vh]">
+        <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+            <h2 class="font-black uppercase text-emerald-600 text-sm">💰 Registrar Nova Venda</h2>
+            <button onclick="fecharModalVenda()" class="text-slate-400 hover:text-red-500 text-xl font-black">✕</button>
+        </div>
+
+        <div class="p-6 overflow-y-auto custom-scrollbar">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Nome do Cliente</label>
+                    <input type="text" id="v_cliente" placeholder="Ex: João da Silva..." class="w-full border-2 p-2.5 rounded-lg text-xs font-bold uppercase outline-emerald-500 bg-slate-50">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Data do Fechamento</label>
+                    <input type="date" id="v_data" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-emerald-500 bg-slate-50">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 pb-6 border-b border-slate-100">
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Valor Total da Venda</label>
+                    <input type="text" id="v_total" oninput="maskMoney(this)" onblur="gerarInputsParcelas()" placeholder="R$ 0,00" class="w-full border-2 p-2.5 rounded-lg text-sm font-black text-emerald-600 outline-emerald-500">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">Qtd de Parcelas</label>
+                    <select id="v_qtd_parcelas" onchange="gerarInputsParcelas()" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-emerald-500 bg-white cursor-pointer">
+                        <option value="1">1x (À vista / 30 dias)</option>
+                        <option value="2">2x (30/60 dias)</option>
+                        <option value="3">3x (30/60/90 dias)</option>
+                        <option value="4">4x</option>
+                        <option value="5">5x</option>
+                        <option value="6">6x</option>
+                        <option value="10">10x</option>
+                        <option value="12">12x</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase mb-1 block">1º Vencimento</label>
+                    <input type="date" id="v_primeiro_venc" onchange="gerarInputsParcelas()" class="w-full border-2 p-2.5 rounded-lg text-xs font-bold outline-emerald-500 bg-slate-50">
+                </div>
+            </div>
+
+            <div>
+                <h3 class="text-[10px] font-black text-emerald-600 uppercase mb-3">Plano de Recebimento <span class="text-slate-400 text-[9px] font-bold lowercase italic">(ajuste os valores se as parcelas forem diferentes)</span></h3>
+                <div id="container-parcelas" class="flex flex-col gap-3"></div>
+            </div>
+        </div>
+
+        <div class="p-6 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
+            <button onclick="salvarVenda()" class="w-full bg-emerald-600 text-white py-3 rounded-lg text-xs font-black uppercase shadow-lg hover:bg-emerald-700 transition">💾 Salvar Venda e Plano de Comissão</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>
