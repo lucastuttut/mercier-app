@@ -28,19 +28,28 @@ function dataLocalISO(d) {
 }
 function hojeLocal() { return dataLocalISO(new Date()); }
 
+function isoDeBR(br) {
+    const p = String(br || '').split('/');
+    return p.length === 3 ? p[2] + '-' + p[1] + '-' + p[0] : null;
+}
+
 // ==========================================
 // 2. VARIÁVEIS GLOBAIS
 // ==========================================
-let comissoes=[];
-let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[];
+let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[], comissoes=[];
 let tarefasEquipe=[], entregas=[], lembretes=[], historicoAtividades=[];
 let cestoItensTemporario=[], proximoID=255, notasMelhoria="", notasEstoque="";
 let usuarioAtual="", modoMinhasTarefas=false, visaoPedidos='ATIVOS', visaoEstoque='ESTOQUE', filtrandoNaoEnviados=false, cpfValido=true;
 
-
 let dataSelecionadaLogistica = hojeLocal();
 let dataAtualCalendario = new Date();
 let eventosDoMes = {};
+
+let vendaEditandoUid = null;
+let tarefaConversaoUid = null;
+let hojeAbertoUmaVez = false;
+const cacheAnexos = {};
+const carregandoAnexos = {};
 
 const coresEquipe = {
     "LUCAS":"bg-emerald-100 text-emerald-700 border-emerald-400",
@@ -67,12 +76,19 @@ function switchTab(t) {
     if(tab) tab.classList.add('tab-active');
 
     if(t === 'logistica') processarEventosCalendario();
+    if(t === 'hoje') renderHoje();
+}
+
+function irParaAba(nome) {
+    if (getEl('view-' + nome)) switchTab(nome);
 }
 
 try { usuarioAtual = localStorage.getItem('mercier_user') || ""; } catch(e) {}
 try { modoMinhasTarefas = localStorage.getItem('mercier_so_minhas') === 'true'; } catch(e) {}
 
 window.onload = function() {
+    criarTelaHoje();
+    criarModalConverter();
     if(getEl('user-select') && usuarioAtual) getEl('user-select').value = usuarioAtual;
     if(getEl('check-minhas-tarefas')) getEl('check-minhas-tarefas').checked = modoMinhasTarefas;
     renderFiltrosEquipe();
@@ -89,6 +105,7 @@ function setUsuario(nome) {
     } catch(e) {}
     renderFiltrosEquipe();
     renderQuadroEquipe();
+    renderHoje();
 }
 
 function toggleModoMinhasTarefas() {
@@ -122,11 +139,11 @@ if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 // ==========================================
-// SALVAMENTO POR ITEM (substitui o salvarColecao antigo)
+// SALVAMENTO POR ITEM
 // ==========================================
 const COLECOES = {
     pedidos: 'desc', estoque: 'desc', tarefas: 'desc', assistencias: 'desc', historico: 'desc',
-   fornecedores: 'asc', catalogo: 'asc', tarefasEquipe: 'asc', entregas: 'asc', lembretes: 'asc', comissoes: 'desc'
+    fornecedores: 'asc', catalogo: 'asc', tarefasEquipe: 'asc', entregas: 'asc', lembretes: 'asc', comissoes: 'desc'
 };
 let dadosCarregados = false;
 let estadoServidor = {};
@@ -192,7 +209,15 @@ function baixarBackup(dados) {
         a.href = URL.createObjectURL(blob);
         a.download = 'backup-mercier-' + hojeLocal() + '.json';
         document.body.appendChild(a); a.click(); a.remove();
+        try { localStorage.setItem('mercier_ultimo_backup', hojeLocal()); } catch(e) {}
     } catch (e) { console.error('Backup falhou:', e); }
+}
+
+function baixarBackupManual() {
+    db.ref('dados').once('value').then(function(s) {
+        baixarBackup(s.val() || {});
+        renderHoje();
+    }).catch(function() { alert("Não foi possível gerar o backup agora. Verifique a conexão."); });
 }
 
 db.ref('.info/connected').on('value', function(snap) {
@@ -220,7 +245,7 @@ db.ref('dados').on('value', function(s) {
         catalogo = L.catalogo; tarefas = L.tarefas; assistencias = L.assistencias;
         tarefasEquipe = L.tarefasEquipe; historicoAtividades = L.historico;
         entregas = L.entregas; lembretes = L.lembretes; comissoes = L.comissoes;
-        
+
         proximoID = d.proximoID || 255;
 
         if(getEl('texto-melhorias')) getEl('texto-melhorias').value = d.notasMelhoria || "";
@@ -231,7 +256,13 @@ db.ref('dados').on('value', function(s) {
         renderAll();
         dadosCarregados = true;
 
-        // Migração única: converte as listas antigas para o formato por item
+        // Abre a tela "Hoje" na primeira carga
+        if (!hojeAbertoUmaVez && getEl('view-hoje')) {
+            hojeAbertoUmaVez = true;
+            switchTab('hoje');
+        }
+
+        // Migração única: converte listas antigas para o formato por item
         if (paraMigrar.length) {
             baixarBackup(d);
             setTimeout(function() {
@@ -244,7 +275,7 @@ db.ref('dados').on('value', function(s) {
 function registrarAcao(ic, ac, det) {
     const q = usuarioAtual || "SISTEMA"; const d = new Date();
     const dH = d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-    historicoAtividades.unshift({ uid:Date.now()+Math.random(), dataHora:dH, usuario:q, acao:ac, detalhe:det, icone:ic });
+    historicoAtividades.unshift({ uid:gerarUid(), dataHora:dH, usuario:q, acao:ac, detalhe:det, icone:ic });
     if(historicoAtividades.length > 150) historicoAtividades = historicoAtividades.slice(0, 150);
     salvarColecao('historico', historicoAtividades);
 }
@@ -299,6 +330,7 @@ function renderAll() {
     try { renderHistorico(); } catch(e){}
     try { renderComissoes(); } catch(e){}
     try { processarEventosCalendario(); } catch(e){}
+    try { renderHoje(); } catch(e){}
 }
 
 // =========================================================
@@ -435,7 +467,27 @@ function marcarTodos(v){ document.querySelectorAll('.ped-check').forEach(functio
 function toggleFiltroNaoEnviado(){ filtrandoNaoEnviados = !filtrandoNaoEnviados; getEl('btnFiltroNaoEnviado').classList.toggle('bg-red-600'); getEl('btnFiltroNaoEnviado').classList.toggle('text-white'); renderPedidos(); }
 function updPed(u,c,v){ pedidos.find(function(x){ return x.uid == u; })[c] = v; salvarColecao('pedidos', pedidos); }
 function togPed(u,c){ const x = pedidos.find(function(y){ return y.uid == u; }); if(x) { x[c] = !x[c]; salvarColecao('pedidos', pedidos); } }
-async function dupPed(u){ const x = pedidos.find(function(y){ return y.uid == u; }); const nId = await getProximoID(); const idDoc = "ID#" + nId.toString().padStart(4,'0'); pedidos.unshift({...x, uid: Date.now()+Math.random(), idDoc}); salvarColecao('pedidos', pedidos); }
+async function dupPed(u){ const x = pedidos.find(function(y){ return y.uid == u; }); const nId = await getProximoID(); const idDoc = "ID#" + nId.toString().padStart(4,'0'); pedidos.unshift({...x, uid: gerarUid(), idDoc}); salvarColecao('pedidos', pedidos); }
+
+// Cria uma assistência já preenchida a partir de um pedido
+function gerarAssistenciaRapida(uid) {
+    const p = pedidos.find(function(x) { return x.uid == uid; }); if (!p) return;
+    const defeito = prompt("Qual o defeito ou motivo da assistência?\n" + p.cliente + " - " + p.produto);
+    if (defeito === null) return;
+    const d = defeito.trim().toUpperCase();
+    assistencias.unshift({
+        uid: gerarUid(),
+        data: new Date().toLocaleDateString('pt-BR'),
+        cliente: p.cliente,
+        produto: d ? (p.produto + " - " + d) : p.produto,
+        fabrica: p.fornecedor,
+        status: "Aguardando"
+    });
+    salvarColecao('assistencias', assistencias);
+    registrarAcao('🛠️', 'NOVA ASSISTÊNCIA', 'CLIENTE: ' + p.cliente);
+    renderAssistencias();
+    alert("✅ Assistência criada. Você pode acompanhá-la na aba Assistências.");
+}
 
 function renderPedidos() {
     const tb = getEl('tabelaPedidos'); if(!tb) return;
@@ -494,7 +546,7 @@ function renderPedidos() {
 function adicionarItemAoCesto() {
     const p = val('m_produto').trim().toUpperCase();
     if(!p) return alert("INFORME PRODUTO!");
-    cestoItensTemporario.push({ uid: Date.now(), q: val('m_qtd') || 1, p: p, m: val('m_medida') || "-", c: val('m_cor').toUpperCase() || "-", v: val('m_custo') || "R$ 0,00" });
+    cestoItensTemporario.push({ uid: gerarUid(), q: val('m_qtd') || 1, p: p, m: val('m_medida') || "-", c: val('m_cor').toUpperCase() || "-", v: val('m_custo') || "R$ 0,00" });
     renderCesto(); getEl('m_produto').value = "";
 }
 
@@ -508,13 +560,14 @@ async function cadastrarManual() {
     const cli = val('m_cliente').trim().toUpperCase(); const forn = val('m_fornecedor_select');
     if(!cli || cestoItensTemporario.length === 0) return alert("FALTA DADOS!");
     const nId = await getProximoID(); const idDoc = "ID#" + nId.toString().padStart(4, '0');
-    cestoItensTemporario.forEach(function(i, idx) {
-        pedidos.unshift({ uid: Date.now() + (idx + 1) / 1000, idDoc: idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: val('m_prazo_select'), status: "Não enviado", whatsEnviado: false, confirmado: false, finalizado: false });
+    cestoItensTemporario.forEach(function(i) {
+        pedidos.unshift({ uid: gerarUid(), idDoc: idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: val('m_prazo_select'), status: "Não enviado", whatsEnviado: false, confirmado: false, finalizado: false });
     });
     salvarColecao('pedidos', pedidos); registrarAcao('📋', 'NOVO PEDIDO', `CÓDIGO: ${idDoc} | CLIENTE: ${cli}`);
     cestoItensTemporario = []; getEl('m_cliente').value = ""; renderCesto();
 }
 
+// Textos padrão (usados quando a fábrica não tem dados próprios cadastrados)
 const TEXTO_FABRICA = { pagamento: '30/60/90', assinatura: 'Lucas Mercier' };
 
 function gerarEmailLote() {
@@ -529,6 +582,9 @@ function gerarEmailLote() {
         return alert("Você selecionou pedidos de fábricas diferentes (" + fabricas.join(", ") + ").\nSelecione uma fábrica por vez.");
     }
     const fab = fabricas[0];
+    const forn = fornecedores.find(function(f) { return f.nome === fab; });
+    const pagamento = (forn && forn.pagamento) || TEXTO_FABRICA.pagamento;
+    const assinatura = (forn && forn.assinatura) || TEXTO_FABRICA.assinatura;
 
     let txt = `Olá, segue pedido para fábrica ${fab}:\n\n`;
 
@@ -540,10 +596,10 @@ function gerarEmailLote() {
         txt += `REF: ID# ${String(p.idDoc || '').replace('ID#', '').trim()}\n\n`;
     });
 
-    txt += `Forma de pagamento: ${TEXTO_FABRICA.pagamento}.\n\n`;
+    txt += `Forma de pagamento: ${pagamento}.\n\n`;
     txt += `IDs para controle interno, favor desconsiderar.\n\n`;
     txt += `Favor confirmar o recebimento e nos enviar o documento de confirmação dos itens acima para conferência.\n\n`;
-    txt += `Atenciosamente,\n${TEXTO_FABRICA.assinatura}`;
+    txt += `Atenciosamente,\n${assinatura}`;
 
     navigator.clipboard.writeText(txt).then(function() {
         if (confirm("✅ Texto gerado com as exigências!\nDeseja alterar o status dos pedidos para 'Pedido enviado'?")) {
@@ -552,6 +608,9 @@ function gerarEmailLote() {
             registrarAcao('📧', 'ENVIOU LOTE', `Marcou ${sel.length} pedidos como enviados.`);
             if (getEl('check-todos')) getEl('check-todos').checked = false;
             renderPedidos();
+        }
+        if (forn && forn.email && confirm("Abrir o e-mail já endereçado para " + forn.email + "?\n(O texto também está copiado.)")) {
+            window.location.href = 'mailto:' + forn.email + '?subject=' + encodeURIComponent('Pedido Mercier Design - ' + fab) + '&body=' + encodeURIComponent(txt);
         }
     }).catch(function() { alert("Falha ao copiar automaticamente."); });
 }
@@ -617,7 +676,7 @@ function setP(b,v){ const p=b.parentElement; p.querySelectorAll('button').forEac
 function calcTotalTirarPedido(){ let t=0; document.querySelectorAll('.t-v-desc').forEach(function(i){t+=parseMoney(i.value);}); getEl('total-pedido-tarefa').innerText = "Total: R$ "+t.toLocaleString('pt-BR',{minimumFractionDigits:2}); }
 
 function cadastrarTarefa(){
-    const t=val('t_tipo'); let obj = { uid:Date.now(), data:new Date().toLocaleDateString('pt-BR'), tipo:t, status:"Não Iniciado" };
+    const t=val('t_tipo'); let obj = { uid:gerarUid(), data:new Date().toLocaleDateString('pt-BR'), tipo:t, status:"Não Iniciado" };
     if(t==='TIRAR PEDIDO'){
         const cli=val('t_nome'), pv=getEl('t_previsao')?val('t_previsao'):"";
         if(!cli) return alert("FALTA NOME!"); if(!pv) return alert("FALTA PREVISÃO!");
@@ -635,7 +694,7 @@ function cadastrarTarefa(){
 function renderTarefas() {
     const tb=getEl('tabelaTarefas'); if(!tb) return;
     const f=val('filtro-tarefa-status'); let lst=(f==='TODAS')?tarefas:tarefas.filter(function(x){return x.status===f;});
-    tb.innerHTML=lst.map(function(x){ return `<tr onclick="verDetalhesTarefa(${x.uid})" class="hover:bg-slate-50 cursor-pointer border-b transition"><td>${esc(x.data)}</td><td class="font-black text-xs uppercase">${esc(x.descricao)}</td><td class="text-[10px] uppercase">${esc(x.tipo)}</td><td><button onclick="event.stopPropagation(); cycleTarefaStatus(${x.uid})" class="status-badge bg-slate-100">${esc(x.status)}</button></td><td class="text-center"><button onclick="event.stopPropagation(); if(confirm('Excluir?')){tarefas=tarefas.filter(function(y){return y.uid!=${x.uid}}); salvarColecao('tarefas', tarefas);}" class="text-red-400 hover:text-red-600 font-black text-lg">✕</button></td></tr>`; }).join('');
+    tb.innerHTML=lst.map(function(x){ return `<tr onclick="verDetalhesTarefa(${x.uid})" class="hover:bg-slate-50 cursor-pointer border-b transition"><td>${esc(x.data)}</td><td class="font-black text-xs uppercase">${esc(x.descricao)}${x.convertido?' <span class="text-[8px] text-emerald-600">✔ GERADO</span>':''}</td><td class="text-[10px] uppercase">${esc(x.tipo)}</td><td><button onclick="event.stopPropagation(); cycleTarefaStatus(${x.uid})" class="status-badge bg-slate-100">${esc(x.status)}</button></td><td class="text-center"><button onclick="event.stopPropagation(); if(confirm('Excluir?')){tarefas=tarefas.filter(function(y){return y.uid!=${x.uid}}); salvarColecao('tarefas', tarefas);}" class="text-red-400 hover:text-red-600 font-black text-lg">✕</button></td></tr>`; }).join('');
 }
 
 function cycleTarefaStatus(u){ const x = tarefas.find(function(y){ return y.uid == u; }); const s = ["Não Iniciado","Em Andamento","Feito"]; x.status = s[(s.indexOf(x.status)+1)%s.length]; salvarColecao('tarefas', tarefas); renderTarefas(); }
@@ -650,9 +709,135 @@ function verDetalhesTarefa(uid){
     h+=`<div class="mt-4 font-black text-xs uppercase border-b text-emerald-600">Pagamento:</div>`;
     safeArray(d.pagamentos).forEach(function(p){ h+=`<div class="text-xs font-bold border-b py-1 flex justify-between"><span>${esc(p.t)}: ${esc(p.v)} (${esc(p.o)})</span><button onclick="copyText('${esc(p.t)}: ${esc(p.v)}', this)">📋</button></div>`; });
     if(d.obs) h+=`<div class="mt-4 font-black text-xs uppercase border-b text-orange-600">Observações:</div><div class="text-xs font-bold py-2 bg-slate-50 p-2 rounded mt-1">${esc(d.obs)}</div>`;
+    h+=`<div class="mt-5 pt-4 border-t"><button onclick="abrirConversao(${t.uid})" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg text-xs font-black uppercase shadow-lg transition">🔗 Gerar pedidos, entrega e venda</button>${t.convertido?'<p class="text-[10px] font-bold text-emerald-600 uppercase text-center mt-2">✔ Já foi gerado a partir desta tarefa</p>':''}</div>`;
     c.innerHTML=h;
 }
 function l_i(l, v){ return `<div class="border p-2 rounded text-[10px] font-bold uppercase flex justify-between"><span>${l}: ${esc(v)}</span><button onclick="copyText('${esc(v)}', this)">📋</button></div>`; }
+
+// =========================================================
+// 7B. CONVERTER TAREFA "TIRAR PEDIDO" EM PEDIDOS + ENTREGA + VENDA
+// =========================================================
+function criarModalConverter() {
+    if (getEl('modal-converter')) return;
+    const m = document.createElement('div');
+    m.id = 'modal-converter';
+    m.className = 'modal-overlay';
+    m.style.zIndex = '300';
+    m.onclick = function(ev) { if (ev.target === m) fecharModalConverter(); };
+    m.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl border-t-8 border-indigo-500 flex flex-col max-h-[90vh]">
+        <div class="p-5 border-b border-slate-100 flex justify-between items-center">
+            <h2 class="font-black uppercase text-indigo-600 text-sm">🔗 Gerar a partir da tarefa</h2>
+            <button onclick="fecharModalConverter()" class="text-slate-400 hover:text-red-500 text-xl font-black">✕</button>
+        </div>
+        <div id="converter-corpo" class="p-5 overflow-y-auto flex flex-col gap-4"></div>
+        <div class="p-5 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
+            <button onclick="confirmarConversao()" class="w-full bg-indigo-600 text-white py-3 rounded-lg text-xs font-black uppercase shadow-lg hover:bg-indigo-700 transition">✅ Confirmar e gerar</button>
+        </div>
+    </div>`;
+    document.body.appendChild(m);
+}
+
+function fecharModalConverter() {
+    const m = getEl('modal-converter'); if (m) m.style.display = 'none';
+    tarefaConversaoUid = null;
+}
+
+function aplicarFabricaTodos(v) {
+    document.querySelectorAll('#converter-corpo .conv-forn').forEach(function(s) { s.value = v; });
+}
+
+function abrirConversao(uid) {
+    const t = tarefas.find(function(x) { return x.uid == uid; });
+    if (!t || !t.detalhes) return;
+    const d = t.detalhes;
+    const prods = safeArray(d.produtos);
+    if (!prods.length) return alert("Esta tarefa não tem móveis cadastrados.");
+    if (t.convertido && !confirm("Esta tarefa já gerou pedidos antes. Gerar novamente mesmo assim?")) return;
+
+    tarefaConversaoUid = t.uid;
+    const opts = '<option value="">NÃO PEDIR (já tenho / pronta-entrega)</option>' +
+        fornecedores.map(function(f) { return `<option value="${esc(f.nome)}">${esc(f.nome)}</option>`; }).join('');
+
+    let h = `<div class="text-xs font-black uppercase text-slate-700">Cliente: ${esc(d.cliente)}</div>`;
+    h += `<div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100"><label class="text-[10px] font-black text-indigo-700 uppercase block mb-1">Aplicar a mesma fábrica em todos</label><select onchange="aplicarFabricaTodos(this.value)" class="w-full border-2 p-2 rounded text-xs font-bold bg-white">${opts}</select></div>`;
+    prods.forEach(function(p, i) {
+        h += `<div class="flex flex-col gap-1 bg-slate-50 p-3 rounded-lg border"><span class="text-xs font-black uppercase text-slate-800">${esc(p.n)}</span><select class="conv-forn border-2 p-2 rounded text-xs font-bold bg-white" data-idx="${i}">${opts}</select></div>`;
+    });
+    h += `<div><label class="text-[10px] font-black text-slate-400 uppercase block mb-1">Prazo da fábrica</label><select id="conv-prazo" class="w-full border-2 p-2 rounded text-xs font-bold bg-white"><option value="15">15 dias corridos</option><option value="20">20 dias corridos</option><option value="30" selected>30 dias corridos</option><option value="30-util">30 dias úteis</option><option value="40-util">40 dias úteis</option></select></div>`;
+    h += `<label class="flex items-center gap-2 text-xs font-bold text-slate-700"><input type="checkbox" id="conv-entrega" checked> Agendar entrega para ${esc(d.previsao || 'data não informada')}</label>`;
+    h += `<label class="flex items-center gap-2 text-xs font-bold text-slate-700"><input type="checkbox" id="conv-venda" checked> Abrir o registro de venda (comissão) já preenchido</label>`;
+
+    getEl('converter-corpo').innerHTML = h;
+    getEl('modal-converter').style.display = 'flex';
+}
+
+async function confirmarConversao() {
+    const t = tarefas.find(function(x) { return x.uid == tarefaConversaoUid; });
+    if (!t || !t.detalhes) return;
+    const d = t.detalhes;
+    const prods = safeArray(d.produtos);
+    const escolhas = Array.from(document.querySelectorAll('#converter-corpo .conv-forn')).map(function(s) { return s.value; });
+    const prazo = val('conv-prazo') || '30';
+    const criarEntrega = getEl('conv-entrega').checked;
+    const criarVenda = getEl('conv-venda').checked;
+
+    const resumo = [];
+    const aPedir = [];
+    prods.forEach(function(p, i) { if (escolhas[i]) aPedir.push({ p: p, forn: escolhas[i] }); });
+
+    if (aPedir.length) {
+        const nId = await getProximoID();
+        const idDoc = "ID#" + nId.toString().padStart(4, '0');
+        const hoje = new Date().toLocaleDateString('pt-BR');
+        aPedir.forEach(function(item) {
+            pedidos.unshift({
+                uid: gerarUid(), idDoc: idDoc, cliente: d.cliente, dataPedido: hoje, qtd: 1,
+                produto: item.p.n, medida: "-", cor: "-", custo: "R$ 0,00",
+                fornecedor: item.forn, prazo: prazo, status: "Não enviado",
+                whatsEnviado: false, confirmado: false, finalizado: false
+            });
+        });
+        salvarColecao('pedidos', pedidos);
+        resumo.push(aPedir.length + " item(ns) em pedidos (" + idDoc + ")");
+    }
+
+    if (criarEntrega) {
+        const iso = isoDeBR(d.previsao);
+        if (!iso) {
+            resumo.push("entrega NÃO criada (sem previsão válida)");
+        } else {
+            const end = (d.end || '') + (d.num ? ', ' + d.num : '') + (d.torre ? ' - ' + d.torre : '') + (d.bairro ? ' - ' + d.bairro : '') + (d.cidade ? ' - ' + d.cidade : '');
+            entregas.push({
+                uid: gerarUid(), dataOrdem: iso, hora: "", cliente: d.cliente,
+                contato: (d.contato || '').toUpperCase(),
+                endereco: end.toUpperCase().trim() || "Não informado",
+                produtos: prods.map(function(p) { return p.n; }).join('\n'),
+                status: "Agendado"
+            });
+            salvarColecao('entregas', entregas);
+            resumo.push("entrega agendada para " + d.previsao);
+        }
+    }
+
+    t.convertido = true;
+    t.status = "Feito";
+    salvarColecao('tarefas', tarefas);
+    registrarAcao('🔗', 'GEROU DA TAREFA', 'CLIENTE: ' + d.cliente);
+
+    fecharModalConverter();
+    const md = getEl('modal-detalhes'); if (md) md.style.display = 'none';
+    renderPedidos(); renderTarefas(); processarEventosCalendario(); renderHoje();
+
+    alert("✅ Pronto: " + (resumo.length ? resumo.join("; ") : "tarefa marcada como gerada") + ".");
+
+    if (criarVenda && getEl('modal-venda')) {
+        abrirModalVenda();
+        getEl('v_cliente').value = d.cliente;
+        getEl('v_total').value = formatMoney(parseMoney(d.totalDesc));
+        gerarInputsParcelas();
+    }
+}
 
 // =========================================================
 // 8. ABA EQUIPE / KANBAN
@@ -676,6 +861,28 @@ function toggleFiltroEquipe(n) {
 
 function toggleColunaKanban(c) { colsMinimizadas[c] = !colsMinimizadas[c]; renderQuadroEquipe(); }
 
+const IMG_VAZIA = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+function abrirAnexo(img) {
+    const w = window.open('');
+    if (w) { w.document.write('<img src="' + img.src + '" style="max-width:100%">'); w.document.close(); }
+}
+
+function carregarAnexosPendentes() {
+    document.querySelectorAll('img[data-anexo]').forEach(function(img) {
+        const id = img.getAttribute('data-anexo');
+        if (cacheAnexos[id]) { if (img.getAttribute('src') !== cacheAnexos[id]) img.src = cacheAnexos[id]; return; }
+        if (carregandoAnexos[id]) return;
+        carregandoAnexos[id] = true;
+        db.ref('anexos/' + id).once('value').then(function(s) {
+            cacheAnexos[id] = s.val() || '';
+            if (cacheAnexos[id]) {
+                document.querySelectorAll('img[data-anexo="' + id + '"]').forEach(function(im) { im.src = cacheAnexos[id]; });
+            }
+        }).catch(function() { carregandoAnexos[id] = false; });
+    });
+}
+
 function renderQuadroEquipe() {
     ['TODO','DOING','DONE'].forEach(function(c) {
         const ct=getEl('col-'+c.toLowerCase()+'-container'), el=getEl('col-'+c.toLowerCase()), bt=getEl('btn-toggle-'+c.toLowerCase());
@@ -698,7 +905,12 @@ function renderQuadroEquipe() {
         const c = coresEquipe[t.responsavel]||"bg-slate-100 text-slate-700 border-slate-300"; const cB = c.split(' ')[2];
         let cH = safeArray(t.comentarios).map(function(cm) {
             const cC=coresEquipe[cm.autor]?coresEquipe[cm.autor].split(' ')[1]:"text-slate-600";
-            const aH=cm.anexo?`<br><img src="${cm.anexo}" class="mt-2 rounded-lg max-h-40 w-full cursor-pointer object-cover border" onclick="window.open('${cm.anexo}')"/>`:'';
+            let aH = '';
+            if (cm.anexo) {
+                aH = `<br><img src="${cm.anexo}" class="mt-2 rounded-lg max-h-40 w-full cursor-pointer object-cover border" onclick="abrirAnexo(this)"/>`;
+            } else if (cm.anexoId) {
+                aH = `<br><img data-anexo="${esc(cm.anexoId)}" src="${cacheAnexos[cm.anexoId] || IMG_VAZIA}" class="mt-2 rounded-lg max-h-40 w-full min-h-[40px] bg-slate-100 cursor-pointer object-cover border" onclick="abrirAnexo(this)"/>`;
+            }
             return `<div class="mb-2 bg-white p-2 rounded-md border shadow-sm"><span class="${cC} font-black text-[9px] uppercase">${esc(cm.autor)}:</span> <span class="text-[10px] font-bold text-slate-700">${esc(cm.texto)}</span>${aH}</div>`;
         }).join('');
 
@@ -751,13 +963,14 @@ function renderQuadroEquipe() {
     if(getEl('count-doing')) getEl('count-doing').innerText = countDoing;
     if(getEl('count-done')) getEl('count-done').innerText = countDone;
 
+    carregarAnexosPendentes();
     tarefasEquipe.forEach(function(t) { const cx=getEl('chat-'+t.uid); if(cx) cx.scrollTop=cx.scrollHeight; });
 }
 
 function adicionarTarefaEquipe() {
     const d=val('eq_desc').toUpperCase().trim(), r=val('eq_resp'), p=val('eq_prazo');
     if(!d) return alert("Digite a tarefa!");
-    const nT = {uid:Date.now(), data:new Date().toLocaleDateString('pt-BR'), descricao:d, responsavel:r, prazo:p, coluna:"TODO", comentarios:[], minimizada:false};
+    const nT = {uid:gerarUid(), data:new Date().toLocaleDateString('pt-BR'), descricao:d, responsavel:r, prazo:p, coluna:"TODO", comentarios:[], minimizada:false};
     tarefasEquipe.push(nT); salvarColecao('tarefasEquipe', tarefasEquipe); registrarAcao('📌', 'CRIOU TAREFA', `PARA: ${r}`);
     getEl('eq_desc').value=""; renderQuadroEquipe(); setTimeout(function(){notificarNoGrupoComPrint(nT,'NOVA');}, 300);
 }
@@ -795,27 +1008,46 @@ async function notificarNoGrupoComPrint(t, tp) {
 
 let uidUploadPendente = null;
 function acionarUploadImagem(uid) { if(!usuarioAtual) return alert("Identifique-se primeiro!"); uidUploadPendente = uid; getEl('file-upload-global').click(); }
+
+// As fotos novas ficam em um local separado do banco ("anexos") e só são baixadas quando aparecem na tela.
 function processarUploadImagem(e) {
     const f = e.target.files[0]; if(!f||!uidUploadPendente) return;
     const t = tarefasEquipe.find(function(x){return x.uid==uidUploadPendente;}); if(!t) return;
+    const input = e.target;
     const r = new FileReader();
     r.onload = function(ev) {
         const img = new Image();
         img.onload = function() {
             const cv = document.createElement('canvas'); const MW = 800, MH = 800; let w = img.width, h = img.height;
             if(w>h) { if(w>MW) { h*=MW/w; w=MW; } } else { if(h>MH) { w*=MH/h; h=MH; } }
-            cv.width = w; cv.height = h; const ctx = cv.getContext('2d'); ctx.drawImage(img, 0, 0, w, h); const b64 = cv.toDataURL('image/jpeg', 0.6);
-            t.comentarios = safeArray(t.comentarios); const a = new Date();
-            t.comentarios.push({ id:Date.now(), autor:usuarioAtual, texto:"📷 FOTO ANEXADA", anexo:b64, dataHora:a.toLocaleDateString('pt-BR')+' '+a.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) });
-            salvarColecao('tarefasEquipe', tarefasEquipe); renderQuadroEquipe(); e.target.value = "";
-        }; img.src = ev.target.result;
-    }; r.readAsDataURL(f);
+            cv.width = w; cv.height = h; const ctx = cv.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
+            const b64 = cv.toDataURL('image/jpeg', 0.6);
+            const idAnexo = String(gerarUid());
+
+            const salvarComentario = function(extra) {
+                t.comentarios = safeArray(t.comentarios); const a = new Date();
+                const cm = { id:gerarUid(), autor:usuarioAtual, texto:"📷 FOTO ANEXADA", dataHora:a.toLocaleDateString('pt-BR')+' '+a.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) };
+                Object.keys(extra).forEach(function(k) { cm[k] = extra[k]; });
+                t.comentarios.push(cm);
+                cacheAnexos[idAnexo] = b64;
+                salvarColecao('tarefasEquipe', tarefasEquipe); renderQuadroEquipe();
+            };
+
+            db.ref('anexos/' + idAnexo).set(b64)
+                .then(function() { salvarComentario({ anexoId: idAnexo }); })
+                .catch(function() { salvarComentario({ anexo: b64 }); });
+            input.value = "";
+        };
+        img.src = ev.target.result;
+    };
+    r.readAsDataURL(f);
 }
+
 function adicionarComentarioInline(uid, i) {
     if(!usuarioAtual) return alert("Identifique-se!"); const x = i.value.trim().toUpperCase(); if(!x) return;
     const t = tarefasEquipe.find(function(y){return y.uid==uid;}); if(!t) return;
     t.comentarios = safeArray(t.comentarios); const a = new Date();
-    t.comentarios.push({ id:Date.now(), autor:usuarioAtual, texto:x, dataHora:a.toLocaleDateString('pt-BR')+' '+a.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) });
+    t.comentarios.push({ id:gerarUid(), autor:usuarioAtual, texto:x, dataHora:a.toLocaleDateString('pt-BR')+' '+a.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) });
     salvarColecao('tarefasEquipe', tarefasEquipe); i.value = "";
     setTimeout(function() { const c = getEl('chat-'+uid); if(c) c.scrollTop = c.scrollHeight; }, 100);
 }
@@ -996,7 +1228,7 @@ function salvarEntrega() {
     if(uid) {
         const it = entregas.find(function(x){ return x.uid == uid; });
         if(it) { it.dataOrdem = d; it.hora = h; it.cliente = c; it.endereco = e; it.produtos = p; it.contato = cont; }
-    } else { entregas.push({ uid:Date.now(), dataOrdem:d, hora:h, cliente:c, contato:cont, endereco:e||"Não informado", produtos:p, status:"Agendado" }); }
+    } else { entregas.push({ uid:gerarUid(), dataOrdem:d, hora:h, cliente:c, contato:cont, endereco:e||"Não informado", produtos:p, status:"Agendado" }); }
     salvarColecao('entregas', entregas); fecharModaisLogistica(); processarEventosCalendario();
 }
 
@@ -1006,7 +1238,7 @@ function abrirWhatsAppEntrega(c, e, p, tel) { const msg = `🚚 *Aviso de Entreg
 function abrirGPS(e) { if(!e || e==="NÃO INFORMADO") return alert("Sem endereço para rota."); window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(e)}`, '_blank'); }
 
 function abrirModalNovoLembrete() { getEl('lem_data').value=dataSelecionadaLogistica; getEl('modal-novo-lembrete').style.display='flex'; }
-function salvarLembrete() { const t=val('lem_titulo').toUpperCase().trim(), d=val('lem_data'), c=val('lem_categoria'); if(!t||!d) return alert("Preencha título e data!"); lembretes.push({ uid:Date.now(), titulo:t, dataOrdem:d, categoria:c, concluido:false }); salvarColecao('lembretes', lembretes); fecharModaisLogistica(); processarEventosCalendario(); }
+function salvarLembrete() { const t=val('lem_titulo').toUpperCase().trim(), d=val('lem_data'), c=val('lem_categoria'); if(!t||!d) return alert("Preencha título e data!"); lembretes.push({ uid:gerarUid(), titulo:t, dataOrdem:d, categoria:c, concluido:false }); salvarColecao('lembretes', lembretes); fecharModaisLogistica(); processarEventosCalendario(); }
 function toggleConcluidoLembrete(uid) { const l = lembretes.find(function(x){ return x.uid == uid; }); if(l){ l.concluido=!l.concluido; salvarColecao('lembretes', lembretes); processarEventosCalendario(); } }
 function excluirLembrete(uid) { if(confirm("Apagar lembrete?")) { lembretes = lembretes.filter(function(x){ return x.uid != uid; }); salvarColecao('lembretes', lembretes); processarEventosCalendario(); } }
 function fecharModaisLogistica() { getEl('modal-nova-entrega').style.display='none'; getEl('modal-novo-lembrete').style.display='none'; getEl('ent_uid').value=""; getEl('ent_cliente').value=""; getEl('ent_endereco').value=""; getEl('ent_produtos').value=""; getEl('ent_hora').value=""; getEl('ent_contato').value=""; getEl('lem_titulo').value=""; }
@@ -1065,7 +1297,7 @@ function confirmarSaidaEstoque() {
     let nF = it.produto; if(o) nF+=` (${o})`;
 
     if(qS==it.qtd){ it.situacao=m; it.produto=nF; it.data=new Date().toLocaleDateString('pt-BR'); }
-    else { it.qtd-=qS; estoque.unshift({ uid:Date.now(), data:new Date().toLocaleDateString('pt-BR'), produto:nF, fabrica:it.fabrica, qtd:qS, situacao:m }); }
+    else { it.qtd-=qS; estoque.unshift({ uid:gerarUid(), data:new Date().toLocaleDateString('pt-BR'), produto:nF, fabrica:it.fabrica, qtd:qS, situacao:m }); }
 
     salvarColecao('estoque', estoque); registrarAcao('📉', `SAÍDA: ${m}`, `${qS}x ${it.produto}`); getEl('modal-saida-estoque').style.display='none';
 }
@@ -1082,263 +1314,5 @@ function processarEstoqueMassa() {
         let f=p2, oS=p3, st="ESTOQUE";
 
         if(oS) {
-            if(oS.includes("VENDID")){ st="VENDIDO"; let qm=oS.replace(/VENDID[AOOS]*\s*(PARA|P\/)?\s*/i, '').trim(); pT+=qm?" (VENDIDO: "+qm+")":" (VENDIDO)"; }
-            else if(oS.includes("ASSIST")){ st="ASSISTÊNCIA"; pT+=" (ASSISTÊNCIA)"; }
-            else if(oS.includes("DEVOL")){ st="DEVOLUÇÃO FÁBRICA"; pT+=" (DEVOLUÇÃO)"; }
-            else pT+=" ("+oS+")";
-        }
+            if(oS.includes("VENDID")){ st="VENDIDO"; let qm=oS.replace(/VENDID[AOOS]*\s*(PARA|P\/)?\s*/i, '').tr
 
-        if(pT) { estoque.unshift({uid:Date.now()+Math.random(), data:new Date().toLocaleDateString('pt-BR'), produto:pT, fabrica:f, qtd:q, situacao:st}); ad++; }
-    });
-
-    if(ad>0) { salvarColecao('estoque', estoque); registrarAcao('📦', 'CADASTRO EM MASSA', `${ad} itens.`); getEl('e_massa').value = ""; alert(`✅ ${ad} itens cadastrados!`); }
-}
-
-function cadastrarEstoque() {
-    const p=val('e_produto').toUpperCase().trim(), f=val('e_fabrica_select'), q=val('e_qtd');
-    if(p) { estoque.unshift({uid:Date.now(), data:new Date().toLocaleDateString('pt-BR'), produto:p, fabrica:f, qtd:parseInt(q), situacao:'ESTOQUE'}); salvarColecao('estoque', estoque); registrarAcao('📦', 'ADICIONOU AO ESTOQUE', `${q}x ${p}`); getEl('e_produto').value = ""; }
-}
-
-// =========================================================
-// 12. ASSISTÊNCIAS, FORNECEDORES E CATÁLOGO
-// =========================================================
-function renderAssistencias() {
-    const tb=getEl('tabelaAssistencias'); if(!tb) return;
-    const b=noAcc(val('busca-assistencia').toLowerCase()), f=val('filtro-assistencia-status')||"TODAS";
-
-    let lst = assistencias.filter(function(x) {
-        return (noAcc((x.cliente||"").toLowerCase()).includes(b)||noAcc((x.produto||"").toLowerCase()).includes(b)||noAcc((x.fabrica||"").toLowerCase()).includes(b))&&(f==="TODAS"||(x.status||"Aguardando")===f);
-    });
-
-    if(getEl('contador-assistencia')) getEl('contador-assistencia').innerText = lst.length + " ASSISTÊNCIAS";
-
-    tb.innerHTML = lst.map(function(x) {
-        let sC="bg-slate-200 text-slate-700"; if(x.status==="Aguardando") sC="bg-red-100 text-red-700"; else if(x.status==="Peça Solicitada") sC="bg-blue-100 text-blue-700"; else if(x.status==="Concluído") sC="bg-green-100 text-green-700";
-        return `<tr class="border-b transition hover:bg-slate-50"><td class="text-[10px] font-bold text-slate-400">${esc(x.data)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'cliente', 'assistencias')" class="uppercase font-bold cursor-pointer">${esc(x.cliente)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'produto', 'assistencias')" class="uppercase cursor-pointer">${esc(x.produto)}</td><td onclick="activeInlineEdit(this, ${x.uid}, 'fabrica', 'assistencias')" class="font-black text-blue-800 uppercase text-[10px] cursor-pointer">${esc(x.fabrica)}</td><td class="text-center"><button onclick="cycleAssisStatus(${x.uid})" class="px-2 py-1.5 rounded text-[9px] font-black w-full transition ${sC}">${esc(x.status)}</button></td><td class="text-center"><button onclick="if(confirm('EXCLUIR ASSISTÊNCIA?')){ assistencias=assistencias.filter(function(y){return y.uid!=${x.uid}}); salvarColecao('assistencias', assistencias); }" class="text-red-500 font-black text-lg">✕</button></td></tr>`;
-    }).join('');
-}
-
-function cadastrarAssistencia(){
-    const c=val('as_cliente').toUpperCase().trim(), p=val('as_produto').toUpperCase().trim(), f=val('as_fabrica');
-    if(c&&p){ assistencias.unshift({uid:Date.now(), data:new Date().toLocaleDateString('pt-BR'), cliente:c, produto:p, fabrica:f, status:"Aguardando"}); salvarColecao('assistencias', assistencias); getEl('as_cliente').value=""; getEl('as_produto').value=""; }
-    else alert("PREENCHA CLIENTE E PRODUTO!");
-}
-
-function cycleAssisStatus(u){ const x = assistencias.find(function(y){ return y.uid == u; }); const s = ["Aguardando","Peça Solicitada","Concluído"]; x.status = s[(s.indexOf(x.status||"Aguardando")+1)%s.length]; salvarColecao('assistencias', assistencias); renderAssistencias(); }
-
-function renderFornecedores() { const tb=getEl('tabelaFornecedores'); if(!tb) return; tb.innerHTML=fornecedores.map(function(f,i){ return `<tr><td class="font-bold uppercase">${esc(f.nome)}</td><td class="lowercase text-blue-600">${esc(f.email)}</td><td class="text-center"><button onclick="fornecedores.splice(${i},1); salvarColecao('fornecedores', fornecedores);" class="text-red-500 font-black">✕</button></td></tr>`; }).join(''); }
-function cadastrarFornecedor(){ const n=val('f_nome').toUpperCase().trim(), e=val('f_email').toLowerCase().trim(); if(n&&e){ fornecedores.push({nome:n,email:e}); salvarColecao('fornecedores', fornecedores); getEl('f_nome').value=""; getEl('f_email').value=""; } }
-function renderCatalogo() { const tb=getEl('tabelaCatalogo'); if(!tb) return; tb.innerHTML=catalogo.map(function(c,i){ return `<tr><td class="uppercase">${esc(c.nome)}</td><td class="text-center"><button onclick="catalogo.splice(${i},1); salvarColecao('catalogo', catalogo);">✕</button></td></tr>`; }).join(''); }
-function cadastrarCatalogo(){ const n=val('cat_nome').toUpperCase(); if(n){ catalogo.push({nome:n}); salvarColecao('catalogo', catalogo); getEl('cat_nome').value=""; } }
-function atualizarSelectsFornecedores(){ const h = fornecedores.map(function(f){ return `<option value="${esc(f.nome)}">${esc(f.nome)}</option>`; }).join(''); if(getEl('m_fornecedor_select')) getEl('m_fornecedor_select').innerHTML=h||"<option>...</option>"; if(getEl('as_fabrica')) getEl('as_fabrica').innerHTML=h||"<option>...</option>"; if(getEl('e_fabrica_select')) getEl('e_fabrica_select').innerHTML=h||"<option>...</option>"; if(getEl('estoque-filtro-fabrica')) getEl('estoque-filtro-fabrica').innerHTML='<option value="TODAS">TODAS AS FÁBRICAS</option>'+h; }
-function atualizarSugestoes(){ const n = [...new Set(pedidos.map(function(p){ return p.cliente; }))].sort(); if(getEl('listaSugestaoClientes')) getEl('listaSugestaoClientes').innerHTML=n.map(function(x){ return `<option value="${esc(x)}">`; }).join(''); }
-function togglePainelSugestoes(){ const p=getEl('painel-sugestoes'); p.style.display=(p.style.display==='flex')?'none':'flex'; }
-function autoSalvarNotas(){ notasMelhoria=val('texto-melhorias'); db.ref('dados/notasMelhoria').set(notasMelhoria); }
-
-const painelS = getEl('painel-sugestoes'); const dragH = getEl('drag-handle'); let isDrag=false, offX, offY;
-if(dragH) dragH.addEventListener('mousedown', function(e) { isDrag=true; offX=e.clientX-painelS.getBoundingClientRect().left; offY=e.clientY-painelS.getBoundingClientRect().top; painelS.style.bottom='auto'; painelS.style.right='auto'; });
-document.addEventListener('mousemove', function(e) { if(!isDrag) return; painelS.style.left=(e.clientX-offX)+'px'; painelS.style.top=(e.clientY-offY)+'px'; });
-document.addEventListener('mouseup', function() { isDrag=false; });
-// =========================================================
-// 13. COMISSÕES
-// =========================================================
-const TAXA_COMISSAO = 0.05;
-let dataFiltroComissoes = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-
-function formatMoney(n) {
-    return "R$ " + (n || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-}
-
-function formataDataBR(dataISO) {
-    if (!dataISO) return "-";
-    const p = String(dataISO).split('-');
-    if (p.length !== 3) return dataISO;
-    return p[2] + '/' + p[1] + '/' + p[0];
-}
-
-function somarMeses(dataISO, n) {
-    const p = dataISO.split('-');
-    const ano = parseInt(p[0]), mes = parseInt(p[1]) - 1, dia = parseInt(p[2]);
-    const ultimoDia = new Date(ano, mes + n + 1, 0).getDate();
-    return dataLocalISO(new Date(ano, mes + n, Math.min(dia, ultimoDia)));
-}
-
-function mudarMesComissoes(direcao) {
-    dataFiltroComissoes = new Date(dataFiltroComissoes.getFullYear(), dataFiltroComissoes.getMonth() + direcao, 1);
-    renderComissoes();
-}
-
-function abrirModalVenda() {
-    getEl('v_data').value = hojeLocal();
-    const d30 = new Date();
-    d30.setDate(d30.getDate() + 30);
-    getEl('v_primeiro_venc').value = dataLocalISO(d30);
-    getEl('modal-venda').style.display = 'flex';
-    gerarInputsParcelas();
-}
-
-function fecharModalVenda() {
-    getEl('modal-venda').style.display = 'none';
-    getEl('v_cliente').value = "";
-    getEl('v_total').value = "";
-    getEl('v_qtd_parcelas').value = "1";
-}
-
-function gerarInputsParcelas() {
-    const container = getEl('container-parcelas');
-    if (!container) return;
-    const total = parseMoney(getEl('v_total').value);
-    const qtd = parseInt(getEl('v_qtd_parcelas').value);
-    const dataBase = getEl('v_primeiro_venc').value;
-    if (!dataBase) return;
-
-    // divide em centavos para as parcelas fecharem exatamente no total
-    const centavos = Math.round(total * 100);
-    const base = Math.floor(centavos / qtd);
-    const resto = centavos - base * qtd;
-
-    let html = "";
-    for (let i = 1; i <= qtd; i++) {
-        const valor = (i === qtd ? base + resto : base) / 100;
-        html += `
-        <div class="flex gap-3 items-center bg-slate-50 p-3 rounded-xl border border-slate-200">
-            <span class="bg-emerald-100 text-emerald-700 font-black text-[10px] px-2 py-1 rounded w-10 text-center">${i}x</span>
-            <div class="flex-1">
-                <label class="text-[8px] font-black text-slate-400 uppercase block mb-0.5">Vencimento</label>
-                <input type="date" id="p_data_${i}" value="${somarMeses(dataBase, i - 1)}" class="w-full border p-2 rounded text-xs font-bold outline-emerald-500 bg-white">
-            </div>
-            <div class="flex-1">
-                <label class="text-[8px] font-black text-slate-400 uppercase block mb-0.5">Valor (R$)</label>
-                <input type="text" id="p_valor_${i}" value="${formatMoney(valor)}" oninput="maskMoney(this)" class="w-full border p-2 rounded text-xs font-bold text-slate-700 outline-emerald-500 bg-white">
-            </div>
-        </div>`;
-    }
-    container.innerHTML = html;
-}
-
-function salvarVenda() {
-    const cliente = val('v_cliente').toUpperCase().trim();
-    const dataVenda = val('v_data');
-    const total = parseMoney(val('v_total'));
-    const qtdParcelas = parseInt(val('v_qtd_parcelas'));
-
-    if (!cliente || total <= 0) return alert("Preencha o cliente e o valor total da venda!");
-
-    const parcelas = [];
-    for (let i = 1; i <= qtdParcelas; i++) {
-        const dtVenc = val('p_data_' + i);
-        const valParc = parseMoney(val('p_valor_' + i));
-        if (!dtVenc) return alert("Preencha a data de vencimento da parcela " + i + "!");
-        parcelas.push({
-            id_parcela: "P" + i,
-            numero: i,
-            de: qtdParcelas,
-            vencimento: dtVenc,
-            valor: valParc,
-            comissao: Math.round(valParc * TAXA_COMISSAO * 100) / 100,
-            status: "Pendente",
-            dataPagamento: null
-        });
-    }
-
-    const uid = gerarUid();
-    comissoes.unshift({
-        uid: uid,
-        id_venda: String(uid),
-        cliente: cliente,
-        dataVenda: dataVenda,
-        valorTotal: total,
-        parcelas: parcelas
-    });
-
-    salvarColecao('comissoes', comissoes);
-    fecharModalVenda();
-    renderComissoes();
-}
-
-function renderComissoes() {
-    const tb = getEl('tabela-parcelas');
-    if (!tb) return;
-
-    const meses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-    getEl('com-mes-display').innerText = meses[dataFiltroComissoes.getMonth()] + " " + dataFiltroComissoes.getFullYear();
-    const chaveMes = dataFiltroComissoes.getFullYear() + '-' + String(dataFiltroComissoes.getMonth() + 1).padStart(2, '0');
-
-    let lista = [];
-    let totalVendidoMes = 0, pendente = 0, garantido = 0;
-
-    comissoes.forEach(function(venda) {
-        if (String(venda.dataVenda || '').slice(0, 7) === chaveMes) totalVendidoMes += venda.valorTotal || 0;
-
-        safeArray(venda.parcelas).forEach(function(p) {
-            let entra = false;
-            if (p.status === "Pendente" && String(p.vencimento || '').slice(0, 7) === chaveMes) {
-                pendente += p.comissao || 0;
-                entra = true;
-            } else if (p.status === "Pago" && String(p.dataPagamento || '').slice(0, 7) === chaveMes) {
-                garantido += p.comissao || 0;
-                entra = true;
-            }
-            if (entra) lista.push({ venda: venda, parcela: p });
-        });
-    });
-
-    getEl('resumo-vendas').innerText = formatMoney(totalVendidoMes);
-    getEl('resumo-pendente').innerText = formatMoney(pendente);
-    getEl('resumo-garantido').innerText = formatMoney(garantido);
-    getEl('contador-parcelas').innerText = lista.length + " Lançamentos";
-
-    lista.sort(function(a, b) { return String(a.parcela.vencimento || '').localeCompare(String(b.parcela.vencimento || '')); });
-
-    if (lista.length === 0) {
-        tb.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400 font-bold uppercase border-b border-slate-100">Nenhum recebimento ou vencimento para este mês.</td></tr>';
-        return;
-    }
-
-    let html = "";
-    lista.forEach(function(item) {
-        const p = item.parcela, v = item.venda;
-        const isPago = p.status === "Pago";
-        const rowClass = isPago ? "bg-emerald-50/50 opacity-80" : "hover:bg-slate-50 transition";
-        const badge = isPago
-            ? `<span class="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider block w-full border border-emerald-200">✅ Paga em ${formataDataBR(p.dataPagamento)}</span>`
-            : `<button onclick="marcarComoPago(${v.uid}, '${p.id_parcela}')" class="bg-amber-100 hover:bg-emerald-500 hover:text-white text-amber-700 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition block w-full shadow-sm">⏳ Marcar como Pago</button>`;
-
-        html += `
-        <tr class="${rowClass} border-b border-slate-100">
-            <td class="p-3 text-[10px] text-slate-500">${formataDataBR(p.vencimento)}</td>
-            <td class="p-3">
-                <span class="block uppercase text-slate-800 leading-tight">${esc(v.cliente)}</span>
-                <span class="text-[9px] text-slate-400 font-normal">Venda efetuada em: ${formataDataBR(v.dataVenda)}</span>
-            </td>
-            <td class="p-3 text-[10px] text-slate-600"><span class="bg-slate-200 px-2 py-0.5 rounded-md text-[9px]">${p.numero} de ${p.de}</span></td>
-            <td class="p-3">${formatMoney(p.valor)}</td>
-            <td class="p-3 text-emerald-600 font-black text-sm">${formatMoney(p.comissao)}</td>
-            <td class="p-3 w-40 text-center">${badge}</td>
-        </tr>`;
-    });
-    tb.innerHTML = html;
-}
-
-function marcarComoPago(uid, idParcela) {
-    const v = comissoes.find(function(x) { return x.uid == uid; });
-    if (!v) return;
-    const p = safeArray(v.parcelas).find(function(x) { return x.id_parcela === idParcela; });
-    if (!p) return;
-
-    let resp = prompt("Qual foi a data do pagamento? (DD/MM/AAAA)", formataDataBR(hojeLocal()));
-    if (resp === null) return;
-    resp = resp.trim();
-
-    let iso = hojeLocal();
-    if (resp !== "") {
-        const m = resp.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-        if (!m) return alert("Data inválida. Use o formato DD/MM/AAAA.");
-        iso = m[3] + '-' + m[2] + '-' + m[1];
-    }
-
-    p.status = "Pago";
-    p.dataPagamento = iso;
-    salvarColecao('comissoes', comissoes);
-    renderComissoes();
-}
