@@ -2079,6 +2079,49 @@ if (!window.__hojeTimer) {
         const v = getEl('view-hoje');
         if (v && !v.classList.contains('hidden')) renderHoje();
     }, 300000);
+
+    // ==========================================
+// IR DIRETO PARA UMA TAREFA (usado pela aba Hoje)
+// ==========================================
+function irParaTarefa(uid, tipo) {
+    // Tarefas da aba "Tarefas" (anotações e pedidos)
+    if (tipo === 'TAREFA') {
+        const tb = getEl('tabelaTarefas');
+        const mainT = tb ? tb.closest('main') : null;
+        if (mainT) switchTab(mainT.id.replace('view-', ''));
+        verDetalhesTarefa(uid);
+        return;
+    }
+
+    // Tarefas da aba "Equipe" (quadro Kanban)
+    const t = tarefasEquipe.find(function(x) { return x.uid == uid; });
+    if (!t) return alert("Tarefa não encontrada.");
+
+    if (modoMinhasTarefas && usuarioAtual && t.responsavel !== usuarioAtual) {
+        modoMinhasTarefas = false;
+        try { localStorage.setItem('mercier_so_minhas', false); } catch (e) {}
+        if (getEl('check-minhas-tarefas')) getEl('check-minhas-tarefas').checked = false;
+    }
+    if (filtrosEquipeAtivos.length > 0 && !filtrosEquipeAtivos.includes(t.responsavel)) {
+        filtrosEquipeAtivos = [];
+    }
+    colsMinimizadas[t.coluna] = false;
+    t.minimizada = false;
+
+    renderFiltrosEquipe();
+    renderQuadroEquipe();
+
+    const card = getEl('card-' + uid);
+    if (!card) return;
+    const mainE = card.closest('main');
+    if (mainE) switchTab(mainE.id.replace('view-', ''));
+
+    setTimeout(function() {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.classList.add('ring-4', 'ring-blue-500');
+        setTimeout(function() { card.classList.remove('ring-4', 'ring-blue-500'); }, 2500);
+    }, 150);
+}
 }
 }
 
