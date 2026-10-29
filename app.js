@@ -36,7 +36,7 @@ let tarefasEquipe=[], entregas=[], lembretes=[], historicoAtividades=[];
 let cestoItensTemporario=[], proximoID=255, notasMelhoria="", notasEstoque="";
 let usuarioAtual="", modoMinhasTarefas=false, visaoPedidos='ATIVOS', visaoEstoque='ESTOQUE', filtrandoNaoEnviados=false, cpfValido=true;
 
-let dataSelecionadaLogistica = new Date().toISOString().split('T')[0];
+let dataSelecionadaLogistica = hojeLocal();
 let dataAtualCalendario = new Date();
 let eventosDoMes = {};
 
@@ -75,8 +75,8 @@ window.onload = function() {
     if(getEl('check-minhas-tarefas')) getEl('check-minhas-tarefas').checked = modoMinhasTarefas; 
     renderFiltrosEquipe(); 
     mostrarCamposTarefa('SIMPLES'); 
-    if(getEl('ent_data')) getEl('ent_data').valueAsDate = new Date(); 
-    if(getEl('lem_data')) getEl('lem_data').valueAsDate = new Date();
+if(getEl('ent_data')) getEl('ent_data').value = hojeLocal();
+if(getEl('lem_data')) getEl('lem_data').value = hojeLocal();
 };
 
 function setUsuario(nome) { 
@@ -188,7 +188,7 @@ function baixarBackup(dados) {
         const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = 'backup-mercier-' + new Date().toISOString().slice(0, 10) + '.json';
+        a.download = 'backup-mercier-' + hojeLocal() + '.json';
         document.body.appendChild(a); a.click(); a.remove();
     } catch (e) { console.error('Backup falhou:', e); }
 }
@@ -857,7 +857,7 @@ function renderCalendario() {
     let html = "";
     for (let i=0; i<pD; i++) html += `<div class="border-b border-r border-slate-200 bg-slate-50 opacity-40 min-h-[80px]"></div>`;
     
-    const hj = new Date().toISOString().split('T')[0];
+   const hj = hojeLocal();
     
     for (let d=1; d<=dM; d++) {
         const dK = `${a}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
@@ -877,7 +877,10 @@ function renderCalendario() {
     const grid = getEl('grid-dias'); if(grid) grid.innerHTML = html;
 }
 
-function mudarMes(dr) { dataAtualCalendario.setMonth(dataAtualCalendario.getMonth() + dr); processarEventosCalendario(); }
+function mudarMes(dr) {
+    dataAtualCalendario = new Date(dataAtualCalendario.getFullYear(), dataAtualCalendario.getMonth() + dr, 1);
+    processarEventosCalendario();
+}
 function selecionarDiaLogistica(dK, dtF) { dataSelecionadaLogistica = dK; renderCalendario(); renderPainelDia(); }
 
 function renderPainelDia() {
