@@ -512,23 +512,46 @@ async function cadastrarManual() {
     cestoItensTemporario = []; getEl('m_cliente').value = ""; renderCesto();
 }
 
+const TEXTO_FABRICA = { pagamento: '30/60/90', assinatura: 'Lucas Mercier' };
+
 function gerarEmailLote() {
     const checks = document.querySelectorAll('.ped-check:checked');
     if (!checks.length) return alert("Nenhum pedido selecionado!");
-    
+
     const uids = Array.from(checks).map(function(c) { return c.value; });
     const sel = pedidos.filter(function(p) { return uids.includes(String(p.uid)); });
-    const fab = sel[0].fornecedor || "NÃO INFORMADA";
-    
+
+    const fabricas = [...new Set(sel.map(function(p) { return p.fornecedor || "NÃO INFORMADA"; }))];
+    if (fabricas.length > 1) {
+        return alert("Você selecionou pedidos de fábricas diferentes (" + fabricas.join(", ") + ").\nSelecione uma fábrica por vez.");
+    }
+    const fab = fabricas[0];
+
     let txt = `Olá, segue pedido para fábrica ${fab}:\n\n`;
-    
+
     sel.forEach(function(p) {
-        let prd = p.produto; 
-        if(p.medida && p.medida!=="-") prd += ` | Medida: ${p.medida}`; 
-        if(p.cor && p.cor!=="-") prd += ` | Cor: ${p.cor}`;
+        let prd = p.produto;
+        if (p.medida && p.medida !== "-") prd += ` | Medida: ${p.medida}`;
+        if (p.cor && p.cor !== "-") prd += ` | Cor: ${p.cor}`;
         txt += `Qtde: ${String(p.qtd).padStart(2, '0')} - ${prd}\n`;
-        txt += `REF: ID# ${p.idDoc.replace('ID#','').trim()}\n\n`;
+        txt += `REF: ID# ${String(p.idDoc || '').replace('ID#', '').trim()}\n\n`;
     });
+
+    txt += `Forma de pagamento: ${TEXTO_FABRICA.pagamento}.\n\n`;
+    txt += `IDs para controle interno, favor desconsiderar.\n\n`;
+    txt += `Favor confirmar o recebimento e nos enviar o documento de confirmação dos itens acima para conferência.\n\n`;
+    txt += `Atenciosamente,\n${TEXTO_FABRICA.assinatura}`;
+
+    navigator.clipboard.writeText(txt).then(function() {
+        if (confirm("✅ Texto gerado com as exigências!\nDeseja alterar o status dos pedidos para 'Pedido enviado'?")) {
+            sel.forEach(function(p) { if (p.status === "Não enviado") p.status = "Pedido enviado"; });
+            salvarColecao('pedidos', pedidos);
+            registrarAcao('📧', 'ENVIOU LOTE', `Marcou ${sel.length} pedidos como enviados.`);
+            if (getEl('check-todos')) getEl('check-todos').checked = false;
+            renderPedidos();
+        }
+    }).catch(function() { alert("Falha ao copiar automaticamente."); });
+}
     
     txt += `Forma de pagamento: 30/60/90.\n\n`;
     txt += `IDs para controle interno, favor desconsiderar.\n\n`;
