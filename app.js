@@ -6,7 +6,7 @@ function val(id) { const e = getEl(id); return e ? e.value : ""; }
 
 function esc(str) { 
     return (str || "").toString().replace(/[&<>'"]/g, function(tag) { 
-        return ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag] || tag); 
+        return ({'&': '&&;', '<': '<;', '>': '>;', "'": '&#39;', '"': '&quot;'}[tag] || tag); 
     }); 
 }
 
@@ -564,7 +564,7 @@ function gerarEmailLote() {
             salvarColecao('pedidos', pedidos); registrarAcao('📧', 'ENVIOU LOTE', `Marcou ${sel.length} pedidos como enviados.`);
             if(getEl('check-todos')) getEl('check-todos').checked = false; renderPedidos();
         }
-    }).catch(function() { alert("Falha ao copiar automaticamente."); });
+   }).catch(function() { alert("Falha ao copiar automaticamente."); });
 }
 
 // =========================================================
