@@ -196,23 +196,41 @@ db.ref('.info/connected').on('value', function(snap) {
     }
 });
 
-db.ref('dados').on('value', function(s) { 
-    try { 
-        const d = s.val() || {}; 
-        pedidos=safeArray(d.pedidos); fornecedores=safeArray(d.fornecedores); estoque=safeArray(d.estoque); 
-        catalogo=safeArray(d.catalogo); tarefas=safeArray(d.tarefas); assistencias=safeArray(d.assistencias); 
-        tarefasEquipe=safeArray(d.tarefasEquipe); historicoAtividades=safeArray(d.historico); 
-        entregas=safeArray(d.entregas); lembretes=safeArray(d.lembretes); 
-        
-        proximoID=d.proximoID||255; 
-        
-        if(getEl('texto-melhorias')) getEl('texto-melhorias').value = d.notasMelhoria || ""; 
-        if(getEl('estoque-notas-gerais')) getEl('estoque-notas-gerais').value = d.notasEstoque || ""; 
-        
-        atualizarSelectsFornecedores(); 
-        atualizarSugestoes(); 
-        renderAll(); 
-    } catch(e) { console.error("Erro banco:", e); } 
+db.ref('dados').on('value', function(s) {
+    try {
+        const d = s.val() || {};
+        const L = {};
+        const paraMigrar = [];
+
+        Object.keys(COLECOES).forEach(function(col) {
+            L[col] = lerColecao(col, d[col]);
+            estadoServidor[col] = mapaJson(L[col]);
+            if (Array.isArray(d[col])) paraMigrar.push(col); // formato antigo
+        });
+
+        pedidos = L.pedidos; fornecedores = L.fornecedores; estoque = L.estoque;
+        catalogo = L.catalogo; tarefas = L.tarefas; assistencias = L.assistencias;
+        tarefasEquipe = L.tarefasEquipe; historicoAtividades = L.historico;
+        entregas = L.entregas; lembretes = L.lembretes;
+
+        proximoID = d.proximoID || 255;
+
+        if(getEl('texto-melhorias')) getEl('texto-melhorias').value = d.notasMelhoria || "";
+        if(getEl('estoque-notas-gerais')) getEl('estoque-notas-gerais').value = d.notasEstoque || "";
+
+        atualizarSelectsFornecedores();
+        atualizarSugestoes();
+        renderAll();
+        dadosCarregados = true;
+
+        // Migração única: converte as listas antigas para o formato por item
+        if (paraMigrar.length) {
+            baixarBackup(d);
+            setTimeout(function() {
+                paraMigrar.forEach(function(col) { migrarColecao(col, L[col]); });
+            }, 0);
+        }
+    } catch(e) { console.error("Erro banco:", e); }
 });
 
 function registrarAcao(ic, ac, det) { 
@@ -477,15 +495,15 @@ function renderCesto() {
     }).join(''); 
 }
 
-async function cadastrarManual() { 
-    const cli = val('m_cliente').trim().toUpperCase(); const forn = val('m_fornecedor_select'); 
-    if(!cli || cestoItensTemporario.length === 0) return alert("FALTA DADOS!"); 
-    const nId = await getProximoID(); const idDoc = "ID#" + nId.toString().padStart(4, '0'); 
-    cestoItensTemporario.forEach(function(i) { 
-        pedidos.unshift({ uid: Date.now()+Math.random(), idDoc: idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: val('m_prazo_select'), status: "Não enviado", whatsEnviado: false, confirmado: false, finalizado: false }); 
-    }); 
-    salvarColecao('pedidos', pedidos); registrarAcao('📋', 'NOVO PEDIDO', `CÓDIGO: ${idDoc} | CLIENTE: ${cli}`); 
-    cestoItensTemporario = []; getEl('m_cliente').value = ""; renderCesto(); 
+async function cadastrarManual() {
+    const cli = val('m_cliente').trim().toUpperCase(); const forn = val('m_fornecedor_select');
+    if(!cli || cestoItensTemporario.length === 0) return alert("FALTA DADOS!");
+    const nId = await getProximoID(); const idDoc = "ID#" + nId.toString().padStart(4, '0');
+    cestoItensTemporario.forEach(function(i, idx) {
+        pedidos.unshift({ uid: Date.now() + (idx + 1) / 1000, idDoc: idDoc, cliente: cli, dataPedido: new Date().toLocaleDateString('pt-BR'), qtd: i.q, produto: i.p, medida: i.m, cor: i.c, custo: i.v, fornecedor: forn, prazo: val('m_prazo_select'), status: "Não enviado", whatsEnviado: false, confirmado: false, finalizado: false });
+    });
+    salvarColecao('pedidos', pedidos); registrarAcao('📋', 'NOVO PEDIDO', `CÓDIGO: ${idDoc} | CLIENTE: ${cli}`);
+    cestoItensTemporario = []; getEl('m_cliente').value = ""; renderCesto();
 }
 
 function gerarEmailLote() {
