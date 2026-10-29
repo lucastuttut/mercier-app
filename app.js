@@ -549,8 +549,8 @@ function gerarEmailLote() {
             registrarAcao('📧', 'ENVIOU LOTE', `Marcou ${sel.length} pedidos como enviados.`);
             if (getEl('check-todos')) getEl('check-todos').checked = false;
             renderPedidos();
-        }
-    }).catch(function() { alert("Falha ao copiar automaticamente."); });
+            
+        }).catch(function() { alert("Falha ao copiar automaticamente."); });
 }
     
     txt += `Forma de pagamento: 30/60/90.\n\n`;
