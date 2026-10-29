@@ -522,7 +522,7 @@ function renderPedidos() {
         }
 
         html += `
-        <tr class="${p.classe}">
+        <tr id="ped-${x.uid}" class="${p.classe}">
             <td><input type="checkbox" class="ped-check" value="${x.uid}"></td>
             <td><div class="flex flex-col gap-1 items-center"><span class="font-black text-[9px]">${p.dias}D</span><select onchange="updPed(${x.uid},'prazo',this.value)" class="bg-black text-white text-[8px] font-black rounded px-1 outline-none"><option value="15" ${x.prazo=='15'?'selected':''}>15C</option><option value="20" ${x.prazo=='20'?'selected':''}>20C</option><option value="30" ${x.prazo=='30'?'selected':''}>30C</option><option value="30-util" ${x.prazo=='30-util'?'selected':''}>30U</option><option value="40-util" ${x.prazo=='40-util'?'selected':''}>40U</option></select></div></td>
             <td class="text-[10px] text-slate-400 font-black">${esc(x.idDoc)}</td>
@@ -927,7 +927,7 @@ function renderQuadroEquipe() {
         bDs += `<button onclick="excluirTarefaEquipe(${t.uid})" class="text-slate-200 hover:text-red-500 font-black px-1">✕</button>`;
 
         let cd = `
-        <div id="card-${t.uid}" draggable="true" ondragstart="dragTarefa(event,${t.uid})" ondragend="dragEndTarefa(event)" class="bg-white p-3.5 rounded-2xl shadow-sm border-t-4 ${cB} flex flex-col gap-2 relative overflow-hidden">
+        <div id="card-${t.uid}" draggable="true" ondragstart="dragTarefa(event,${t.uid})" ondragend="dragEndTarefa(event)" class="bg-white p-3.5 rounded-2xl shadow-sm border-t-4 ${cB} flex flex-col gap-2 relative">
             <div class="flex justify-between items-start">
                 <div class="flex flex-col gap-1 items-start"><span class="${c} px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">${esc(t.responsavel)}</span>${bdg}</div>
                 <div class="flex gap-1 items-center">${bDs}</div>
@@ -1108,7 +1108,7 @@ function renderCalendario() {
         let eH = "";
         if(eventosDoMes[dK]) {
             eventosDoMes[dK].slice(0,3).forEach(function(ev) {
-                eH += `<div class="${ev.cor} text-[8px] font-black truncate px-1 rounded shadow-sm mb-0.5 leading-tight py-0.5" title="${ev.titulo}">${ev.icone} ${esc(ev.titulo)}</div>`;
+                eH += `<div class="${ev.cor} text-[8px] font-black truncate px-1 rounded shadow-sm mb-0.5 leading-tight py-0.5" title="${esc(ev.titulo)}">${ev.icone} ${esc(ev.titulo)}</div>`;
             });
             if(eventosDoMes[dK].length>3) eH += `<div class="text-[8px] font-black text-slate-400 text-center">+${eventosDoMes[dK].length-3} itens</div>`;
         }
@@ -1219,7 +1219,7 @@ function buscarDadosInteligentes() {
     const ps = pedidos.filter(function(p) { return p.cliente && p.cliente.includes(n) && !p.finalizado; });
     const eP = getEl('ent_produtos');
     if(ps.length>0 && !eP.value) { eP.value = ps.map(function(p) { return `${p.qtd}x ${p.produto} ${p.cor}`; }).join('\n').toUpperCase(); f = true; }
-    if(f) { a.classList.remove('hidden'); setTimeout(function() { a.classList.add('hidden'); }, 3000); }
+    if(f && a) { a.classList.remove('hidden'); setTimeout(function() { a.classList.add('hidden'); }, 3000); }
 }
 
 function salvarEntrega() {
@@ -1229,7 +1229,7 @@ function salvarEntrega() {
         const it = entregas.find(function(x){ return x.uid == uid; });
         if(it) { it.dataOrdem = d; it.hora = h; it.cliente = c; it.endereco = e; it.produtos = p; it.contato = cont; }
     } else { entregas.push({ uid:gerarUid(), dataOrdem:d, hora:h, cliente:c, contato:cont, endereco:e||"Não informado", produtos:p, status:"Agendado" }); }
-    salvarColecao('entregas', entregas); fecharModaisLogistica(); processarEventosCalendario();
+    salvarColecao('entregas', entregas); fecharModaisLogistica(); processarEventosCalendario(); renderHoje();
 }
 
 function cycleStatusEntrega(uid) { const t = entregas.find(function(x){ return x.uid == uid; }); if(t) { const s = ["Agendado", "Em Rota", "Entregue"]; t.status = s[(s.indexOf(t.status)+1)%s.length]; salvarColecao('entregas', entregas); processarEventosCalendario(); } }
@@ -1443,7 +1443,7 @@ function somaMeses(iso, k) {
 }
 
 // =========================================================
-// 14. CRIAÇÃO DAS TELAS "HOJE" E "COMISSÕES"
+// 14. CRIAÇÃO DAS ABAS "HOJE" E "COMISSÕES"
 // =========================================================
 function criarTelaHoje() {
     const nav = document.querySelector('nav');
@@ -1467,521 +1467,25 @@ function criarTelaHoje() {
     criarTelaComissoes(classeBtn, classeMain);
 }
 
-function cartaoHoje(icone, titulo, corBadge, qtd, corpo, vazio) {
-    const badge = qtd > 0
-        ? `<span class="${corBadge} text-[10px] font-black px-2 py-0.5 rounded-full">${qtd}</span>`
-        : `<span class="text-[10px] font-black text-emerald-500">✔</span>`;
-    return `<div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-col gap-2">
-        <div class="flex justify-between items-center border-b border-slate-100 pb-2"><h3 class="text-xs font-black uppercase text-slate-700">${icone} ${titulo}</h3>${badge}</div>
-        ${qtd > 0 ? corpo : `<span class="text-[10px] font-bold uppercase text-slate-400 py-3 text-center">${vazio}</span>`}
-    </div>`;
-}
-
-function linhaHoje(principal, secundario, direita, acao) {
-    const clicavel = acao ? ' linha-clicavel' : '';
-    const onclick = acao ? ` onclick="${acao}" title="Clique para abrir"` : '';
-    return `<div${onclick} class="flex justify-between items-start gap-2 bg-slate-50 rounded-lg p-2 border border-slate-100${clicavel}"><div class="flex flex-col min-w-0"><span class="text-[11px] font-black uppercase text-slate-800">${principal}</span><span class="text-[9px] font-bold uppercase text-slate-500">${secundario}</span></div>${direita || ''}</div>`;
-}
-
-function etiquetaHoje(txt, cor) { return `<span class="${cor} text-[9px] font-black px-2 py-0.5 rounded whitespace-nowrap">${txt}</span>`; }
-
-function irParaTarefa(uid) {
-    const t = tarefasEquipe.find(function(x) { return x.uid == uid; });
-    if (!t) return alert("Esta tarefa não existe mais.");
-
-    // Garante que o cartão apareça na aba Equipe
-    filtrosEquipeAtivos = [];
-    if (modoMinhasTarefas && usuarioAtual && t.responsavel !== usuarioAtual) {
-        modoMinhasTarefas = false;
-        try { localStorage.setItem('mercier_so_minhas', 'false'); } catch (e) {}
-        if (getEl('check-minhas-tarefas')) getEl('check-minhas-tarefas').checked = false;
-    }
-    colsMinimizadas[t.coluna] = false;
-    t.minimizada = false;
-
-    switchTab('equipe');
-    renderFiltrosEquipe();
-    renderQuadroEquipe();
-
-    setTimeout(function() {
-        const card = getEl('card-' + uid);
-        if (!card) return;
-        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        card.classList.add('ring-4', 'ring-blue-500');
-        setTimeout(function() { card.classList.remove('ring-4', 'ring-blue-500'); }, 3000);
-    }, 200);
-}
-
-function renderHoje() {
-    const v = getEl('view-hoje'); if (!v) return;
-    const hoje = hojeLocal();
-    const hora = new Date().getHours();
-    const saud = hora < 12 ? 'Bom dia' : (hora < 18 ? 'Boa tarde' : 'Boa noite');
-    const nome = usuarioAtual ? usuarioAtual.charAt(0) + usuarioAtual.slice(1).toLowerCase() : '';
-    const dataExtenso = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
-
-    // Backup
-    let ultimoBackup = ''; try { ultimoBackup = localStorage.getItem('mercier_ultimo_backup') || ''; } catch (e) {}
-    const diasBackup = ultimoBackup ? Math.round((new Date(hoje + 'T12:00:00') - new Date(ultimoBackup + 'T12:00:00')) / 86400000) : null;
-    const alertaBackup = diasBackup === null || diasBackup > 7;
-    const msgBackup = diasBackup === null ? 'Nenhum backup baixado neste aparelho ainda.' : 'Último backup neste aparelho: ' + fmtBR(ultimoBackup) + ' (' + diasBackup + ' dia(s) atrás).';
-    const blocoBackup = `<div class="${alertaBackup ? 'bg-red-50 border-red-300' : 'bg-emerald-50 border-emerald-200'} border rounded-2xl p-3 flex flex-col md:flex-row md:items-center justify-between gap-2">
-        <span class="text-[11px] font-black uppercase ${alertaBackup ? 'text-red-700' : 'text-emerald-700'}">${alertaBackup ? '⚠️ ' : '💾 '}${msgBackup}</span>
-        <button onclick="baixarBackupManual()" class="bg-slate-800 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase">💾 Baixar backup agora</button></div>`;
-
-    // Entregas
-    const entHoje = entregas.filter(function(e) { return e.dataOrdem === hoje && e.status !== 'Entregue'; }).sort(function(a, b) { return (a.hora || '23:59').localeCompare(b.hora || '23:59'); });
-    const entAtrasadas = entregas.filter(function(e) { return e.dataOrdem && e.dataOrdem < hoje && e.status !== 'Entregue'; });
-    let htmlEnt = entHoje.map(function(e) {
-        return linhaHoje(esc(e.cliente), '📍 ' + esc(e.endereco), etiquetaHoje(e.hora ? '🕒 ' + esc(e.hora) : 'SEM HORA', 'bg-emerald-100 text-emerald-700'));
-    }).join('');
-    htmlEnt += entAtrasadas.map(function(e) {
-        return linhaHoje(esc(e.cliente), 'Era para ' + fmtBR(e.dataOrdem) + ' e não foi marcada como entregue', etiquetaHoje('ATRASADA', 'bg-red-100 text-red-700'));
-    }).join('');
-
-    // Pedidos com prazo curto
-    const ativos = pedidos.filter(function(p) { return !p.finalizado && p.status !== "Entregue/Finalizado"; });
-    const prazo = ativos.filter(function(p) { return p.dataPedido; }).map(function(p) { return { p: p, dias: calcP(p.dataPedido, p.prazo).dias }; })
-        .filter(function(x) { return x.dias <= 5; }).sort(function(a, b) { return a.dias - b.dias; });
-    let htmlPrazo = prazo.slice(0, 10).map(function(x) {
-        const rot = x.dias < 0 ? 'VENCIDO ' + (-x.dias) + 'D' : (x.dias === 0 ? 'HOJE' : x.dias + 'D');
-        const cor = x.dias < 0 ? 'bg-red-100 text-red-700' : (x.dias <= 2 ? 'bg-orange-100 text-orange-700' : 'bg-amber-100 text-amber-700');
-        return linhaHoje(esc(x.p.cliente) + ' - ' + esc(x.p.produto), esc(x.p.fornecedor) + ' | ' + esc(x.p.status), etiquetaHoje(rot, cor));
-    }).join('');
-    if (prazo.length > 10) htmlPrazo += `<span class="text-[9px] font-black text-slate-400 text-center">+ ${prazo.length - 10} pedidos na aba Pedidos</span>`;
-
-    // Não enviados
-    const naoEnv = ativos.filter(function(p) { return p.status === "Não enviado"; });
-    let htmlNE = naoEnv.slice(0, 8).map(function(p) {
-        return linhaHoje(esc(p.cliente) + ' - ' + esc(p.produto), esc(p.fornecedor) + ' | ' + esc(p.idDoc), '');
-    }).join('');
-    if (naoEnv.length > 8) htmlNE += `<span class="text-[9px] font-black text-slate-400 text-center">+ ${naoEnv.length - 8} na aba Pedidos</span>`;
-    htmlNE += `<button onclick="switchTab('pedidos')" class="text-[10px] font-black text-blue-600 uppercase mt-1 hover:underline">Ir para Pedidos →</button>`;
-
-    // Tarefas da pessoa (cada uma abre direto na aba Equipe)
-    let cartaoTarefas = '';
-    if (!usuarioAtual) {
-        cartaoTarefas = cartaoHoje('👤', 'Minhas tarefas', 'bg-blue-100 text-blue-700', 0, '', 'Selecione quem você é no topo da tela');
-    } else {
-        const pP = { "AGORA": 1, "IMEDIATO": 2, "IMPORTANTE": 3, "REGULAR": 4, "TRANQUILO": 5, "": 6 };
-        const rotPrazo = { "AGORA": '🚨 AGORA', "IMEDIATO": '⚡ 1 DIA', "IMPORTANTE": '⚠️ 2 DIAS', "REGULAR": '📅 3 DIAS', "TRANQUILO": '☕ + DIAS' };
-        const minhas = tarefasEquipe.filter(function(t) { return t.responsavel === usuarioAtual && t.coluna !== 'DONE'; })
-            .sort(function(a, b) { return (pP[a.prazo || ""] || 6) - (pP[b.prazo || ""] || 6); });
-        const htmlT = minhas.map(function(t) {
-            return linhaHoje(
-                esc(t.descricao),
-                t.coluna === 'DOING' ? 'Em andamento' : 'A fazer',
-                rotPrazo[t.prazo] ? etiquetaHoje(rotPrazo[t.prazo], 'bg-slate-200 text-slate-700') : '',
-                'irParaTarefa(' + t.uid + ')'
-            );
-        }).join('') + `<button onclick="switchTab('equipe')" class="text-[10px] font-black text-blue-600 uppercase mt-1 hover:underline">Ir para Equipe →</button>`;
-        cartaoTarefas = cartaoHoje('👤', 'Minhas tarefas', 'bg-blue-100 text-blue-700', minhas.length, htmlT, 'Nenhuma tarefa pendente');
-    }
-
-    // Lembretes
-    const lemb = lembretes.filter(function(l) { return !l.concluido && l.dataOrdem && l.dataOrdem <= hoje; });
-    const htmlL = lemb.map(function(l) {
-        return linhaHoje(esc(l.titulo), esc(l.categoria), etiquetaHoje(l.dataOrdem < hoje ? 'ATRASADO' : 'HOJE', l.dataOrdem < hoje ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'));
-    }).join('');
-
-    // Parcelas a receber
-    const parc = [];
-    comissoes.forEach(function(venda) {
-        const ps = safeArray(venda.parcelas);
-        ps.forEach(function(p, i) { if (!p.pago && p.venc && p.venc <= hoje) parc.push({ v: venda, p: p, i: i, n: ps.length }); });
-    });
-    parc.sort(function(a, b) { return String(a.p.venc).localeCompare(String(b.p.venc)); });
-    const htmlP = parc.slice(0, 8).map(function(x) {
-        return linhaHoje(esc(x.v.cliente), 'Parcela ' + (x.i + 1) + '/' + x.n + ' | ' + formatMoney(x.p.valor), etiquetaHoje(x.p.venc < hoje ? 'ATRASADA' : 'HOJE', x.p.venc < hoje ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'));
-    }).join('') + `<button onclick="switchTab('comissoes')" class="text-[10px] font-black text-blue-600 uppercase mt-1 hover:underline">Ir para Comissões →</button>`;
-
-    v.innerHTML = `
-    <div class="flex flex-col gap-4">
-        <div><h2 class="text-xl font-black text-slate-800">${saud}${nome ? ', ' + esc(nome) : ''}!</h2><span class="text-[11px] font-bold uppercase text-slate-400">${dataExtenso}</span></div>
-        ${blocoBackup}
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            ${cartaoHoje('🚚', 'Entregas de hoje e atrasadas', 'bg-emerald-100 text-emerald-700', entHoje.length + entAtrasadas.length, htmlEnt, 'Nenhuma entrega pendente')}
-            ${cartaoHoje('⏳', 'Pedidos vencidos ou até 5 dias', 'bg-red-100 text-red-700', prazo.length, htmlPrazo, 'Nenhum pedido com prazo curto')}
-            ${cartaoHoje('📧', 'Pedidos não enviados à fábrica', 'bg-orange-100 text-orange-700', naoEnv.length, htmlNE, 'Tudo enviado')}
-            ${cartaoTarefas}
-            ${cartaoHoje('🔔', 'Lembretes de hoje e atrasados', 'bg-amber-100 text-amber-700', lemb.length, htmlL, 'Nenhum lembrete pendente')}
-            ${cartaoHoje('💰', 'Parcelas a receber (hoje e atrasadas)', 'bg-emerald-100 text-emerald-700', parc.length, htmlP, 'Nenhuma parcela pendente')}
-        </div>
-    </div>`;
-}
-
 // =========================================================
-// 15. COMISSÕES (DENTRO DO SISTEMA)
-// =========================================================
-const TAXA_COMISSAO = 5;
-let mesComissao = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-
-function comissaoDe(valor) { return (Number(valor) || 0) * TAXA_COMISSAO / 100; }
-
-function criarTelaComissoes(classeBtn, classeMain) {
-    const nav = document.querySelector('nav');
-
-    // Aba: troca o link antigo por um botão
-    if (!getEl('tab-comissoes')) {
-        const b = document.createElement('button');
-        b.id = 'tab-comissoes'; b.className = classeBtn; b.innerText = '💰 Comissões';
-        b.onclick = function() { switchTab('comissoes'); };
-        const link = document.querySelector('a[href="comissoes.html"]');
-        if (link) link.replaceWith(b); else if (nav) nav.appendChild(b);
-    }
-
-    // Tela
-    const velha = getEl('view-comissoes'); if (velha) velha.remove();
-    const m = document.createElement('main');
-    m.id = 'view-comissoes'; m.className = classeMain + ' hidden';
-    m.innerHTML = `
-    <div class="flex flex-col gap-4">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-            <div class="flex items-center gap-2">
-                <button onclick="mudarMesComissao(-1)" class="bg-white border px-3 py-2 rounded-lg font-black">◀</button>
-                <h2 id="com-mes" class="text-lg font-black text-slate-800 uppercase w-48 text-center"></h2>
-                <button onclick="mudarMesComissao(1)" class="bg-white border px-3 py-2 rounded-lg font-black">▶</button>
-            </div>
-            <button onclick="abrirModalVenda()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-black uppercase shadow">➕ Registrar Venda</button>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="bg-white rounded-2xl border p-4"><span class="text-[10px] font-black uppercase text-slate-400">Total vendido no mês</span><div id="com-vendido" class="text-xl font-black text-slate-800">R$ 0,00</div></div>
-            <div class="bg-white rounded-2xl border p-4"><span class="text-[10px] font-black uppercase text-slate-400">Comissão pendente (parcelas do mês)</span><div id="com-pendente" class="text-xl font-black text-amber-600">R$ 0,00</div></div>
-            <div class="bg-white rounded-2xl border p-4"><span class="text-[10px] font-black uppercase text-slate-400">Comissão garantida 💰 (já pagas)</span><div id="com-garantida" class="text-xl font-black text-emerald-600">R$ 0,00</div></div>
-        </div>
-        <div class="card-premium p-4">
-            <div class="flex justify-between items-center mb-2"><h3 class="text-xs font-black uppercase text-slate-700">Parcelas do mês (comissão de ${TAXA_COMISSAO}%)</h3><span id="com-qtd" class="text-[10px] font-black text-slate-400">0 parcelas</span></div>
-            <div class="table-container"><table>
-                <thead><tr><th>Vencimento</th><th>Cliente</th><th>Parcela</th><th>Valor</th><th>Comissão</th><th>Status</th><th>Ações</th></tr></thead>
-                <tbody id="com-tabela"></tbody>
-            </table></div>
-        </div>
-    </div>`;
-    const mains = document.querySelectorAll('main'); const ultimo = mains[mains.length - 1];
-    if (ultimo) ultimo.insertAdjacentElement('afterend', m); else document.body.appendChild(m);
-
-    // Janela de venda
-    const antigo = getEl('modal-venda'); if (antigo) antigo.remove();
-    const mv = document.createElement('div');
-    mv.id = 'modal-venda'; mv.className = 'modal-overlay';
-    mv.onclick = function(ev) { if (ev.target === mv) fecharModalVenda(); };
-    mv.innerHTML = `
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl border-t-8 border-emerald-500 flex flex-col max-h-[90vh]">
-        <div class="p-5 border-b flex justify-between items-center"><h2 id="v_titulo" class="font-black uppercase text-emerald-600 text-sm">💰 Registrar Nova Venda</h2><button onclick="fecharModalVenda()" class="text-slate-400 hover:text-red-500 text-xl font-black">✕</button></div>
-        <div class="p-5 overflow-y-auto flex flex-col gap-3">
-            <input id="v_cliente" list="listaSugestaoClientes" placeholder="NOME DO CLIENTE" class="border-2 p-2 rounded-lg text-xs font-bold uppercase w-full outline-emerald-500">
-            <div class="grid grid-cols-2 gap-2">
-                <div><label class="text-[9px] font-black text-slate-400 uppercase block mb-1">Data do fechamento</label><input type="date" id="v_data" class="border-2 p-2 rounded-lg text-xs font-bold w-full bg-white"></div>
-                <div><label class="text-[9px] font-black text-slate-400 uppercase block mb-1">Valor total</label><input id="v_total" oninput="maskMoney(this); gerarInputsParcelas()" class="border-2 p-2 rounded-lg text-xs font-bold w-full text-emerald-600" value="R$ 0,00"></div>
-                <div><label class="text-[9px] font-black text-slate-400 uppercase block mb-1">Parcelas</label><select id="v_parcelas" onchange="gerarInputsParcelas()" class="border-2 p-2 rounded-lg text-xs font-bold w-full bg-white">${[...Array(12).keys()].map(function(n) { return `<option value="${n + 1}">${n + 1}x</option>`; }).join('')}</select></div>
-                <div><label class="text-[9px] font-black text-slate-400 uppercase block mb-1">1º vencimento</label><input type="date" id="v_venc1" onchange="gerarInputsParcelas()" class="border-2 p-2 rounded-lg text-xs font-bold w-full bg-white"></div>
-            </div>
-            <div class="text-[10px] font-black uppercase text-slate-500 border-t pt-3">Plano de recebimento (ajuste se as parcelas forem diferentes)</div>
-            <div id="v_plano" class="flex flex-col gap-2"></div>
-            <div id="v_soma" class="text-[10px] font-black uppercase text-slate-500"></div>
-        </div>
-        <div class="p-5 border-t bg-slate-50 rounded-b-2xl"><button onclick="salvarVenda()" class="w-full bg-emerald-600 text-white py-3 rounded-lg text-xs font-black uppercase shadow-lg hover:bg-emerald-700">💾 Salvar venda e plano de comissão</button></div>
-    </div>`;
-    document.body.appendChild(mv);
-}
-
-function mudarMesComissao(d) { mesComissao = new Date(mesComissao.getFullYear(), mesComissao.getMonth() + d, 1); renderComissoes(); }
-
-function renderComissoes() {
-    const tb = getEl('com-tabela'); if (!tb) return;
-    const a = mesComissao.getFullYear(), m = mesComissao.getMonth();
-    const pref = a + '-' + pad2(m + 1);
-    const nomes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-    getEl('com-mes').innerText = nomes[m] + ' ' + a;
-
-    let vendido = 0;
-    comissoes.forEach(function(v) { if (String(v.dataVenda || '').startsWith(pref)) vendido += Number(v.total) || 0; });
-
-    const linhas = [];
-    comissoes.forEach(function(v) {
-        const ps = safeArray(v.parcelas);
-        ps.forEach(function(p, i) { if (String(p.venc || '').startsWith(pref)) linhas.push({ v: v, p: p, i: i, n: ps.length }); });
-    });
-    linhas.sort(function(x, y) { return String(x.p.venc).localeCompare(String(y.p.venc)); });
-
-    const hoje = hojeLocal();
-    let pend = 0, gar = 0, html = '';
-    linhas.forEach(function(l) {
-        const com = comissaoDe(l.p.valor);
-        if (l.p.pago) gar += com; else pend += com;
-        let btn;
-        if (l.p.pago) btn = `<button onclick="togglePagoParcela(${l.v.uid}, ${l.i})" class="status-badge bg-green-700 text-white" title="Clique para desfazer">✅ PAGO ${l.p.dataPgto ? fmtBR(l.p.dataPgto) : ''}</button>`;
-        else if (l.p.venc < hoje) btn = `<button onclick="togglePagoParcela(${l.v.uid}, ${l.i})" class="status-badge bg-red-600 text-white">ATRASADO - MARCAR PAGO</button>`;
-        else btn = `<button onclick="togglePagoParcela(${l.v.uid}, ${l.i})" class="status-badge bg-amber-500 text-white">PENDENTE - MARCAR PAGO</button>`;
-        html += `<tr><td>${fmtBR(l.p.venc)}</td><td class="uppercase">${esc(l.v.cliente)}</td><td class="text-center">${l.i + 1}/${l.n}</td><td>${formatMoney(l.p.valor)}</td><td class="text-emerald-700">${formatMoney(com)}</td><td>${btn}</td><td class="text-center"><button onclick="abrirModalVenda(${l.v.uid})" class="px-1" title="Editar venda">✏️</button><button onclick="excluirVenda(${l.v.uid})" class="px-1" title="Excluir venda">🗑️</button></td></tr>`;
-    });
-
-    tb.innerHTML = html || '<tr><td colspan="7" class="text-center text-slate-400 uppercase text-[10px] py-6">Nenhuma parcela neste mês</td></tr>';
-    getEl('com-vendido').innerText = formatMoney(vendido);
-    getEl('com-pendente').innerText = formatMoney(pend);
-    getEl('com-garantida').innerText = formatMoney(gar);
-    getEl('com-qtd').innerText = linhas.length + (linhas.length === 1 ? ' parcela' : ' parcelas');
-}
-
-function togglePagoParcela(uid, i) {
-    const v = comissoes.find(function(x) { return x.uid == uid; }); if (!v) return;
-    const p = safeArray(v.parcelas)[i]; if (!p) return;
-    if (p.pago) {
-        if (!confirm("Desfazer o pagamento desta parcela?")) return;
-        p.pago = false; p.dataPgto = '';
-        registrarAcao('↩️', 'DESFEZ PAGAMENTO', 'CLIENTE: ' + v.cliente);
-    } else {
-        p.pago = true; p.dataPgto = hojeLocal();
-        registrarAcao('💰', 'PARCELA PAGA', 'CLIENTE: ' + v.cliente);
-    }
-    salvarColecao('comissoes', comissoes); renderComissoes(); renderHoje();
-}
-
-function excluirVenda(uid) {
-    const v = comissoes.find(function(x) { return x.uid == uid; }); if (!v) return;
-    if (!confirm("EXCLUIR a venda de " + v.cliente + " e todas as parcelas?")) return;
-    comissoes = comissoes.filter(function(x) { return x.uid != uid; });
-    salvarColecao('comissoes', comissoes); registrarAcao('🗑️', 'EXCLUIU VENDA', 'CLIENTE: ' + v.cliente);
-    renderComissoes(); renderHoje();
-}
-
-function abrirModalVenda(uid) {
-    const m = getEl('modal-venda'); if (!m) return;
-    vendaEditandoUid = uid || null;
-    const v = uid ? comissoes.find(function(x) { return x.uid == uid; }) : null;
-    const ps = v ? safeArray(v.parcelas) : [];
-    getEl('v_titulo').innerText = v ? '✏️ Editar Venda' : '💰 Registrar Nova Venda';
-    getEl('v_cliente').value = v ? v.cliente : '';
-    getEl('v_data').value = v ? (v.dataVenda || hojeLocal()) : hojeLocal();
-    getEl('v_total').value = formatMoney(v ? v.total : 0);
-    getEl('v_parcelas').value = String(v && ps.length ? Math.min(ps.length, 12) : 1);
-    getEl('v_venc1').value = (v && ps[0] && ps[0].venc) ? ps[0].venc : somaMeses(hojeLocal(), 1);
-    m.style.display = 'flex';
-    if (v && ps.length) renderPlano(ps); else gerarInputsParcelas();
-}
-
-function fecharModalVenda() { const m = getEl('modal-venda'); if (m) m.style.display = 'none'; vendaEditandoUid = null; }
-
-function gerarInputsParcelas() {
-    const totalC = Math.round(parseMoney(val('v_total')) * 100);
-    const n = parseInt(val('v_parcelas')) || 1;
-    const v1 = val('v_venc1') || somaMeses(hojeLocal(), 1);
-    const baseC = Math.floor(totalC / n);
-    const parcelas = [];
-    for (let i = 0; i < n; i++) {
-        const c = (i < n - 1) ? baseC : (totalC - baseC * (n - 1));
-        parcelas.push({ venc: somaMeses(v1, i), valor: c / 100 });
-    }
-    renderPlano(parcelas);
-}
-
-function renderPlano(parcelas) {
-    const box = getEl('v_plano'); if (!box) return;
-    const n = parcelas.length;
-    box.innerHTML = parcelas.map(function(p, i) {
-        return `<div class="pl-linha flex gap-2 items-center"><span class="text-[10px] font-black text-slate-500 w-10">${i + 1}/${n}</span><input type="date" class="pl-data border-2 p-2 rounded-lg text-xs font-bold bg-white flex-1" value="${esc(p.venc)}"><input class="pl-valor border-2 p-2 rounded-lg text-xs font-bold text-emerald-600 flex-1" value="${formatMoney(p.valor)}" oninput="maskMoney(this); atualizarSomaPlano()"></div>`;
-    }).join('');
-    atualizarSomaPlano();
-}
-
-function atualizarSomaPlano() {
-    const el = getEl('v_soma'); if (!el) return;
-    let soma = 0; document.querySelectorAll('#v_plano .pl-valor').forEach(function(i) { soma += parseMoney(i.value); });
-    const total = parseMoney(val('v_total'));
-    const dif = Math.round((total - soma) * 100) / 100;
-    el.innerText = 'Soma das parcelas: ' + formatMoney(soma) + (Math.abs(dif) < 0.01 ? ' (confere com o total)' : ' (diferença de ' + formatMoney(Math.abs(dif)) + ' em relação ao total)');
-    el.style.color = Math.abs(dif) < 0.01 ? '#059669' : '#dc2626';
-}
-
-function salvarVenda() {
-    const cliente = val('v_cliente').toUpperCase().trim();
-    const total = parseMoney(val('v_total'));
-    if (!cliente) return alert("Informe o nome do cliente!");
-    if (total <= 0) return alert("Informe o valor total da venda!");
-
-    const antiga = vendaEditandoUid ? comissoes.find(function(x) { return x.uid == vendaEditandoUid; }) : null;
-    const antigas = antiga ? safeArray(antiga.parcelas) : [];
-    const parcelas = [];
-    let soma = 0, faltaData = false;
-    document.querySelectorAll('#v_plano .pl-linha').forEach(function(l, i) {
-        const venc = l.querySelector('.pl-data').value;
-        const valor = parseMoney(l.querySelector('.pl-valor').value);
-        if (!venc) faltaData = true;
-        soma += valor;
-        const ant = antigas[i];
-        parcelas.push({ n: i + 1, venc: venc, valor: valor, pago: ant ? !!ant.pago : false, dataPgto: ant ? (ant.dataPgto || '') : '' });
-    });
-    if (!parcelas.length) return alert("O plano de recebimento está vazio!");
-    if (faltaData) return alert("Preencha a data de todas as parcelas!");
-    if (Math.abs(soma - total) > 0.01 && !confirm("A soma das parcelas (" + formatMoney(soma) + ") é diferente do total (" + formatMoney(total) + "). Salvar mesmo assim?")) return;
-
-    if (antiga) {
-        antiga.cliente = cliente; antiga.dataVenda = val('v_data') || hojeLocal(); antiga.total = total; antiga.parcelas = parcelas;
-        registrarAcao('✏️', 'EDITOU VENDA', 'CLIENTE: ' + cliente);
-    } else {
-        comissoes.unshift({ uid: gerarUid(), cliente: cliente, dataVenda: val('v_data') || hojeLocal(), total: total, parcelas: parcelas });
-        registrarAcao('💰', 'NOVA VENDA', 'CLIENTE: ' + cliente + ' | ' + formatMoney(total));
-    }
-    salvarColecao('comissoes', comissoes);
-    fecharModalVenda(); renderComissoes(); renderHoje();
-    }
-    // =========================================================
-// TELA "HOJE" - VERSÃO 2 (cole no FINAL do app.js)
-// =========================================================
-function hojeSomaDias(iso, n) {
-    const p = String(iso).split('-');
-    return dataLocalISO(new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]) + n));
-}
-
-function hojeDiasDesde(dataBR) {
-    const p = String(dataBR || '').split('/'); if (p.length !== 3) return 0;
-    const d = new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0]));
-    return Math.max(0, Math.floor((new Date() - d) / 86400000));
-}
-
-function hojeBotao(txt, acao, cor) {
-    return `<button onclick="event.stopPropagation(); ${acao}" class="${cor || 'bg-slate-800 text-white'} px-2 py-1 rounded text-[9px] font-black uppercase whitespace-nowrap">${txt}</button>`;
-}
-
-function hojeDireita() {
-    return `<div class="flex flex-col items-end gap-1">${Array.prototype.slice.call(arguments).join('')}</div>`;
-}
-
-function hojeCartao(icone, titulo, corBadge, qtd, corpo) {
-    return `<div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-col gap-2">
-        <div class="flex justify-between items-center border-b border-slate-100 pb-2"><h3 class="text-xs font-black uppercase text-slate-700">${icone} ${titulo}</h3><span class="${corBadge} text-[10px] font-black px-2 py-0.5 rounded-full">${qtd}</span></div>
-        ${corpo}
-    </div>`;
-}
-
-// ---------- Ações dos botões ----------
-function hojeIr(aba) { if (getEl('view-' + aba)) switchTab(aba); }
-
-function hojeAbrirPedido(uid) {
-    const p = pedidos.find(function(x) { return x.uid == uid; }); if (!p) return;
-    hojeIr('pedidos');
-    if (filtrandoNaoEnviados) toggleFiltroNaoEnviado();
-    if (typeof mudarVisaoPedidos === 'function') mudarVisaoPedidos('ATIVOS');
-    if (getEl('busca')) getEl('busca').value = p.cliente || '';
-    renderPedidos();
-}
-
-function hojeVerNaoEnviados(uid) {
-    const p = pedidos.find(function(x) { return x.uid == uid; }); if (!p) return;
-    hojeIr('pedidos');
-    if (typeof mudarVisaoPedidos === 'function') mudarVisaoPedidos('ATIVOS');
-    if (getEl('busca')) getEl('busca').value = p.fornecedor || '';
-    if (!filtrandoNaoEnviados) toggleFiltroNaoEnviado(); else renderPedidos();
-}
-
-function hojeAgendarEntrega(uid) {
-    const p = pedidos.find(function(x) { return x.uid == uid; }); if (!p) return;
-    hojeIr('logistica');
-    abrirModalNovaEntrega();
-    getEl('ent_cliente').value = p.cliente || '';
-    buscarDadosInteligentes();
-}
-
-function hojeVerNaAgenda(iso) {
-    hojeIr('logistica');
-    dataSelecionadaLogistica = iso;
-    const p = iso.split('-');
-    dataAtualCalendario = new Date(parseInt(p[0]), parseInt(p[1]) - 1, 1);
-    processarEventosCalendario();
-}
-
-function hojeEntregue(uid) {
-    const e = entregas.find(function(x) { return x.uid == uid; }); if (!e) return;
-    e.status = 'Entregue';
-    salvarColecao('entregas', entregas);
-    registrarAcao('🚚', 'ENTREGA CONCLUÍDA', 'CLIENTE: ' + e.cliente);
-    processarEventosCalendario(); renderHoje();
-}
-
-function hojeGPS(uid) {
-    const e = entregas.find(function(x) { return x.uid == uid; }); if (!e) return;
-    abrirGPS(e.endereco);
-}
-
-function hojeMoverTarefa(uid, col) { moverTarefaEquipe(uid, col); renderHoje(); }
-
-function hojeLembreteFeito(uid) { toggleConcluidoLembrete(uid); renderHoje(); }
-
-function hojeBackup() {
-    db.ref('dados').once('value').then(function(s) {
-        const blob = new Blob([JSON.stringify(s.val() || {}, null, 2)], { type: 'application/json' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob); a.download = 'backup-mercier-' + hojeLocal() + '.json';
-        document.body.appendChild(a); a.click(); a.remove();
-        try { localStorage.setItem('mercier_ultimo_backup', hojeLocal()); } catch (e) {}
-        renderHoje();
-    }).catch(function() { alert('Não foi possível baixar o backup. Verifique a conexão.'); });
-}
-
-// ---------- Tela ----------
-function renderHoje() {
-    const v = getEl('view-hoje'); if (!v) return;
-    const hoje = hojeLocal();
-    const amanha = hojeSomaDias(hoje, 1);
-    const em7 = hojeSomaDias(hoje, 7);
-    const hora = new Date().getHours();
-    const saud = hora < 12 ? 'Bom dia' : (hora < 18 ? 'Boa tarde' : 'Boa noite');
-    const nome = usuarioAtual ? usuarioAtual.charAt(0) + usuarioAtual.slice(1).toLowerCase() : '';
-    const dataExtenso = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
-
-    const cartoes = [];
-    const add = function(icone, titulo, cor, qtd, corpo, info) {
-        cartoes.push({ titulo: titulo, qtd: qtd, info: !!info, html: qtd > 0 ? hojeCartao(icone, titulo, cor, qtd, corpo) : '' });
-    };
-
-    // Backup
-    let ultimoBackup = ''; try { ultimoBackup = localStorage.getItem('mercier_ultimo_backup') || ''; } catch (e) {}
-    const diasBackup = ultimoBackup ? Math.round((new Date(hoje + 'T12:00:00') - new Date(ultimoBackup + 'T12:00:00')) / 86400000) : null;
-    const alertaBackup = diasBackup === null || diasBackup > 7;
-    const msgBackup = diasBackup === null ? 'Nenhum backup baixado neste aparelho ainda.' : 'Último backup: ' + fmtBR(ultimoBackup) + ' (' + diasBackup + ' dia(s) atrás).';
-    const blocoBackup = `<div class="${alertaBackup ? 'bg-red-50 border-red-300' : 'bg-emerald-50 border-emerald-200'} border rounded-2xl p-3 flex flex-col md:flex-row md:items-center justify-between gap-2">
-        <span class="text-[11px] font-black uppercase ${alertaBackup ? 'text-red-700' : 'text-emerald-700'}">${alertaBackup ? '⚠️ ' : '💾 '}${msgBackup}</span>
-        <button onclick="hojeBackup()" class="bg-slate-800 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase">💾 Baixar backup agora</button></div>`;
-
-    // 1. Entregas de hoje e atrasadas
-    const entPend = entregas.filter(function(e) { return e.status !== 'Entregue' && e.dataOrdem && e.dataOrdem <= hoje; })
-        .sort(function(a, b) { return a.dataOrdem === b.dataOrdem ? (a.hora || '23:59').localeCompare(b.hora || '23:59') : a.dataOrdem.localeCompare(b.dataOrdem); });
-    const htmlEnt = entPend.map(function(e) {
-        const atrasada = e.dataOrdem < hoje;
-        const et = atrasada ? etiquetaHoje('ATRASADA ' + fmtBR(e.dataOrdem).slice(0, 5), 'bg-red-100 text-red-700') : etiquetaHoje(e.hora ? '🕒 ' + esc(e.hora) : 'SEM HORA', 'bg-emerald-100 text-emerald-700');
-        return linhaHoje(esc(e.cliente), '📍 ' + esc(e.endereco), hojeDireita(et, hojeBotao('✅ Entregue', 'hojeEntregue(' + e.uid + ')', 'bg-emerald-600 text-white'), hojeBotao('🗺️ GPS', 'hojeGPS(' + e.uid + ')', 'bg-blue-100 text-blue-700')));
-    }).join('');
-    add('🚚', 'Entregas de hoje e atrasadas', 'bg-emerald-100 text-emerald-700', entPend.length, htmlEnt);
-
-    // 2. Pedidos prontos na loja sem entrega agendada
-    const ativos = pedidos.filter(function(p) { return !p.finalizado && p.status !== 'Entregue/Finalizado'; });
-    const naLoja = {};
-    ativos.filter(function(p) { return p.status === 'Pedido na loja'; }).forEach(function(p) {
-        const chave = noAcc((p.cliente || '').toLowerCase().trim());
-        const agendada = entregas.some(function(e) {
-            if (e.status === 'Entregue' || !e.cliente) return false;
-            const c = noAcc(e.cliente.toLowerCase().trim());
-            return c.includes(chave) || chave.includes(c);
-        });
-        if (agendada || !chave) return;
-        if (!naLoja[chave]) naLoja[chave] = { cliente: p.cliente, uid: p.uid, itens: [] };// =========================================================
-// TELA "HOJE" - VERSÃO 3 (cole do início até o FINAL do app.js)
+// 15. TELA "HOJE" (VERSÃO ÚNICA E FINAL)
 // =========================================================
 function etiquetaHoje(txt, cor) {
     return `<span class="${cor} text-[9px] font-black px-2 py-0.5 rounded whitespace-nowrap">${txt}</span>`;
 }
 
+// Linha padrão. Se tiver "acao", a linha inteira vira clicável.
 function linhaHoje(principal, secundario, direita, acao) {
     const clicavel = acao ? ' linha-clicavel' : '';
     const onclick = acao ? ' onclick="' + acao + '" title="Clique para abrir"' : '';
-    return `<div${onclick} class="flex justify-between items-start gap-2 bg-slate-50 rounded-lg p-2 border border-slate-100${clicavel}"><div class="flex flex-col min-w-0"><span class="text-[11px] font-black uppercase text-slate-800">${principal}</span><span class="text-[9px] font-bold uppercase text-slate-500">${secundario}</span></div>${direita || ''}</div>`;
+    return `<div${onclick} class="flex justify-between items-start gap-2 bg-slate-50 rounded-lg p-2 border border-slate-100${clicavel}"><div class="flex flex-col min-w-0"><span class="nome-link text-[11px] font-black uppercase text-slate-800">${principal}</span><span class="text-[9px] font-bold uppercase text-slate-500">${secundario}</span></div>${direita || ''}</div>`;
 }
 
 // Linha com cliente e produto em destaque
 function linhaDestaque(cliente, produto, direita, acao) {
     const clicavel = acao ? ' linha-clicavel' : '';
-    const onclick = acao ? ' onclick="' + acao + '" title="Clique para abrir"' : '';
-    return `<div${onclick} class="flex justify-between items-center gap-2 bg-orange-50 rounded-lg p-2.5 border border-orange-200${clicavel}"><div class="flex flex-col gap-1 min-w-0"><span class="text-sm font-black uppercase text-slate-900 leading-tight">${cliente}</span><span class="text-[11px] font-black uppercase text-indigo-700 bg-indigo-100 rounded px-2 py-0.5 self-start">${produto}</span></div>${direita || ''}</div>`;
+    const onclick = acao ? ' onclick="' + acao + '" title="Clique para abrir o pedido"' : '';
+    return `<div${onclick} class="flex justify-between items-center gap-2 bg-orange-50 rounded-lg p-2.5 border border-orange-200${clicavel}"><div class="flex flex-col gap-1 min-w-0"><span class="nome-link text-base font-black uppercase text-slate-900 leading-tight">${cliente}</span><span class="text-[11px] font-black uppercase text-indigo-700 bg-indigo-100 rounded px-2 py-0.5 self-start">${produto}</span></div>${direita || '<span class="text-blue-500 font-black text-sm">➜</span>'}</div>`;
 }
 
 function hojeSomaDias(iso, n) {
@@ -2010,9 +1514,20 @@ function hojeCartao(icone, titulo, corBadge, qtd, corpo) {
     </div>`;
 }
 
-// ---------- Ações dos cliques ----------
+// ---------- Navegação a partir da tela Hoje ----------
 function hojeIr(aba) { if (getEl('view-' + aba)) switchTab(aba); }
 
+function destacarElemento(id) {
+    setTimeout(function() {
+        const el = getEl(id); if (!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.style.outline = '4px solid #3b82f6';
+        el.style.outlineOffset = '-2px';
+        setTimeout(function() { el.style.outline = ''; el.style.outlineOffset = ''; }, 3000);
+    }, 200);
+}
+
+// Abre a aba Pedidos mostrando só os pedidos do cliente e destaca a linha clicada
 function hojeAbrirPedido(uid) {
     const p = pedidos.find(function(x) { return x.uid == uid; }); if (!p) return;
     hojeIr('pedidos');
@@ -2020,8 +1535,10 @@ function hojeAbrirPedido(uid) {
     mudarVisaoPedidos('ATIVOS');
     if (getEl('busca')) getEl('busca').value = p.cliente || '';
     renderPedidos();
+    destacarElemento('ped-' + uid);
 }
 
+// Abre a aba Pedidos filtrada pela fábrica e só nos não enviados (pronto para marcar e enviar)
 function hojeVerNaoEnviados(uid) {
     const p = pedidos.find(function(x) { return x.uid == uid; }); if (!p) return;
     hojeIr('pedidos');
@@ -2077,18 +1594,9 @@ function hojeMoverTarefa(uid, col) { moverTarefaEquipe(uid, col); renderHoje(); 
 
 function hojeLembreteFeito(uid) { toggleConcluidoLembrete(uid); renderHoje(); }
 
-function hojeBackup() {
-    db.ref('dados').once('value').then(function(s) {
-        const blob = new Blob([JSON.stringify(s.val() || {}, null, 2)], { type: 'application/json' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob); a.download = 'backup-mercier-' + hojeLocal() + '.json';
-        document.body.appendChild(a); a.click(); a.remove();
-        try { localStorage.setItem('mercier_ultimo_backup', hojeLocal()); } catch (e) {}
-        renderHoje();
-    }).catch(function() { alert('Não foi possível baixar o backup. Verifique a conexão.'); });
-}
+function hojeBackup() { baixarBackupManual(); }
 
-// Abre a tarefa direto na aba Equipe
+// Abre a tarefa direto na aba Equipe, no cartão dela
 function irParaTarefa(uid) {
     const t = tarefasEquipe.find(function(x) { return x.uid == uid; });
     if (!t) return alert("Tarefa não encontrada.");
@@ -2119,7 +1627,6 @@ function irParaTarefa(uid) {
     }, 150);
 }
 
-// ---------- Tela ----------
 function renderHoje() {
     const v = getEl('view-hoje'); if (!v) return;
     const hoje = hojeLocal();
@@ -2194,7 +1701,7 @@ function renderHoje() {
     });
     const listaFab = Object.keys(porFab).map(function(k) { return porFab[k]; });
     const totalNaoEnv = listaFab.reduce(function(s, g) { return s + g.pedidos.length; }, 0);
-    const htmlFab = '<div class="flex flex-col gap-3 max-h-96 overflow-y-auto pr-1">' + listaFab.map(function(g) {
+    const htmlFab = '<span class="text-[9px] font-bold uppercase text-slate-400">Clique no cliente para abrir o pedido</span><div class="flex flex-col gap-3 max-h-96 overflow-y-auto pr-1">' + listaFab.map(function(g) {
         const itens = g.pedidos.map(function(p) {
             return linhaDestaque(esc(p.cliente), esc(p.qtd || 1) + 'x ' + esc(p.produto), '', 'hojeAbrirPedido(' + p.uid + ')');
         }).join('');
@@ -2203,7 +1710,7 @@ function renderHoje() {
     }).join('') + '</div>';
     add('📧', 'Pedidos não enviados à fábrica', 'bg-orange-100 text-orange-700', totalNaoEnv, htmlFab);
 
-    // 5. Minhas tarefas
+    // 5. Minhas tarefas (cada uma abre direto no cartão da aba Equipe)
     let aviso = '';
     if (!usuarioAtual) {
         aviso = `<div class="bg-blue-50 border border-blue-200 rounded-2xl p-3 text-[11px] font-black uppercase text-blue-700">👤 Selecione quem você é no topo da tela para ver suas tarefas aqui.</div>`;
@@ -2260,35 +1767,5 @@ function renderHoje() {
         .sort(function(a, b) { return a.dataOrdem === b.dataOrdem ? (a.hora || '23:59').localeCompare(b.hora || '23:59') : a.dataOrdem.localeCompare(b.dataOrdem); });
     const htmlProx = prox.map(function(e) {
         const rot = e.dataOrdem === amanha ? 'AMANHÃ' : fmtBR(e.dataOrdem).slice(0, 5);
-        return linhaHoje(esc(e.cliente), '📍 ' + esc(e.endereco), hojeDireita(etiquetaHoje(rot + (e.hora ? ' ' + esc(e.hora) : ''), 'bg-blue-100 text-blue-700')), "hojeVerNaAgenda('" + e.dataOrdem + "')");
-    }).join('');
-    add('📆', 'Próximas entregas (7 dias)', 'bg-blue-100 text-blue-700', prox.length, htmlProx, true);
+        return linhaHoje(es
 
-    // Montagem
-    const totalPend = cartoes.filter(function(c) { return !c.info; }).reduce(function(s, c) { return s + c.qtd; }, 0);
-    const comItens = cartoes.filter(function(c) { return c.qtd > 0; }).map(function(c) { return c.html; }).join('');
-    const emDia = cartoes.filter(function(c) { return c.qtd === 0; }).map(function(c) {
-        return `<span class="text-[10px] font-black uppercase text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1">✔ ${c.titulo}</span>`;
-    }).join('');
-    const resumo = totalPend > 0 ? totalPend + ' item(ns) precisam de atenção' : 'Tudo em dia por aqui 🎉';
-
-    v.innerHTML = `
-    <div class="flex flex-col gap-4">
-        <div class="flex flex-col md:flex-row md:items-end justify-between gap-1">
-            <div><h2 class="text-xl font-black text-slate-800">${saud}${nome ? ', ' + esc(nome) : ''}!</h2><span class="text-[11px] font-bold uppercase text-slate-400">${dataExtenso}</span></div>
-            <span class="text-xs font-black uppercase ${totalPend > 0 ? 'text-orange-600' : 'text-emerald-600'}">${resumo}</span>
-        </div>
-        ${aviso}
-        ${blocoBackup}
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">${comItens}</div>
-        ${emDia ? `<div class="flex flex-col gap-2"><span class="text-[10px] font-black uppercase text-slate-400">Em dia:</span><div class="flex flex-wrap gap-2">${emDia}</div></div>` : ''}
-    </div>`;
-}
-
-// Atualiza a tela sozinha a cada 5 minutos (se estiver aberta)
-if (!window.__hojeTimer) {
-    window.__hojeTimer = setInterval(function() {
-        const v = getEl('view-hoje');
-        if (v && !v.classList.contains('hidden')) renderHoje();
-    }, 300000);
-}
