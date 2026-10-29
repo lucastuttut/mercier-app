@@ -31,10 +31,12 @@ function hojeLocal() { return dataLocalISO(new Date()); }
 // ==========================================
 // 2. VARIÁVEIS GLOBAIS
 // ==========================================
+let comissoes=[];
 let pedidos=[], fornecedores=[], estoque=[], catalogo=[], tarefas=[], assistencias=[];
 let tarefasEquipe=[], entregas=[], lembretes=[], historicoAtividades=[];
 let cestoItensTemporario=[], proximoID=255, notasMelhoria="", notasEstoque="";
 let usuarioAtual="", modoMinhasTarefas=false, visaoPedidos='ATIVOS', visaoEstoque='ESTOQUE', filtrandoNaoEnviados=false, cpfValido=true;
+
 
 let dataSelecionadaLogistica = hojeLocal();
 let dataAtualCalendario = new Date();
@@ -124,7 +126,7 @@ const db = firebase.database();
 // ==========================================
 const COLECOES = {
     pedidos: 'desc', estoque: 'desc', tarefas: 'desc', assistencias: 'desc', historico: 'desc',
-    fornecedores: 'asc', catalogo: 'asc', tarefasEquipe: 'asc', entregas: 'asc', lembretes: 'asc'
+   fornecedores: 'asc', catalogo: 'asc', tarefasEquipe: 'asc', entregas: 'asc', lembretes: 'asc', comissoes: 'desc'
 };
 let dadosCarregados = false;
 let estadoServidor = {};
@@ -217,8 +219,8 @@ db.ref('dados').on('value', function(s) {
         pedidos = L.pedidos; fornecedores = L.fornecedores; estoque = L.estoque;
         catalogo = L.catalogo; tarefas = L.tarefas; assistencias = L.assistencias;
         tarefasEquipe = L.tarefasEquipe; historicoAtividades = L.historico;
-        entregas = L.entregas; lembretes = L.lembretes;
-
+        entregas = L.entregas; lembretes = L.lembretes; comissoes = L.comissoes;
+        
         proximoID = d.proximoID || 255;
 
         if(getEl('texto-melhorias')) getEl('texto-melhorias').value = d.notasMelhoria || "";
@@ -295,6 +297,7 @@ function renderAll() {
     try { renderAssistencias(); } catch(e){}
     try { renderQuadroEquipe(); } catch(e){}
     try { renderHistorico(); } catch(e){}
+    try { renderComissoes(); } catch(e){}
     try { processarEventosCalendario(); } catch(e){}
 }
 
@@ -1136,3 +1139,206 @@ const painelS = getEl('painel-sugestoes'); const dragH = getEl('drag-handle'); l
 if(dragH) dragH.addEventListener('mousedown', function(e) { isDrag=true; offX=e.clientX-painelS.getBoundingClientRect().left; offY=e.clientY-painelS.getBoundingClientRect().top; painelS.style.bottom='auto'; painelS.style.right='auto'; });
 document.addEventListener('mousemove', function(e) { if(!isDrag) return; painelS.style.left=(e.clientX-offX)+'px'; painelS.style.top=(e.clientY-offY)+'px'; });
 document.addEventListener('mouseup', function() { isDrag=false; });
+// =========================================================
+// 13. COMISSÕES
+// =========================================================
+const TAXA_COMISSAO = 0.05;
+let dataFiltroComissoes = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+
+function formatMoney(n) {
+    return "R$ " + (n || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
+function formataDataBR(dataISO) {
+    if (!dataISO) return "-";
+    const p = String(dataISO).split('-');
+    if (p.length !== 3) return dataISO;
+    return p[2] + '/' + p[1] + '/' + p[0];
+}
+
+function somarMeses(dataISO, n) {
+    const p = dataISO.split('-');
+    const ano = parseInt(p[0]), mes = parseInt(p[1]) - 1, dia = parseInt(p[2]);
+    const ultimoDia = new Date(ano, mes + n + 1, 0).getDate();
+    return dataLocalISO(new Date(ano, mes + n, Math.min(dia, ultimoDia)));
+}
+
+function mudarMesComissoes(direcao) {
+    dataFiltroComissoes = new Date(dataFiltroComissoes.getFullYear(), dataFiltroComissoes.getMonth() + direcao, 1);
+    renderComissoes();
+}
+
+function abrirModalVenda() {
+    getEl('v_data').value = hojeLocal();
+    const d30 = new Date();
+    d30.setDate(d30.getDate() + 30);
+    getEl('v_primeiro_venc').value = dataLocalISO(d30);
+    getEl('modal-venda').style.display = 'flex';
+    gerarInputsParcelas();
+}
+
+function fecharModalVenda() {
+    getEl('modal-venda').style.display = 'none';
+    getEl('v_cliente').value = "";
+    getEl('v_total').value = "";
+    getEl('v_qtd_parcelas').value = "1";
+}
+
+function gerarInputsParcelas() {
+    const container = getEl('container-parcelas');
+    if (!container) return;
+    const total = parseMoney(getEl('v_total').value);
+    const qtd = parseInt(getEl('v_qtd_parcelas').value);
+    const dataBase = getEl('v_primeiro_venc').value;
+    if (!dataBase) return;
+
+    // divide em centavos para as parcelas fecharem exatamente no total
+    const centavos = Math.round(total * 100);
+    const base = Math.floor(centavos / qtd);
+    const resto = centavos - base * qtd;
+
+    let html = "";
+    for (let i = 1; i <= qtd; i++) {
+        const valor = (i === qtd ? base + resto : base) / 100;
+        html += `
+        <div class="flex gap-3 items-center bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <span class="bg-emerald-100 text-emerald-700 font-black text-[10px] px-2 py-1 rounded w-10 text-center">${i}x</span>
+            <div class="flex-1">
+                <label class="text-[8px] font-black text-slate-400 uppercase block mb-0.5">Vencimento</label>
+                <input type="date" id="p_data_${i}" value="${somarMeses(dataBase, i - 1)}" class="w-full border p-2 rounded text-xs font-bold outline-emerald-500 bg-white">
+            </div>
+            <div class="flex-1">
+                <label class="text-[8px] font-black text-slate-400 uppercase block mb-0.5">Valor (R$)</label>
+                <input type="text" id="p_valor_${i}" value="${formatMoney(valor)}" oninput="maskMoney(this)" class="w-full border p-2 rounded text-xs font-bold text-slate-700 outline-emerald-500 bg-white">
+            </div>
+        </div>`;
+    }
+    container.innerHTML = html;
+}
+
+function salvarVenda() {
+    const cliente = val('v_cliente').toUpperCase().trim();
+    const dataVenda = val('v_data');
+    const total = parseMoney(val('v_total'));
+    const qtdParcelas = parseInt(val('v_qtd_parcelas'));
+
+    if (!cliente || total <= 0) return alert("Preencha o cliente e o valor total da venda!");
+
+    const parcelas = [];
+    for (let i = 1; i <= qtdParcelas; i++) {
+        const dtVenc = val('p_data_' + i);
+        const valParc = parseMoney(val('p_valor_' + i));
+        if (!dtVenc) return alert("Preencha a data de vencimento da parcela " + i + "!");
+        parcelas.push({
+            id_parcela: "P" + i,
+            numero: i,
+            de: qtdParcelas,
+            vencimento: dtVenc,
+            valor: valParc,
+            comissao: Math.round(valParc * TAXA_COMISSAO * 100) / 100,
+            status: "Pendente",
+            dataPagamento: null
+        });
+    }
+
+    const uid = gerarUid();
+    comissoes.unshift({
+        uid: uid,
+        id_venda: String(uid),
+        cliente: cliente,
+        dataVenda: dataVenda,
+        valorTotal: total,
+        parcelas: parcelas
+    });
+
+    salvarColecao('comissoes', comissoes);
+    fecharModalVenda();
+    renderComissoes();
+}
+
+function renderComissoes() {
+    const tb = getEl('tabela-parcelas');
+    if (!tb) return;
+
+    const meses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+    getEl('com-mes-display').innerText = meses[dataFiltroComissoes.getMonth()] + " " + dataFiltroComissoes.getFullYear();
+    const chaveMes = dataFiltroComissoes.getFullYear() + '-' + String(dataFiltroComissoes.getMonth() + 1).padStart(2, '0');
+
+    let lista = [];
+    let totalVendidoMes = 0, pendente = 0, garantido = 0;
+
+    comissoes.forEach(function(venda) {
+        if (String(venda.dataVenda || '').slice(0, 7) === chaveMes) totalVendidoMes += venda.valorTotal || 0;
+
+        safeArray(venda.parcelas).forEach(function(p) {
+            let entra = false;
+            if (p.status === "Pendente" && String(p.vencimento || '').slice(0, 7) === chaveMes) {
+                pendente += p.comissao || 0;
+                entra = true;
+            } else if (p.status === "Pago" && String(p.dataPagamento || '').slice(0, 7) === chaveMes) {
+                garantido += p.comissao || 0;
+                entra = true;
+            }
+            if (entra) lista.push({ venda: venda, parcela: p });
+        });
+    });
+
+    getEl('resumo-vendas').innerText = formatMoney(totalVendidoMes);
+    getEl('resumo-pendente').innerText = formatMoney(pendente);
+    getEl('resumo-garantido').innerText = formatMoney(garantido);
+    getEl('contador-parcelas').innerText = lista.length + " Lançamentos";
+
+    lista.sort(function(a, b) { return String(a.parcela.vencimento || '').localeCompare(String(b.parcela.vencimento || '')); });
+
+    if (lista.length === 0) {
+        tb.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400 font-bold uppercase border-b border-slate-100">Nenhum recebimento ou vencimento para este mês.</td></tr>';
+        return;
+    }
+
+    let html = "";
+    lista.forEach(function(item) {
+        const p = item.parcela, v = item.venda;
+        const isPago = p.status === "Pago";
+        const rowClass = isPago ? "bg-emerald-50/50 opacity-80" : "hover:bg-slate-50 transition";
+        const badge = isPago
+            ? `<span class="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider block w-full border border-emerald-200">✅ Paga em ${formataDataBR(p.dataPagamento)}</span>`
+            : `<button onclick="marcarComoPago(${v.uid}, '${p.id_parcela}')" class="bg-amber-100 hover:bg-emerald-500 hover:text-white text-amber-700 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition block w-full shadow-sm">⏳ Marcar como Pago</button>`;
+
+        html += `
+        <tr class="${rowClass} border-b border-slate-100">
+            <td class="p-3 text-[10px] text-slate-500">${formataDataBR(p.vencimento)}</td>
+            <td class="p-3">
+                <span class="block uppercase text-slate-800 leading-tight">${esc(v.cliente)}</span>
+                <span class="text-[9px] text-slate-400 font-normal">Venda efetuada em: ${formataDataBR(v.dataVenda)}</span>
+            </td>
+            <td class="p-3 text-[10px] text-slate-600"><span class="bg-slate-200 px-2 py-0.5 rounded-md text-[9px]">${p.numero} de ${p.de}</span></td>
+            <td class="p-3">${formatMoney(p.valor)}</td>
+            <td class="p-3 text-emerald-600 font-black text-sm">${formatMoney(p.comissao)}</td>
+            <td class="p-3 w-40 text-center">${badge}</td>
+        </tr>`;
+    });
+    tb.innerHTML = html;
+}
+
+function marcarComoPago(uid, idParcela) {
+    const v = comissoes.find(function(x) { return x.uid == uid; });
+    if (!v) return;
+    const p = safeArray(v.parcelas).find(function(x) { return x.id_parcela === idParcela; });
+    if (!p) return;
+
+    let resp = prompt("Qual foi a data do pagamento? (DD/MM/AAAA)", formataDataBR(hojeLocal()));
+    if (resp === null) return;
+    resp = resp.trim();
+
+    let iso = hojeLocal();
+    if (resp !== "") {
+        const m = resp.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (!m) return alert("Data inválida. Use o formato DD/MM/AAAA.");
+        iso = m[3] + '-' + m[2] + '-' + m[1];
+    }
+
+    p.status = "Pago";
+    p.dataPagamento = iso;
+    salvarColecao('comissoes', comissoes);
+    renderComissoes();
+}
