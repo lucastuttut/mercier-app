@@ -51,3 +51,12 @@ tbody tr:hover {
 .btn-pag-opt.active { background: #3b82f6; color: white; border-color: #2563eb; }
 .select-prazo-tabela { background: #000; color: #fff; font-size: 7.5px !important; font-weight: 900; border-radius: 4px; padding: 1px 2px; cursor: pointer; border: none; }
 .copy-btn-small { cursor: pointer; color: #94a3b8; font-size: 14px; transition: 0.2s; padding: 4px; }
+
+/* --- LINHAS CLICÁVEIS DA ABA HOJE --- */
+.linha-clicavel { cursor: pointer; transition: all 0.15s ease-in-out; }
+.linha-clicavel:hover {
+    background-color: #dbeafe !important;
+    border-color: #3b82f6 !important;
+    box-shadow: inset 6px 0 0 #1d4ed8;
+}
+.linha-clicavel:active { background-color: #bfdbfe !important; }
