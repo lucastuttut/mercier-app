@@ -1283,3 +1283,642 @@ function iniciarAbaHoje() {
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciarAbaHoje);
 else iniciarAbaHoje();
+
+
+// =====================================================================
+// EXTRAS — cole TUDO isto no FINAL do app.js (depois da última linha)
+// =====================================================================
+(function () {
+  function boot(fn) { if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn); else fn(); }
+  function hojeBR() { return new Date().toLocaleDateString('pt-BR'); }
+  function iso(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function norm(s) { return noAcc(String(s || '').toLowerCase()).replace(/\s+/g, ' ').trim(); }
+  function tsBR(s) { const p = String(s || '').split('/'); return p.length === 3 ? new Date(p[2], p[1] - 1, p[0]).getTime() : 0; }
+  function irAba(texto) {
+    const alvo = norm(texto);
+    const b = Array.from(document.querySelectorAll('nav button')).find(function (x) { return norm(x.textContent).includes(alvo); });
+    if (b) b.click();
+  }
+
+  // ===================================================================
+  // 1. PEDIDOS: mais novos em cima, mais antigos embaixo
+  // ===================================================================
+  function numPed(p) { return parseInt(String(p.idDoc || '').replace(/\D/g, ''), 10) || 0; }
+  function ordenarPedidos(lst) {
+    const pos = new Map(pedidos.map(function (p, i) { return [p, i]; }));
+    return lst.slice().sort(function (a, b) {
+      return (numPed(b) - numPed(a)) || ((pos.get(b) || 0) - (pos.get(a) || 0));
+    });
+  }
+  const _renderPedidos = window.renderPedidos;
+  window.renderPedidos = function () {
+    const orig = pedidos;
+    pedidos = ordenarPedidos(orig);
+    try { _renderPedidos(); } finally { pedidos = orig; }
+  };
+
+  // ===================================================================
+  // 2. TAREFAS: comentários
+  // ===================================================================
+  let tarefaAberta = null;
+  function corAutor(a) { const c = coresEquipe[a]; return c ? c.split(' ').slice(0, 2).join(' ') : 'bg-slate-100 text-slate-700'; }
+
+  function renderComentariosTarefa() {
+    const box = getEl('tarefa-comentarios-box'); if (!box) return;
+    const t = tarefas.find(function (x) { return x.uid == tarefaAberta; });
+    if (!t) { box.innerHTML = ''; return; }
+    const antigo = getEl('tarefa-coment-input');
+    const txt = antigo ? antigo.value : '';
+    const foco = antigo && document.activeElement === antigo;
+    const lista = safeArray(t.comentarios);
+    const itens = lista.map(function (c) {
+      return '<div class="bg-slate-50 border rounded-lg p-2">' +
+        '<div class="flex justify-between items-center mb-1"><span class="' + corAutor(c.autor) + ' px-2 py-0.5 rounded text-[9px] font-black uppercase">' + esc(c.autor) + '</span>' +
+        '<span class="text-[9px] font-bold text-slate-400">' + esc(c.dataHora) + ' <button data-cdel="' + esc(c.id) + '" class="text-red-400 hover:text-red-600 font-black ml-1">✕</button></span></div>' +
+        '<div class="text-xs font-bold text-slate-700 whitespace-pre-wrap">' + esc(c.texto) + '</div></div>';
+    }).join('');
+    box.innerHTML =
+      '<div class="text-xs font-black uppercase text-indigo-600 mb-2">💬 Comentários (' + lista.length + ')</div>' +
+      '<div id="tarefa-coment-lista" class="flex flex-col gap-2 max-h-56 overflow-y-auto mb-3">' +
+      (itens || '<div class="text-[10px] font-bold text-slate-400 uppercase text-center py-3">Nenhum comentário ainda.</div>') + '</div>' +
+      '<div class="flex gap-2"><input id="tarefa-coment-input" placeholder="Escreva um comentário..." class="flex-1 border-2 p-2 rounded-lg text-xs font-bold outline-indigo-500">' +
+      '<button id="tarefa-coment-btn" class="bg-indigo-600 text-white px-4 rounded-lg text-xs font-black">Enviar</button></div>';
+    const inp = getEl('tarefa-coment-input');
+    inp.value = txt; if (foco) inp.focus();
+    inp.onkeydown = function (e) { if (e.key === 'Enter') enviarComentarioTarefa(); };
+    getEl('tarefa-coment-btn').onclick = enviarComentarioTarefa;
+    box.querySelectorAll('[data-cdel]').forEach(function (b) { b.onclick = function () { apagarComentarioTarefa(b.dataset.cdel); }; });
+    const l = getEl('tarefa-coment-lista'); if (l) l.scrollTop = l.scrollHeight;
+  }
+
+  function enviarComentarioTarefa() {
+    if (!usuarioAtual) return alert('Identifique-se no topo (quem é você) para comentar!');
+    const inp = getEl('tarefa-coment-input'); if (!inp) return;
+    const texto = inp.value.trim(); if (!texto) return;
+    const t = tarefas.find(function (x) { return x.uid == tarefaAberta; }); if (!t) return;
+    t.comentarios = safeArray(t.comentarios);
+    const a = new Date();
+    t.comentarios.push({ id: Date.now(), autor: usuarioAtual, texto: texto, dataHora: a.toLocaleDateString('pt-BR') + ' ' + a.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) });
+    inp.value = '';
+    salvarColecao('tarefas', tarefas);
+    registrarAcao('💬', 'COMENTOU NA TAREFA', t.descricao || '');
+    renderComentariosTarefa(); window.renderTarefas();
+  }
+
+  function apagarComentarioTarefa(id) {
+    if (!confirm('Apagar este comentário?')) return;
+    const t = tarefas.find(function (x) { return x.uid == tarefaAberta; }); if (!t) return;
+    t.comentarios = safeArray(t.comentarios).filter(function (c) { return String(c.id) !== String(id); });
+    salvarColecao('tarefas', tarefas);
+    renderComentariosTarefa(); window.renderTarefas();
+  }
+
+  const _verDet = window.verDetalhesTarefa;
+  window.verDetalhesTarefa = function (uid) {
+    _verDet(uid);
+    if (!tarefas.find(function (x) { return x.uid == uid; })) return;
+    tarefaAberta = uid;
+    const c = getEl('detalhe-corpo'); if (!c) return;
+    const box = document.createElement('div');
+    box.id = 'tarefa-comentarios-box';
+    box.className = 'mt-5 border-t-2 border-slate-200 pt-4';
+    c.appendChild(box);
+    renderComentariosTarefa();
+  };
+
+  window.excluirTarefaSimples = function (uid) {
+    if (confirm('Excluir?')) { tarefas = tarefas.filter(function (y) { return y.uid != uid; }); salvarColecao('tarefas', tarefas); }
+  };
+
+  window.renderTarefas = function () {
+    const tb = getEl('tabelaTarefas'); if (!tb) return;
+    const f = val('filtro-tarefa-status');
+    const lst = (!f || f === 'TODAS') ? tarefas : tarefas.filter(function (x) { return x.status === f; });
+    tb.innerHTML = lst.map(function (x) {
+      const n = safeArray(x.comentarios).length;
+      const badge = n ? '<span class="ml-2 bg-indigo-100 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded-full text-[9px] font-black">💬 ' + n + '</span>' : '';
+      return '<tr onclick="verDetalhesTarefa(' + x.uid + ')" class="hover:bg-slate-50 cursor-pointer border-b transition"><td>' + esc(x.data) + '</td><td class="font-black text-xs uppercase">' + esc(x.descricao) + badge + '</td><td class="text-[10px] uppercase">' + esc(x.tipo) + '</td><td><button onclick="event.stopPropagation(); cycleTarefaStatus(' + x.uid + ')" class="status-badge bg-slate-100">' + esc(x.status) + '</button></td><td class="text-center"><button onclick="event.stopPropagation(); excluirTarefaSimples(' + x.uid + ')" class="text-red-400 hover:text-red-600 font-black text-lg">✕</button></td></tr>';
+    }).join('');
+    if (tarefaAberta && getEl('tarefa-comentarios-box')) renderComentariosTarefa();
+  };
+
+  // ===================================================================
+  // 3. ESTOQUE (reformulado)
+  // ===================================================================
+  const E = { busca: '', fabrica: 'TODAS', visao: 'ESTOQUE', motivo: 'TODOS', parados: false, fechados: {} };
+  let estRoot = null;
+
+  function sit(x) { return x.situacao || 'ESTOQUE'; }
+  function nomeFab(x) { return (x.fabrica && x.fabrica !== '-') ? x.fabrica : 'SEM FÁBRICA'; }
+  function qtdDe(x) { return parseInt(x.qtd) || 0; }
+  function diasEstoque(x) {
+    const t = tsBR(x.data); if (!t) return 0;
+    return Math.max(0, Math.floor((Date.now() - t) / 86400000));
+  }
+  function chave(p, f) { return norm(p) + '|' + norm(f); }
+  function porNome(a, b) { return String(a).localeCompare(String(b), 'pt-BR'); }
+
+  function montarEstoque() {
+    const ref = getEl('tabelaEstoque');
+    const main = getEl('view-estoque') || (ref ? ref.closest('main') : null);
+    if (!main) return false;
+    const inp = 'border-2 p-2 rounded-lg text-xs font-bold outline-none focus:border-green-500 bg-white';
+    main.innerHTML =
+      '<div class="w-full max-w-7xl mx-auto p-3 md:p-6 flex flex-col gap-4">' +
+      '<div id="est-resumo" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>' +
+      '<div id="est-alertas" class="flex flex-col gap-2"></div>' +
+      '<div class="card-premium p-4 md:p-5">' +
+        '<h3 class="text-xs font-black uppercase text-slate-500 mb-3">➕ Entrada rápida</h3>' +
+        '<div class="grid grid-cols-2 md:grid-cols-12 gap-2">' +
+          '<input id="est-a-prod" list="est-dl-prod" placeholder="PRODUTO / MODELO" class="col-span-2 md:col-span-4 uppercase ' + inp + '">' +
+          '<select id="est-a-fab" class="col-span-2 md:col-span-3 ' + inp + '"></select>' +
+          '<input id="est-a-qtd" type="number" min="1" value="1" class="md:col-span-1 ' + inp + '">' +
+          '<input id="est-a-obs" placeholder="LOCAL / OBS (opcional)" class="md:col-span-2 uppercase ' + inp + '">' +
+          '<button data-act="add" class="col-span-2 md:col-span-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-[11px] font-black uppercase py-2">Adicionar</button>' +
+        '</div>' +
+        '<datalist id="est-dl-prod"></datalist><datalist id="est-dl-cli"></datalist>' +
+        '<details class="mt-3"><summary class="cursor-pointer text-[10px] font-black uppercase text-indigo-600">✨ Cadastro em massa (colar lista)</summary>' +
+          '<p class="text-[10px] text-slate-500 font-bold mt-2">Uma linha por item: PRODUTO ; FÁBRICA ; OBS. No lugar da obs pode usar VENDIDO, ASSISTÊNCIA ou DEVOLUÇÃO. Ex: 2x SOFÁ ROMA ; ESTOFADOS X ; MOSTRUÁRIO</p>' +
+          '<textarea id="est-massa" class="w-full border-2 border-dashed border-indigo-300 rounded-lg p-3 text-xs font-bold h-28 mt-2 outline-indigo-500"></textarea>' +
+          '<button data-act="massa" class="mt-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-[11px] font-black uppercase">⚡ Processar lista</button>' +
+        '</details>' +
+      '</div>' +
+      '<div class="card-premium p-4 md:p-5">' +
+        '<div class="flex flex-wrap gap-2 items-center mb-4">' +
+          '<button data-act="visao" data-v="ESTOQUE" id="est-v-estoque"></button>' +
+          '<button data-act="visao" data-v="SAIDAS" id="est-v-saidas"></button>' +
+          '<input id="est-busca" placeholder="🔍 Buscar produto, fábrica, cliente..." class="flex-1 min-w-[180px] ' + inp + '">' +
+          '<select id="est-f-fab" class="' + inp + '"></select>' +
+          '<select id="est-f-motivo" class="hidden ' + inp + '"><option value="TODOS">TODOS OS MOTIVOS</option><option value="VENDIDO">VENDIDOS</option><option value="ASSISTÊNCIA">ASSISTÊNCIA</option><option value="DEVOLUÇÃO FÁBRICA">DEVOLVIDOS</option></select>' +
+          '<label id="est-l-parados" class="flex items-center gap-1 text-[10px] font-black uppercase text-slate-500 cursor-pointer"><input type="checkbox" id="est-parados"> Parados +90d</label>' +
+          '<button data-act="copiar" class="bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-lg text-[10px] font-black uppercase">📋 Copiar lista</button>' +
+        '</div>' +
+        '<div id="est-lista"></div>' +
+      '</div>' +
+      '<details class="card-premium p-4"><summary class="cursor-pointer text-xs font-black uppercase text-slate-500">📝 Notas do estoque</summary>' +
+        '<textarea id="estoque-notas-gerais" oninput="autoSalvarNotasEstoque()" class="w-full border-2 rounded-lg p-3 text-xs font-bold h-32 mt-3 outline-blue-500" placeholder="Anotações gerais sobre o estoque..."></textarea>' +
+      '</details>' +
+      '</div>';
+    estRoot = main;
+    main.addEventListener('click', onClickEstoque);
+    getEl('est-busca').addEventListener('input', function (e) { E.busca = e.target.value; renderLista(); });
+    getEl('est-f-fab').addEventListener('change', function (e) { E.fabrica = e.target.value; renderLista(); });
+    getEl('est-f-motivo').addEventListener('change', function (e) { E.motivo = e.target.value; renderLista(); });
+    getEl('est-parados').addEventListener('change', function (e) { E.parados = e.target.checked; renderLista(); });
+    try {
+      db.ref('dados/notasEstoque').once('value', function (s) {
+        const ta = getEl('estoque-notas-gerais');
+        if (ta && s.val() && !ta.value) ta.value = s.val();
+      });
+    } catch (e) {}
+    return true;
+  }
+
+  function atualizarSelects() {
+    const nomesForn = fornecedores.map(function (f) { return f.nome; }).filter(Boolean);
+    const todas = Array.from(new Set(nomesForn.concat(estoque.map(nomeFab)))).sort(porNome);
+    const fa = getEl('est-a-fab'), antA = fa.value;
+    fa.innerHTML = '<option value="">SEM FÁBRICA</option>' + nomesForn.map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('');
+    if (antA) fa.value = antA;
+    const ff = getEl('est-f-fab');
+    ff.innerHTML = '<option value="TODAS">TODAS AS FÁBRICAS</option>' + todas.map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('');
+    if (todas.indexOf(E.fabrica) < 0) E.fabrica = 'TODAS';
+    ff.value = E.fabrica;
+    const prods = Array.from(new Set(catalogo.map(function (c) { return c.nome; }).concat(estoque.filter(function (x) { return sit(x) === 'ESTOQUE'; }).map(function (x) { return x.produto; })))).filter(Boolean).sort(porNome);
+    getEl('est-dl-prod').innerHTML = prods.map(function (p) { return '<option value="' + esc(p) + '">'; }).join('');
+    getEl('est-dl-cli').innerHTML = Array.from(new Set(pedidos.map(function (p) { return p.cliente; }))).filter(Boolean).sort(porNome).map(function (c) { return '<option value="' + esc(c) + '">'; }).join('');
+    const nEst = estoque.filter(function (x) { return sit(x) === 'ESTOQUE'; }).length;
+    const bE = getEl('est-v-estoque'), bS = getEl('est-v-saidas');
+    const on = 'px-4 py-2 rounded-lg text-[11px] font-black uppercase bg-slate-800 text-white';
+    const off = 'px-4 py-2 rounded-lg text-[11px] font-black uppercase bg-slate-100 text-slate-500 hover:bg-slate-200';
+    bE.className = E.visao === 'ESTOQUE' ? on : off; bS.className = E.visao === 'SAIDAS' ? on : off;
+    bE.textContent = '🟢 Em estoque (' + nEst + ')'; bS.textContent = '🔴 Saídas (' + (estoque.length - nEst) + ')';
+    getEl('est-f-motivo').classList.toggle('hidden', E.visao !== 'SAIDAS');
+    getEl('est-l-parados').classList.toggle('hidden', E.visao !== 'ESTOQUE');
+    getEl('est-parados').checked = E.parados;
+  }
+
+  function renderResumo() {
+    const disp = estoque.filter(function (x) { return sit(x) === 'ESTOQUE'; });
+    const pecas = disp.reduce(function (s, x) { return s + qtdDe(x); }, 0);
+    const parados = disp.filter(function (x) { return diasEstoque(x) >= 90; }).length;
+    const agora = new Date(), mes = agora.getMonth() + 1, ano = agora.getFullYear();
+    const saidasMes = estoque.filter(function (x) {
+      if (sit(x) === 'ESTOQUE') return false;
+      const d = String(x.dataSaida || x.data || '').split('/');
+      return Number(d[1]) === mes && Number(d[2]) === ano;
+    }).reduce(function (s, x) { return s + qtdDe(x); }, 0);
+    const card = function (t, v, c, sub) {
+      return '<div class="card-premium p-4"><div class="text-[9px] font-black uppercase text-slate-400">' + t + '</div><div class="text-3xl font-black ' + c + '">' + v + '</div><div class="text-[9px] font-bold text-slate-400 uppercase mt-1">' + sub + '</div></div>';
+    };
+    getEl('est-resumo').innerHTML =
+      card('Peças disponíveis', pecas, 'text-green-600', 'no estoque agora') +
+      card('Modelos diferentes', disp.length, 'text-blue-600', 'itens cadastrados') +
+      card('Parados +90 dias', parados, parados ? 'text-red-600' : 'text-slate-300', 'precisam de atenção') +
+      card('Saídas no mês', saidasMes, 'text-orange-600', 'peças que saíram');
+  }
+
+  function casa(a, b) {
+    const x = norm(a), y = norm(b); if (!x || !y) return false;
+    if (Math.min(x.length, y.length) >= 6 && (x.includes(y) || y.includes(x))) return true;
+    const par = x.length <= y.length ? [x, y] : [y, x];
+    const toks = par[0].split(' ').filter(function (t) { return t.length >= 3; });
+    return toks.length >= 2 && toks.every(function (t) { return par[1].includes(t); });
+  }
+
+  function renderAlertas() {
+    const disp = estoque.filter(function (x) { return sit(x) === 'ESTOQUE' && qtdDe(x) > 0; });
+    const achados = [];
+    pedidos.filter(function (p) { return !p.finalizado && p.status !== 'Entregue/Finalizado' && p.status !== 'Pedido na loja'; }).forEach(function (p) {
+      const it = disp.find(function (x) { return casa(x.produto, p.produto); });
+      if (it) achados.push({ p: p, it: it });
+    });
+    let html = '';
+    if (achados.length) {
+      html += '<div class="bg-amber-50 border-2 border-amber-300 rounded-xl p-3"><div class="text-[10px] font-black uppercase text-amber-700 mb-2">💡 Pode sair do estoque (' + achados.length + ')</div>' +
+        achados.slice(0, 5).map(function (a) {
+          return '<div class="flex items-center justify-between gap-2 text-[11px] font-bold text-slate-700 py-1"><span><b class="uppercase">' + esc(a.p.cliente) + '</b> pediu <b class="uppercase">' + esc(a.p.produto) + '</b> e há ' + qtdDe(a.it) + ' em estoque (' + esc(nomeFab(a.it)) + ')</span>' +
+            '<button data-act="alerta" data-uid="' + a.it.uid + '" data-cli="' + esc(a.p.cliente) + '" class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1 rounded-lg text-[9px] font-black uppercase whitespace-nowrap">Dar saída</button></div>';
+        }).join('') + (achados.length > 5 ? '<div class="text-[9px] font-black text-amber-600 uppercase mt-1">+ ' + (achados.length - 5) + ' outros</div>' : '') + '</div>';
+    }
+    const parados = disp.filter(function (x) { return diasEstoque(x) >= 90; }).length;
+    if (parados) {
+      html += '<div class="bg-red-50 border-2 border-red-200 rounded-xl p-3 flex items-center justify-between gap-2"><span class="text-[11px] font-black uppercase text-red-700">⏳ ' + parados + ' modelo(s) parado(s) há mais de 90 dias</span><button data-act="parados" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg text-[9px] font-black uppercase">Ver</button></div>';
+    }
+    getEl('est-alertas').innerHTML = html;
+  }
+
+  function filtrar() {
+    const b = norm(E.busca);
+    return estoque.filter(function (x) {
+      const s = sit(x);
+      if (E.visao === 'ESTOQUE' ? s !== 'ESTOQUE' : s === 'ESTOQUE') return false;
+      if (E.fabrica !== 'TODAS' && nomeFab(x) !== E.fabrica) return false;
+      if (E.visao === 'SAIDAS' && E.motivo !== 'TODOS' && s !== E.motivo) return false;
+      if (E.parados && (E.visao !== 'ESTOQUE' || diasEstoque(x) < 90)) return false;
+      if (b && !norm([x.produto, x.fabrica, x.obs, x.cliente, x.obsSaida].join(' ')).includes(b)) return false;
+      return true;
+    });
+  }
+
+  function renderLista() {
+    const box = getEl('est-lista'); if (!box) return;
+    const lst = filtrar();
+    if (!lst.length) { box.innerHTML = '<div class="text-center p-10 border-2 border-dashed border-slate-200 rounded-2xl text-xs font-black uppercase text-slate-400">Nada encontrado.</div>'; return; }
+    const mini = 'w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 font-black text-sm';
+    let html = '';
+    if (E.visao === 'ESTOQUE') {
+      const grupos = {};
+      lst.forEach(function (x) { const g = nomeFab(x); (grupos[g] = grupos[g] || []).push(x); });
+      Object.keys(grupos).sort(porNome).forEach(function (g) {
+        const itens = grupos[g].sort(function (a, b) { return porNome(a.produto, b.produto); });
+        const pecas = itens.reduce(function (s, x) { return s + qtdDe(x); }, 0);
+        const fechado = !!E.fechados[g];
+        html += '<div class="mb-4"><button data-act="grupo" data-g="' + esc(g) + '" class="w-full flex justify-between items-center bg-slate-800 text-white rounded-lg px-4 py-2 mb-1"><span class="font-black text-xs uppercase">🏭 ' + esc(g) + '</span><span class="text-[10px] font-bold">' + pecas + ' peças · ' + itens.length + ' modelos ' + (fechado ? '▸' : '▾') + '</span></button>';
+        if (!fechado) {
+          itens.forEach(function (x) {
+            const d = diasEstoque(x);
+            const cor = d >= 90 ? 'bg-red-100 text-red-700' : (d >= 30 ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700');
+            html += '<div class="flex items-center gap-2 py-2 px-2 border-b border-slate-100 hover:bg-slate-50">' +
+              '<div class="flex-1 min-w-0"><div data-edit="produto" data-uid="' + x.uid + '" class="font-black text-xs uppercase cursor-pointer hover:text-blue-600">' + esc(x.produto) + '</div>' +
+              '<div data-edit="obs" data-uid="' + x.uid + '" class="text-[10px] font-bold uppercase cursor-pointer ' + (x.obs ? 'text-slate-500' : 'text-slate-300') + ' hover:text-blue-600">' + (x.obs ? esc(x.obs) : '+ local / obs') + '</div></div>' +
+              '<span title="Entrada em ' + esc(x.data || '-') + '" class="px-2 py-1 rounded text-[9px] font-black ' + cor + '">' + d + 'd</span>' +
+              '<div class="flex items-center gap-1"><button data-act="menos" data-uid="' + x.uid + '" class="' + mini + '">−</button><span class="font-black text-sm w-7 text-center">' + qtdDe(x) + '</span><button data-act="mais" data-uid="' + x.uid + '" class="' + mini + '">+</button></div>' +
+              '<button data-act="saida" data-uid="' + x.uid + '" class="bg-slate-100 hover:bg-orange-100 px-2 py-1 rounded-lg text-[10px] font-black">📉 Saída</button>' +
+              '<button data-act="del" data-uid="' + x.uid + '" class="text-slate-300 hover:text-red-500 font-black px-1">✕</button></div>';
+          });
+        }
+        html += '</div>';
+      });
+    } else {
+      const cores = { 'VENDIDO': ['bg-red-100 text-red-700', 'VENDIDO'], 'ASSISTÊNCIA': ['bg-orange-100 text-orange-700', 'ASSISTÊNCIA'], 'DEVOLUÇÃO FÁBRICA': ['bg-purple-100 text-purple-700', 'DEVOLVIDO'] };
+      lst.slice().sort(function (a, b) { return tsBR(b.dataSaida || b.data) - tsBR(a.dataSaida || a.data); }).forEach(function (x) {
+        const c = cores[sit(x)] || ['bg-slate-100 text-slate-600', sit(x)];
+        const detalhe = [nomeFab(x), x.cliente, x.obsSaida].filter(Boolean).join(' · ');
+        html += '<div class="flex flex-wrap items-center gap-2 py-2 px-2 border-b border-slate-100 hover:bg-slate-50">' +
+          '<span class="text-[10px] font-bold text-slate-400 w-20">' + esc(x.dataSaida || x.data || '-') + '</span>' +
+          '<div class="flex-1 min-w-0"><div class="font-black text-xs uppercase">' + esc(x.produto) + '</div><div class="text-[10px] font-bold uppercase text-slate-500">' + esc(detalhe) + '</div></div>' +
+          '<span class="font-black text-xs">' + qtdDe(x) + 'x</span>' +
+          '<span class="px-2 py-1 rounded text-[9px] font-black ' + c[0] + '">' + c[1] + '</span>' +
+          '<button data-act="voltar" data-uid="' + x.uid + '" title="Voltar ao estoque" class="bg-slate-100 hover:bg-green-100 px-2 py-1 rounded-lg text-[10px] font-black">↩ Voltar</button>' +
+          '<button data-act="del" data-uid="' + x.uid + '" class="text-slate-300 hover:text-red-500 font-black px-1">✕</button></div>';
+      });
+    }
+    box.innerHTML = html;
+  }
+
+  function entrada(p, f, q, o) {
+    const k = chave(p, f);
+    const ex = estoque.find(function (x) { return sit(x) === 'ESTOQUE' && chave(x.produto, x.fabrica) === k; });
+    if (ex) { ex.qtd = qtdDe(ex) + q; if (o && !ex.obs) ex.obs = o; return ex; }
+    const n = { uid: Date.now() + Math.random(), data: hojeBR(), produto: p, fabrica: f || '', qtd: q, situacao: 'ESTOQUE', obs: o || '', cliente: '', dataSaida: '', obsSaida: '' };
+    estoque.unshift(n); return n;
+  }
+
+  function adicionarUnitario() {
+    const p = val('est-a-prod').toUpperCase().trim(), f = val('est-a-fab'), q = parseInt(val('est-a-qtd')) || 1, o = val('est-a-obs').toUpperCase().trim();
+    if (!p) return alert('Informe o produto!');
+    entrada(p, f, q, o);
+    salvarColecao('estoque', estoque);
+    registrarAcao('📦', 'ENTRADA NO ESTOQUE', q + 'x ' + p);
+    getEl('est-a-prod').value = ''; getEl('est-a-qtd').value = 1; getEl('est-a-obs').value = '';
+    window.renderEstoque();
+    getEl('est-a-prod').focus();
+  }
+
+  function processarMassa() {
+    const txt = val('est-massa'); if (!txt.trim()) return alert('Cole a lista primeiro!');
+    let n = 0;
+    txt.split('\n').forEach(function (l) {
+      l = l.trim().replace(/^[•\-*]\s*/, ''); if (!l) return;
+      const pts = l.split(/;| , /).map(function (s) { return s.trim().toUpperCase(); });
+      let prod = pts[0] || '', fab = pts[1] || '', extra = pts[2] || '', q = 1;
+      const m = prod.match(/^(\d+)\s*(?:X|\-|UN|PÇ|PC)?\s+(.+)/i);
+      if (m && parseInt(m[1]) > 0) { q = parseInt(m[1]); prod = m[2].trim(); }
+      if (!prod) return;
+      const fm = fornecedores.find(function (x) { return norm(fab) && (norm(x.nome) === norm(fab) || norm(x.nome).includes(norm(fab))); });
+      if (fm) fab = fm.nome;
+      let st = 'ESTOQUE', obs = extra, cli = '';
+      if (extra.includes('VENDID')) { st = 'VENDIDO'; cli = extra.replace(/VENDID[AO]S?\s*(PARA|P\/)?\s*/i, '').trim(); obs = ''; }
+      else if (extra.includes('ASSIST')) { st = 'ASSISTÊNCIA'; obs = ''; }
+      else if (extra.includes('DEVOL')) { st = 'DEVOLUÇÃO FÁBRICA'; obs = ''; }
+      if (st === 'ESTOQUE') entrada(prod, fab, q, obs);
+      else estoque.unshift({ uid: Date.now() + Math.random(), data: hojeBR(), dataSaida: hojeBR(), produto: prod, fabrica: fab, qtd: q, situacao: st, obs: '', cliente: cli, obsSaida: '' });
+      n++;
+    });
+    if (!n) return alert('Nenhuma linha válida encontrada.');
+    salvarColecao('estoque', estoque);
+    registrarAcao('📦', 'CADASTRO EM MASSA', n + ' itens.');
+    getEl('est-massa').value = '';
+    alert('✅ ' + n + ' itens processados!');
+    window.renderEstoque();
+  }
+
+  function abrirSaida(it, cliente) {
+    let m = getEl('est-modal-saida');
+    if (!m) { m = document.createElement('div'); m.id = 'est-modal-saida'; m.className = 'modal-overlay'; document.body.appendChild(m); }
+    const campo = 'w-full border-2 p-2 rounded-lg text-xs font-bold outline-blue-500';
+    const lab = 'text-[10px] font-black uppercase text-slate-400';
+    m.innerHTML =
+      '<div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl flex flex-col gap-2">' +
+      '<div class="flex justify-between items-start"><h3 class="font-black uppercase text-sm text-slate-800">📉 Dar saída do estoque</h3><button id="est-s-x" class="text-slate-400 font-black">✕</button></div>' +
+      '<div class="bg-slate-50 border rounded-lg p-3 text-xs font-black uppercase text-slate-700">' + esc(it.produto) + ' <span class="text-slate-400">· ' + esc(nomeFab(it)) + ' · ' + qtdDe(it) + ' disponível</span></div>' +
+      '<label class="' + lab + '">Quantidade</label><input id="est-s-qtd" type="number" min="1" max="' + qtdDe(it) + '" value="' + qtdDe(it) + '" class="' + campo + '">' +
+      '<label class="' + lab + '">Motivo</label><select id="est-s-motivo" class="' + campo + ' bg-white"><option value="VENDIDO">🛒 Vendido (cliente)</option><option value="ASSISTÊNCIA">🛠️ Assistência / troca</option><option value="DEVOLUÇÃO FÁBRICA">🏭 Devolução p/ fábrica</option></select>' +
+      '<label class="' + lab + '">Cliente / destino</label><input id="est-s-cli" list="est-dl-cli" value="' + esc(cliente) + '" class="' + campo + ' uppercase">' +
+      '<label class="' + lab + '">Observação (opcional)</label><input id="est-s-obs" class="' + campo + ' uppercase">' +
+      '<div class="flex gap-2 mt-3"><button id="est-s-cancel" class="flex-1 bg-slate-100 py-2 rounded-lg text-[11px] font-black uppercase">Cancelar</button><button id="est-s-ok" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg text-[11px] font-black uppercase">Confirmar saída</button></div></div>';
+    m.style.display = 'flex';
+    const fechar = function () { m.style.display = 'none'; };
+    getEl('est-s-x').onclick = fechar; getEl('est-s-cancel').onclick = fechar;
+    getEl('est-s-ok').onclick = function () {
+      const alvo = estoque.find(function (x) { return x.uid == it.uid; }); if (!alvo) return fechar();
+      const q = parseInt(val('est-s-qtd'));
+      if (isNaN(q) || q < 1 || q > qtdDe(alvo)) return alert('Quantidade inválida!');
+      const motivo = val('est-s-motivo'), cli = val('est-s-cli').toUpperCase().trim(), obs = val('est-s-obs').toUpperCase().trim();
+      if (q >= qtdDe(alvo)) { alvo.situacao = motivo; alvo.cliente = cli; alvo.obsSaida = obs; alvo.dataSaida = hojeBR(); }
+      else {
+        alvo.qtd = qtdDe(alvo) - q;
+        estoque.unshift({ uid: Date.now() + Math.random(), data: alvo.data || hojeBR(), dataSaida: hojeBR(), produto: alvo.produto, fabrica: alvo.fabrica || '', qtd: q, situacao: motivo, obs: alvo.obs || '', cliente: cli, obsSaida: obs });
+      }
+      salvarColecao('estoque', estoque);
+      registrarAcao('📉', 'SAÍDA: ' + motivo, q + 'x ' + alvo.produto + (cli ? ' | ' + cli : ''));
+      fechar(); window.renderEstoque();
+    };
+  }
+
+  function voltarAoEstoque(it) {
+    if (!confirm('Devolver este item ao estoque?')) return;
+    it.situacao = 'ESTOQUE'; it.cliente = ''; it.obsSaida = ''; it.dataSaida = '';
+    const k = chave(it.produto, it.fabrica);
+    const ex = estoque.find(function (x) { return x !== it && sit(x) === 'ESTOQUE' && chave(x.produto, x.fabrica) === k; });
+    if (ex) { ex.qtd = qtdDe(ex) + qtdDe(it); estoque = estoque.filter(function (x) { return x !== it; }); }
+    salvarColecao('estoque', estoque);
+    registrarAcao('🔙', 'VOLTOU AO ESTOQUE', it.produto);
+    window.renderEstoque();
+  }
+
+  function editarInline(el) {
+    const uid = el.dataset.uid, campo = el.dataset.edit;
+    const it = estoque.find(function (x) { return x.uid == uid; }); if (!it) return;
+    const i = document.createElement('input');
+    i.value = it[campo] || '';
+    i.className = 'w-full border-2 border-blue-500 rounded p-1 text-xs font-bold uppercase outline-none';
+    el.replaceWith(i); i.focus(); i.select();
+    let feito = false;
+    const fim = function (salvar) {
+      if (feito) return; feito = true;
+      if (salvar) {
+        const v = i.value.toUpperCase().trim();
+        if (!(campo === 'produto' && !v)) { it[campo] = v; salvarColecao('estoque', estoque); }
+      }
+      window.renderEstoque();
+    };
+    i.onblur = function () { fim(true); };
+    i.onkeydown = function (e) { if (e.key === 'Enter') fim(true); if (e.key === 'Escape') fim(false); };
+  }
+
+  function copiarLista() {
+    const disp = estoque.filter(function (x) { return sit(x) === 'ESTOQUE'; });
+    if (!disp.length) return alert('Estoque vazio.');
+    const g = {};
+    disp.forEach(function (x) { const f = nomeFab(x); (g[f] = g[f] || []).push(x); });
+    let t = '📦 ESTOQUE MERCIER DESIGN - ' + hojeBR() + '\n';
+    Object.keys(g).sort(porNome).forEach(function (f) {
+      t += '\n*' + f + '*\n';
+      g[f].sort(function (a, b) { return porNome(a.produto, b.produto); }).forEach(function (x) {
+        t += qtdDe(x) + 'x ' + x.produto + (x.obs ? ' (' + x.obs + ')' : '') + '\n';
+      });
+    });
+    navigator.clipboard.writeText(t).then(function () { alert('✅ Lista copiada!'); }).catch(function () { alert('Não foi possível copiar.'); });
+  }
+
+  function onClickEstoque(e) {
+    const el = e.target.closest('[data-act],[data-edit]');
+    if (!el) return;
+    if (el.dataset.edit) return editarInline(el);
+    const a = el.dataset.act, uid = el.dataset.uid;
+    const it = uid ? estoque.find(function (x) { return x.uid == uid; }) : null;
+    if (a === 'visao') { E.visao = el.dataset.v; window.renderEstoque(); }
+    else if (a === 'grupo') { E.fechados[el.dataset.g] = !E.fechados[el.dataset.g]; renderLista(); }
+    else if (a === 'add') adicionarUnitario();
+    else if (a === 'massa') processarMassa();
+    else if (a === 'copiar') copiarLista();
+    else if (a === 'parados') { E.visao = 'ESTOQUE'; E.parados = true; window.renderEstoque(); }
+    else if (a === 'mais' && it) { it.qtd = qtdDe(it) + 1; salvarColecao('estoque', estoque); window.renderEstoque(); }
+    else if (a === 'menos' && it) { if (qtdDe(it) > 1) { it.qtd = qtdDe(it) - 1; salvarColecao('estoque', estoque); window.renderEstoque(); } else alert('Para retirar a última peça, use o botão "Saída".'); }
+    else if (a === 'saida' && it) abrirSaida(it, '');
+    else if (a === 'alerta' && it) abrirSaida(it, el.dataset.cli || '');
+    else if (a === 'voltar' && it) voltarAoEstoque(it);
+    else if (a === 'del' && it) {
+      if (confirm('EXCLUIR este registro?')) { estoque = estoque.filter(function (x) { return x.uid != it.uid; }); salvarColecao('estoque', estoque); window.renderEstoque(); }
+    }
+  }
+
+  window.renderEstoque = function () {
+    try {
+      if (!estRoot && !montarEstoque()) return;
+      atualizarSelects(); renderResumo(); renderAlertas(); renderLista();
+    } catch (err) { console.error('Erro no estoque:', err); }
+  };
+
+  // ===================================================================
+  // 4. ABA HOJE
+  // ===================================================================
+  function criarAbaHoje() {
+    if (getEl('view-hoje')) return true;
+    const nav = document.querySelector('nav');
+    const refBtn = nav ? nav.querySelector('button') : null;
+    const refMain = document.querySelector('main');
+    if (!refBtn || !refMain) return false;
+    const b = document.createElement('button');
+    b.id = 'tab-hoje'; b.innerHTML = '🏠 Hoje';
+    b.className = refBtn.className.replace(/\btab-active\b/g, '');
+    b.onclick = function () { switchTab('hoje'); };
+    refBtn.parentNode.insertBefore(b, refBtn);
+    const m = document.createElement('main');
+    m.id = 'view-hoje'; m.className = refMain.className; m.classList.add('hidden');
+    refMain.parentNode.insertBefore(m, refMain);
+    m.addEventListener('click', onClickHoje);
+    return true;
+  }
+
+  function secao(titulo, cor, n, corpo) {
+    return '<div class="card-premium p-4 flex flex-col gap-2"><div class="flex justify-between items-center"><h3 class="text-xs font-black uppercase ' + cor + '">' + titulo + '</h3><span class="bg-slate-100 text-slate-600 text-[10px] font-black px-2 py-0.5 rounded-full">' + n + '</span></div>' +
+      (corpo || '<div class="text-[10px] font-black uppercase text-slate-300 text-center py-4">Tudo em dia ✅</div>') + '</div>';
+  }
+  function linha(go, attrs, html, cor) {
+    return '<div data-go="' + go + '" ' + attrs + ' class="cursor-pointer rounded-xl border-2 ' + cor + ' p-2.5 transition hover:shadow-md">' + html + '</div>';
+  }
+  function maisTxt(arr, n) { return arr.length > n ? '<div class="text-[9px] font-black text-slate-400 uppercase text-center">+ ' + (arr.length - n) + ' outros</div>' : ''; }
+
+  function mdRenderHoje() {
+    const m = getEl('view-hoje'); if (!m) return;
+    const hoje = iso(new Date());
+    const ativos = ordenarPedidos(pedidos.filter(function (p) { return !p.finalizado && p.status !== 'Entregue/Finalizado'; }));
+    const hr = new Date().getHours();
+    const saud = hr < 12 ? 'Bom dia' : (hr < 18 ? 'Boa tarde' : 'Boa noite');
+    const quem = usuarioAtual ? ', ' + usuarioAtual.charAt(0) + usuarioAtual.slice(1).toLowerCase() : '';
+    const dataTxt = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+    // Pedidos não enviados
+    const grp = {};
+    ativos.filter(function (p) { return p.status === 'Não enviado'; }).forEach(function (p) { const k = p.cliente || '-'; (grp[k] = grp[k] || []).push(p); });
+    const clientes = Object.keys(grp);
+    const htmlNaoEnv = clientes.slice(0, 10).map(function (c) {
+      const tags = grp[c].map(function (p) { return '<span class="bg-white border border-red-300 text-red-700 text-[10px] font-black uppercase px-2 py-0.5 rounded-full">' + esc(p.qtd) + 'x ' + esc(p.produto) + '</span>'; }).join('');
+      const fabs = Array.from(new Set(grp[c].map(function (p) { return p.fornecedor; }).filter(Boolean))).join(' · ');
+      return linha('pedidos', 'data-q="' + esc(c) + '"', '<div class="text-sm font-black uppercase text-slate-900">' + esc(c) + '</div><div class="flex flex-wrap gap-1 mt-1">' + tags + '</div><div class="text-[9px] font-bold text-slate-400 uppercase mt-1">' + esc(fabs) + '</div>', 'border-red-100 bg-red-50 hover:border-red-400');
+    }).join('') + maisTxt(clientes, 10);
+
+    // Entregas e lembretes
+    const ent = entregas.filter(function (e) { return e.dataOrdem === hoje && e.status !== 'Entregue'; }).sort(function (a, b) { return (a.hora || '99').localeCompare(b.hora || '99'); });
+    const htmlEnt = ent.map(function (e) {
+      return linha('agenda', 'data-d="' + hoje + '"', '<div class="text-sm font-black uppercase text-slate-900">' + (e.hora ? '🕒 ' + esc(e.hora) + ' · ' : '') + esc(e.cliente) + '</div><div class="text-[10px] font-bold text-slate-500 uppercase">📍 ' + esc(e.endereco) + '</div>', 'border-emerald-100 bg-emerald-50 hover:border-emerald-400');
+    }).join('');
+    const lem = lembretes.filter(function (l) { return !l.concluido && l.dataOrdem && l.dataOrdem <= hoje; });
+    const htmlLem = lem.map(function (l) {
+      return linha('agenda', 'data-d="' + esc(l.dataOrdem) + '"', '<div class="text-xs font-black uppercase text-slate-800">🔔 ' + esc(l.titulo) + '</div>' + (l.dataOrdem < hoje ? '<div class="text-[9px] font-black text-red-600 uppercase">atrasado · ' + esc(l.dataOrdem.split('-').reverse().join('/')) + '</div>' : ''), 'border-amber-100 bg-amber-50 hover:border-amber-400');
+    }).join('');
+
+    // Tarefas da equipe
+    const pP = { AGORA: 1, IMEDIATO: 2, IMPORTANTE: 3, REGULAR: 4, TRANQUILO: 5, '': 6 };
+    const rot = { AGORA: '🚨 AGORA', IMEDIATO: '⚡ 1 DIA', IMPORTANTE: '⚠️ 2 DIAS', REGULAR: '📅 3 DIAS', TRANQUILO: '☕ + DIAS' };
+    const teq = tarefasEquipe.filter(function (t) { return t.coluna !== 'DONE' && (!usuarioAtual || t.responsavel === usuarioAtual); })
+      .sort(function (a, b) { return (pP[a.prazo || ''] || 6) - (pP[b.prazo || ''] || 6); });
+    const htmlEq = teq.slice(0, 8).map(function (t) {
+      const nc = safeArray(t.comentarios).length;
+      return linha('equipe', 'data-uid="' + t.uid + '"', '<div class="flex flex-wrap items-center gap-1 mb-1"><span class="' + corAutor(t.responsavel) + ' px-2 py-0.5 rounded text-[8px] font-black uppercase">' + esc(t.responsavel) + '</span>' + (rot[t.prazo] ? '<span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[8px] font-black">' + rot[t.prazo] + '</span>' : '') + (nc ? '<span class="text-[9px] font-black text-indigo-600">💬 ' + nc + '</span>' : '') + '</div><div class="text-xs font-black uppercase text-slate-800">' + esc(t.descricao) + '</div>', 'border-slate-100 bg-slate-50 hover:border-blue-400');
+    }).join('') + maisTxt(teq, 8);
+
+    // Tarefas / vendas em aberto
+    const tar = tarefas.filter(function (t) { return t.status !== 'Feito'; });
+    const htmlTar = tar.slice(0, 8).map(function (t) {
+      const nc = safeArray(t.comentarios).length;
+      return linha('tarefas', 'data-uid="' + t.uid + '"', '<div class="text-xs font-black uppercase text-slate-800">' + esc(t.descricao) + (nc ? ' <span class="text-[9px] text-indigo-600">💬 ' + nc + '</span>' : '') + '</div><div class="text-[9px] font-bold text-slate-400 uppercase">' + esc(t.tipo) + ' · ' + esc(t.status) + '</div>', 'border-slate-100 bg-slate-50 hover:border-indigo-400');
+    }).join('') + maisTxt(tar, 8);
+
+    // Prazos
+    const pr = {};
+    ativos.forEach(function (p) {
+      if (!p.dataPedido) return;
+      const d = calcP(p.dataPedido, p.prazo).dias;
+      if (d <= 5) { const k = p.idDoc || p.uid; if (!pr[k]) pr[k] = { cliente: p.cliente, dias: d, itens: [] }; pr[k].itens.push(p.qtd + 'x ' + p.produto); }
+    });
+    const prazos = Object.values(pr).sort(function (a, b) { return a.dias - b.dias; });
+    const htmlPr = prazos.slice(0, 8).map(function (p) {
+      const venc = p.dias < 0;
+      return linha('pedidos', 'data-q="' + esc(p.cliente) + '"', '<div class="flex justify-between items-center gap-2"><span class="text-sm font-black uppercase text-slate-900">' + esc(p.cliente) + '</span><span class="px-2 py-0.5 rounded text-[9px] font-black ' + (venc ? 'bg-red-600 text-white' : 'bg-orange-100 text-orange-700') + '">' + (venc ? Math.abs(p.dias) + 'd atrasado' : p.dias + 'd') + '</span></div><div class="text-[10px] font-bold text-slate-500 uppercase">' + esc(p.itens.join(' · ')) + '</div>', venc ? 'border-red-200 bg-red-50 hover:border-red-500' : 'border-orange-100 bg-orange-50 hover:border-orange-400');
+    }).join('') + maisTxt(prazos, 8);
+
+    // Assistências
+    const ass = assistencias.filter(function (a) { return (a.status || 'Aguardando') !== 'Concluído'; });
+    const htmlAs = ass.slice(0, 8).map(function (a) {
+      return linha('assist', 'data-q="' + esc(a.cliente) + '"', '<div class="text-sm font-black uppercase text-slate-900">' + esc(a.cliente) + '</div><div class="text-[10px] font-bold text-slate-500 uppercase">' + esc(a.produto) + ' · ' + esc(a.status || 'Aguardando') + '</div>', 'border-purple-100 bg-purple-50 hover:border-purple-400');
+    }).join('') + maisTxt(ass, 8);
+
+    m.innerHTML =
+      '<div class="w-full max-w-7xl mx-auto p-3 md:p-6 flex flex-col gap-4">' +
+      '<div><h2 class="text-2xl font-black text-slate-800">' + saud + quem + '! 👋</h2><div class="text-xs font-bold text-slate-400 uppercase">' + esc(dataTxt) + '</div></div>' +
+      '<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">' +
+      secao('<span data-go="pedidos" data-nao="1" data-q="" class="cursor-pointer hover:underline">📧 Pedidos não enviados à fábrica →</span>', 'text-red-600', clientes.length, htmlNaoEnv) +
+      secao('⏰ Prazos de pedidos (5 dias ou menos)', 'text-orange-600', prazos.length, htmlPr) +
+      secao('🚚 Entregas de hoje', 'text-emerald-600', ent.length, htmlEnt) +
+      secao('🔔 Lembretes de hoje e atrasados', 'text-amber-600', lem.length, htmlLem) +
+      secao(usuarioAtual ? '👤 Minhas tarefas (equipe)' : '👥 Tarefas da equipe', 'text-blue-600', teq.length, htmlEq) +
+      secao('📝 Tarefas e vendas em aberto', 'text-indigo-600', tar.length, htmlTar) +
+      secao('🛠️ Assistências abertas', 'text-purple-600', ass.length, htmlAs) +
+      '</div></div>';
+  }
+
+  function onClickHoje(e) {
+    const el = e.target.closest('[data-go]'); if (!el) return;
+    const go = el.dataset.go;
+    if (go === 'pedidos') {
+      irAba('Pedidos');
+      try { mudarVisaoPedidos('ATIVOS'); } catch (x) {}
+      const b = getEl('busca'); if (b) b.value = el.dataset.q || '';
+      const quer = el.dataset.nao === '1';
+      if (!!filtrandoNaoEnviados !== quer) toggleFiltroNaoEnviado(); else renderPedidos();
+    } else if (go === 'equipe') {
+      irAba('Equipe');
+      setTimeout(function () {
+        const c = getEl('card-' + el.dataset.uid);
+        if (c) {
+          c.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          c.classList.add('ring-4', 'ring-blue-400');
+          setTimeout(function () { c.classList.remove('ring-4', 'ring-blue-400'); }, 2500);
+        }
+      }, 150);
+    } else if (go === 'agenda') {
+      irAba('Agenda');
+      const p = el.dataset.d.split('-');
+      dataSelecionadaLogistica = el.dataset.d;
+      dataAtualCalendario = new Date(p[0], p[1] - 1, 1);
+      processarEventosCalendario();
+    } else if (go === 'tarefas') {
+      irAba('Tarefas');
+      window.verDetalhesTarefa(el.dataset.uid);
+    } else if (go === 'assist') {
+      irAba('Assist');
+      const b = getEl('busca-assistencia'); if (b) { b.value = el.dataset.q || ''; renderAssistencias(); }
+    }
+  }
+
+  const _switchTab = window.switchTab;
+  window.switchTab = function (t) { _switchTab(t); if (t === 'hoje') { try { mdRenderHoje(); } catch (e) { console.error(e); } } };
+
+  const _setUsuario = window.setUsuario;
+  window.setUsuario = function (n) { _setUsuario(n); try { mdRenderHoje(); } catch (e) {} };
+
+  const _renderAll = window.renderAll;
+  window.renderAll = function () {
+    _renderAll();
+    try { mdRenderHoje(); } catch (e) { console.error('Erro na aba Hoje:', e); }
+  };
+
+  boot(function () {
+    try { if (criarAbaHoje()) { mdRenderHoje(); switchTab('hoje'); } } catch (e) { console.error(e); }
+    try { window.renderEstoque(); } catch (e) { console.error(e); }
+  });
+})();
