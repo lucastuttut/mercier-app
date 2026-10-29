@@ -63,3 +63,4 @@ tbody tr:hover {
 .linha-clicavel { cursor: pointer; transition: all 0.15s ease-in-out; }
 .linha-clicavel:hover { background-color: #dbeafe !important; box-shadow: inset 4px 0 0 #3b82f6; }
 .linha-clicavel:active { transform: scale(0.99); }
+
