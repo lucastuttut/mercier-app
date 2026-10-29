@@ -1920,5 +1920,36 @@ else iniciarAbaHoje();
   boot(function () {
     try { if (criarAbaHoje()) { mdRenderHoje(); switchTab('hoje'); } } catch (e) { console.error(e); }
     try { window.renderEstoque(); } catch (e) { console.error(e); }
+      // =====================================================================
+// CORREÇÃO: clique nas tarefas da aba Hoje — cole no FINAL do app.js
+// =====================================================================
+(function () {
+  function irParaTarefas() {
+    if (getEl('view-tarefas')) { switchTab('tarefas'); return; }
+    const b = Array.from(document.querySelectorAll('nav button')).find(function (x) {
+      return noAcc(x.textContent.toLowerCase()).includes('tarefas');
+    });
+    if (b) b.click();
+  }
+
+  document.addEventListener('click', function (e) {
+    const el = e.target.closest('#view-hoje [data-go="tarefas"]');
+    if (!el) return;
+    e.stopPropagation();
+
+    el.classList.add('ring-4', 'ring-indigo-400');
+    setTimeout(function () { el.classList.remove('ring-4', 'ring-indigo-400'); }, 1500);
+
+    const uid = el.dataset.uid;
+    const modal = getEl('modal-detalhes');
+    if (modal && modal.parentElement !== document.body) document.body.appendChild(modal);
+
+    irParaTarefas();
+    setTimeout(function () {
+      try { window.verDetalhesTarefa(uid); }
+      catch (err) { console.error(err); alert('Erro ao abrir a tarefa: ' + err.message); }
+    }, 60);
+  }, true);
+})();
   });
 })();
