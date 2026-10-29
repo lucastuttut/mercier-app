@@ -1839,7 +1839,7 @@ function hojeDiasDesde(dataBR) {
     return Math.max(0, Math.floor((new Date() - d) / 86400000));
 }
 
-function function hojeBotao(txt, acao, cor) {
+function hojeBotao(txt, acao, cor) {
     return `<button onclick="event.stopPropagation(); ${acao}" class="${cor || 'bg-slate-800 text-white'} px-2 py-1 rounded text-[9px] font-black uppercase whitespace-nowrap">${txt}</button>`;
 }
 
@@ -1999,6 +1999,7 @@ function renderHoje() {
     add('📧', 'Pedidos não enviados à fábrica', 'bg-orange-100 text-orange-700', listaFab.length, htmlFab);
 
     // 5. Minhas tarefas
+       // 5. Minhas tarefas
     let aviso = '';
     if (!usuarioAtual) {
         aviso = `<div class="bg-blue-50 border border-blue-200 rounded-2xl p-3 text-[11px] font-black uppercase text-blue-700">👤 Selecione quem você é no topo da tela para ver suas tarefas aqui.</div>`;
@@ -2008,13 +2009,16 @@ function renderHoje() {
         const minhas = tarefasEquipe.filter(function(t) { return t.responsavel === usuarioAtual && t.coluna !== 'DONE'; })
             .sort(function(a, b) { return (pP[a.prazo || ""] || 6) - (pP[b.prazo || ""] || 6); });
         const htmlT = minhas.map(function(t) {
-            const bt = t.coluna === 'DOING' ? hojeBotao('✅ Concluir', "hojeMoverTarefa(" + t.uid + ",'DONE')", 'bg-emerald-600 text-white') : hojeBotao('▶ Iniciar', "hojeMoverTarefa(" + t.uid + ",'DOING')", 'bg-blue-600 text-white');
+            const bt = t.coluna === 'DOING'
+                ? hojeBotao('✅ Concluir', "hojeMoverTarefa(" + t.uid + ",'DONE')", 'bg-emerald-600 text-white')
+                : hojeBotao('▶ Iniciar', "hojeMoverTarefa(" + t.uid + ",'DOING')", 'bg-blue-600 text-white');
             return linhaHoje(
-    esc(t.descricao),
-    t.coluna === 'DOING' ? 'Em andamento' : 'A fazer',
-    hojeDireita(rotPrazo[t.prazo] ? etiquetaHoje(rotPrazo[t.prazo], 'bg-slate-200 text-slate-700') : '', bt),
-    'irParaTarefa(' + t.uid + ')'
-);
+                esc(t.descricao),
+                t.coluna === 'DOING' ? 'Em andamento' : 'A fazer',
+                hojeDireita(rotPrazo[t.prazo] ? etiquetaHoje(rotPrazo[t.prazo], 'bg-slate-200 text-slate-700') : '', bt),
+                'irParaTarefa(' + t.uid + ')'
+            );
+        }).join('');
         add('👤', 'Minhas tarefas', 'bg-blue-100 text-blue-700', minhas.length, htmlT);
     }
 
