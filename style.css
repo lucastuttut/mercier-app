@@ -60,3 +60,6 @@ tbody tr:hover {
     box-shadow: inset 6px 0 0 #1d4ed8;
 }
 .linha-clicavel:active { background-color: #bfdbfe !important; }
+
+.linha-clicavel { cursor: pointer; transition: all 0.15s ease-in-out; }
+.linha-clicavel:hover { background-color: #dbeafe !important; box-shadow: inset 4px 0 0 #3b82f6; }
