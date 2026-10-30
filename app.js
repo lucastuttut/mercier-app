@@ -2321,3 +2321,288 @@ function renderHoje() {}
 })();
   setTimeout(function () { try { window.renderEstoque(); } catch (e) {} }, 800);
 })();
+
+// =====================================================================
+// NOVIDADE: vincular produto do estoque a cliente + sugestão de entrega
+// Cole TUDO isto no FINAL do app.js (depois da última linha)
+// =====================================================================
+(function () {
+
+  function sa(s) {
+    return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+  }
+
+  function isoLocal(d) {
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var dia = String(d.getDate()).padStart(2, '0');
+    return d.getFullYear() + '-' + m + '-' + dia;
+  }
+
+  function dataBR(iso) {
+    var p = String(iso || '').split('-');
+    return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : '-';
+  }
+
+  // ---------------------------------------------------------------
+  // Clientes já cadastrados (lidos das coleções que existirem no sistema)
+  // ---------------------------------------------------------------
+  function fontes() {
+    var f = [];
+    if (typeof clientes !== 'undefined' && Array.isArray(clientes)) f.push(clientes);
+    if (typeof pedidos !== 'undefined' && Array.isArray(pedidos)) f.push(pedidos);
+    if (typeof entregas !== 'undefined' && Array.isArray(entregas)) f.push(entregas);
+    if (typeof vendas !== 'undefined' && Array.isArray(vendas)) f.push(vendas);
+    if (typeof tarefas !== 'undefined' && Array.isArray(tarefas)) f.push(tarefas);
+    return f;
+  }
+
+  function mapaClientes() {
+    var mapa = {};
+    fontes().forEach(function (lista) {
+      lista.forEach(function (r) {
+        if (!r) return;
+        var nome = typeof r === 'string' ? r : (r.cliente || r.nome || r.nomeCliente || '');
+        var k = sa(nome);
+        if (!k) return;
+        var c = mapa[k] || (mapa[k] = { nome: k, contato: '', endereco: '' });
+        if (typeof r !== 'string') {
+          if (!c.contato) c.contato = r.contato || r.telefone || r.whatsapp || r.fone || '';
+          if (!c.endereco) c.endereco = r.endereco || '';
+        }
+      });
+    });
+    return mapa;
+  }
+
+  // ---------------------------------------------------------------
+  // Entrega já agendada para este item?
+  // ---------------------------------------------------------------
+  function achaEntrega(it) {
+    if (typeof entregas === 'undefined' || !Array.isArray(entregas)) return null;
+    var porId = entregas.find(function (e) { return it.entregaUid && e.uid == it.entregaUid; });
+    if (porId) return porId;
+    var cli = sa(it.vinculoCliente), prod = sa(it.produto);
+    return entregas.find(function (e) {
+      return sa(e.cliente) === cli && sa(e.produtos).indexOf(prod) >= 0;
+    }) || null;
+  }
+
+  // ---------------------------------------------------------------
+  // Painel no topo da aba Estoque
+  // ---------------------------------------------------------------
+  function montarPainel() {
+    var box = getEl('painel-vinculo');
+    if (box) return box;
+    var v = getEl('view-estoque');
+    if (!v) return null;
+
+    box = document.createElement('div');
+    box.id = 'painel-vinculo';
+    box.className = 'mb-4 bg-teal-50 border-2 border-teal-300 rounded-2xl p-4';
+    box.innerHTML =
+      '<div class="text-[11px] font-black uppercase text-teal-800 mb-2">🔗 Vincular produto a cliente</div>' +
+      '<div class="flex flex-wrap gap-2 items-center">' +
+        '<select id="vinc-prod" class="flex-1 min-w-[220px] border p-2 rounded-lg text-[11px] font-black uppercase bg-white outline-teal-500"></select>' +
+        '<input id="vinc-qtd" type="number" min="1" value="1" title="Quantidade" class="w-16 border p-2 rounded-lg text-[11px] font-black text-center outline-teal-500">' +
+        '<input id="vinc-cli" list="vinc-clientes" placeholder="Nome do cliente..." class="flex-1 min-w-[200px] border p-2 rounded-lg text-[11px] font-bold uppercase outline-teal-500">' +
+        '<datalist id="vinc-clientes"></datalist>' +
+        '<button data-vinc="ok" class="bg-teal-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-teal-700">Vincular</button>' +
+      '</div>' +
+      '<div id="vinc-lista" class="mt-3"></div>';
+    v.insertBefore(box, v.firstChild);
+
+    box.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-vinc]');
+      if (!b) return;
+      var a = b.dataset.vinc;
+      if (a === 'ok') vincular();
+      if (a === 'ag') abrirAgendar(b.dataset.uid);
+      if (a === 'des') desvincular(b.dataset.uid);
+    });
+    return box;
+  }
+
+  function atualizarPainel() {
+    if (!montarPainel()) return;
+
+    // Produtos disponíveis para vincular
+    var sel = getEl('vinc-prod');
+    var atual = sel.value;
+    var livres = estoque.filter(function (x) {
+      return (x.situacao || 'ESTOQUE') === 'ESTOQUE' && !x.vinculoCliente && (parseInt(x.qtd) || 0) > 0;
+    });
+    sel.innerHTML = '<option value="">Escolha o produto em estoque...</option>' + livres.map(function (x) {
+      return '<option value="' + x.uid + '">' + esc(x.produto) + ' — ' + esc(x.fabrica || '-') + ' (' + esc(x.qtd) + ' em estoque)</option>';
+    }).join('');
+    if (atual) sel.value = atual;
+
+    // Sugestões de clientes
+    var mc = mapaClientes();
+    getEl('vinc-clientes').innerHTML = Object.keys(mc).sort().map(function (k) {
+      return '<option value="' + esc(mc[k].nome) + '"></option>';
+    }).join('');
+
+    // Lista de vinculados
+    var vinc = estoque.filter(function (x) {
+      return (x.situacao || 'ESTOQUE') === 'ESTOQUE' && x.vinculoCliente;
+    });
+    vinc.sort(function (a, b) { return (achaEntrega(a) ? 1 : 0) - (achaEntrega(b) ? 1 : 0); });
+
+    var h = '';
+    if (vinc.length) {
+      var pend = vinc.filter(function (x) { return !achaEntrega(x); }).length;
+      h += '<div class="text-[10px] font-black uppercase text-teal-700 mb-1">' + vinc.length + ' produto(s) vinculado(s)' +
+        (pend ? ' · <span class="text-amber-600">' + pend + ' sem entrega agendada</span>' : '') + '</div>';
+    }
+    vinc.forEach(function (x) {
+      var ent = achaEntrega(x);
+      h += '<div class="flex flex-wrap items-center gap-2 bg-white border ' + (ent ? 'border-green-200' : 'border-amber-300') + ' rounded-xl p-2 mb-1">' +
+        '<span class="flex-1 min-w-[180px] text-[11px] font-black uppercase text-slate-800">' + esc(x.qtd) + 'x ' + esc(x.produto) + '</span>' +
+        '<span class="text-[11px] font-black uppercase text-teal-700">→ ' + esc(x.vinculoCliente) + '</span>' +
+        (x.vinculoNovo ? '<span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-black uppercase">não cadastrado</span>' : '') +
+        (ent
+          ? '<span class="bg-green-50 text-green-700 px-2 py-1 rounded-lg text-[9px] font-black uppercase">📅 Entrega ' + esc(dataBR(ent.dataOrdem)) + (ent.hora ? ' às ' + esc(ent.hora) : '') + '</span>'
+          : '<span class="text-[10px] font-bold text-amber-700">💡 Agendar a entrega?</span>' +
+            '<button data-vinc="ag" data-uid="' + x.uid + '" class="bg-amber-500 text-white px-3 py-1 rounded-lg text-[9px] font-black uppercase hover:bg-amber-600">🚚 Agendar entrega</button>') +
+        '<button data-vinc="des" data-uid="' + x.uid + '" class="text-slate-300 hover:text-red-500 font-black px-2" title="Desvincular">✕</button>' +
+        '</div>';
+    });
+    getEl('vinc-lista').innerHTML = h;
+  }
+
+  // ---------------------------------------------------------------
+  // Vincular / desvincular
+  // ---------------------------------------------------------------
+  function vincular() {
+    var uid = getEl('vinc-prod').value;
+    var nome = getEl('vinc-cli').value.trim().toUpperCase();
+    var q = parseInt(getEl('vinc-qtd').value) || 0;
+    if (!uid) return alert('Escolha o produto.');
+    if (!nome) return alert('Digite o nome do cliente.');
+    var it = estoque.find(function (x) { return x.uid == uid; });
+    if (!it) return;
+    var disp = parseInt(it.qtd) || 0;
+    if (q < 1 || q > disp) return alert('Quantidade inválida. Em estoque: ' + disp + '.');
+
+    var cadastrado = !!mapaClientes()[sa(nome)];
+    if (!cadastrado && !confirm('"' + nome + '" não está nos clientes cadastrados.\n\nVincular mesmo assim?')) return;
+
+    var alvo = it;
+    if (q < disp) {
+      // vincula só parte das peças: separa em outro registro
+      it.qtd = disp - q;
+      alvo = Object.assign({}, it, { uid: Date.now() + Math.random(), qtd: q });
+      delete alvo.entregaUid;
+      estoque.splice(estoque.indexOf(it) + 1, 0, alvo);
+    }
+    alvo.vinculoCliente = nome;
+    alvo.vinculoNovo = !cadastrado;
+    salvarColecao('estoque', estoque);
+    if (typeof registrarAcao === 'function') registrarAcao('🔗', 'VINCULOU PRODUTO', q + 'x ' + alvo.produto + ' | ' + nome);
+
+    getEl('vinc-cli').value = '';
+    getEl('vinc-qtd').value = 1;
+    getEl('vinc-prod').value = '';
+    atualizarPainel();
+
+    if (confirm('Produto vinculado a ' + nome + '.\n\nDeseja agendar a entrega agora?')) abrirAgendar(alvo.uid);
+  }
+
+  function desvincular(uid) {
+    var it = estoque.find(function (x) { return x.uid == uid; });
+    if (!it || !confirm('Desvincular "' + it.produto + '" de ' + it.vinculoCliente + '?')) return;
+    delete it.vinculoCliente;
+    delete it.vinculoNovo;
+    delete it.entregaUid;
+    salvarColecao('estoque', estoque);
+    atualizarPainel();
+  }
+
+  // ---------------------------------------------------------------
+  // Janela de agendamento de entrega (já preenchida)
+  // ---------------------------------------------------------------
+  function abrirAgendar(uid) {
+    var it = estoque.find(function (x) { return x.uid == uid; });
+    if (!it) return;
+    var c = mapaClientes()[sa(it.vinculoCliente)] || {};
+    var amanha = new Date(Date.now() + 86400000);
+
+    var m = getEl('vinc-modal');
+    if (m) m.remove();
+    m = document.createElement('div');
+    m.id = 'vinc-modal';
+    m.dataset.uid = uid;
+    m.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[310] p-4';
+    var campo = 'w-full border p-2 rounded-lg text-xs font-bold outline-teal-500';
+    m.innerHTML =
+      '<div class="bg-white rounded-2xl p-5 w-full max-w-md shadow-xl">' +
+        '<div class="text-sm font-black uppercase text-teal-800 mb-3">🚚 Agendar entrega</div>' +
+        '<div class="grid grid-cols-2 gap-2 mb-2">' +
+          '<label class="text-[10px] font-black uppercase text-slate-500">Data<input id="vm-data" type="date" class="' + campo + '" value="' + isoLocal(amanha) + '"></label>' +
+          '<label class="text-[10px] font-black uppercase text-slate-500">Horário<input id="vm-hora" type="time" class="' + campo + '"></label>' +
+        '</div>' +
+        '<label class="block text-[10px] font-black uppercase text-slate-500 mb-2">Cliente<input id="vm-cli" class="' + campo + ' uppercase" value="' + esc(it.vinculoCliente) + '"></label>' +
+        '<label class="block text-[10px] font-black uppercase text-slate-500 mb-2">Contato<input id="vm-contato" class="' + campo + '" value="' + esc(c.contato || '') + '"></label>' +
+        '<label class="block text-[10px] font-black uppercase text-slate-500 mb-2">Endereço<input id="vm-end" class="' + campo + ' uppercase" value="' + esc(c.endereco || '') + '"></label>' +
+        '<label class="block text-[10px] font-black uppercase text-slate-500 mb-3">Produtos<textarea id="vm-prod" rows="2" class="' + campo + ' uppercase">' + esc(it.qtd + 'x ' + it.produto) + '</textarea></label>' +
+        '<div class="flex gap-2">' +
+          '<button data-vm="ok" class="flex-1 bg-teal-600 text-white py-2 rounded-xl text-[11px] font-black uppercase hover:bg-teal-700">Agendar</button>' +
+          '<button data-vm="cancel" class="flex-1 bg-slate-200 text-slate-600 py-2 rounded-xl text-[11px] font-black uppercase hover:bg-slate-300">Agora não</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(m);
+
+    m.addEventListener('click', function (e) {
+      if (e.target === m) return m.remove();
+      var b = e.target.closest('[data-vm]');
+      if (!b) return;
+      if (b.dataset.vm === 'cancel') return m.remove();
+      salvarEntrega(m);
+    });
+  }
+
+  function salvarEntrega(m) {
+    var it = estoque.find(function (x) { return x.uid == m.dataset.uid; });
+    if (!it) return m.remove();
+    var data = getEl('vm-data').value;
+    if (!data) return alert('Escolha a data da entrega.');
+
+    var ent = {
+      uid: Date.now() + Math.random(),
+      dataOrdem: data,
+      hora: getEl('vm-hora').value,
+      cliente: getEl('vm-cli').value.trim().toUpperCase(),
+      contato: getEl('vm-contato').value.trim(),
+      endereco: getEl('vm-end').value.trim().toUpperCase(),
+      produtos: getEl('vm-prod').value.trim().toUpperCase()
+    };
+    entregas.unshift(ent);
+    salvarColecao('entregas', entregas);
+    it.entregaUid = ent.uid;
+    salvarColecao('estoque', estoque);
+    if (typeof registrarAcao === 'function') registrarAcao('🚚', 'AGENDOU ENTREGA', ent.cliente + ' | ' + dataBR(data));
+    m.remove();
+    atualizarPainel();
+    try { if (typeof window.renderPainelDia === 'function') window.renderPainelDia(); } catch (e) {}
+  }
+
+  // ---------------------------------------------------------------
+  // Ganchos: redesenha o painel sempre que o estoque ou o dia mudam
+  // ---------------------------------------------------------------
+  var _renderEstoque = window.renderEstoque;
+  window.renderEstoque = function () {
+    if (typeof _renderEstoque === 'function') _renderEstoque.apply(this, arguments);
+    try { atualizarPainel(); } catch (e) { console.error(e); }
+  };
+
+  var _renderPainelDia = window.renderPainelDia;
+  if (typeof _renderPainelDia === 'function') {
+    window.renderPainelDia = function () {
+      _renderPainelDia.apply(this, arguments);
+      try { atualizarPainel(); } catch (e) {}
+    };
+  }
+
+  try { atualizarPainel(); } catch (e) {}
+  setTimeout(function () { try { atualizarPainel(); } catch (e) {} }, 800);
+})();
